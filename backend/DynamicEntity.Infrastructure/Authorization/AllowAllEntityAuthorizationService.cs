@@ -8,4 +8,8 @@ public sealed class AllowAllEntityAuthorizationService : IEntityAuthorizationSer
     public Task<bool> CanReadAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
     public Task<bool> CanWriteAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
     public Task<bool> CanManageSchemaAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<bool> CanReadAnalyticsAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<bool> CanManageAnalyticsAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<bool> CanManageAlertsAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<bool> CanViewAlertHistoryAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text;
 using DynamicEntity.Api.Errors;
 using DynamicEntity.Api.Tenancy;
 using DynamicEntity.Api.Records;
@@ -11,6 +12,14 @@ using DynamicEntity.Application.Imports;
 using DynamicEntity.Application.Storage;
 using DynamicEntity.Application.Tenants;
 using DynamicEntity.Application.Views;
+using DynamicEntity.Application.Analytics;
+using DynamicEntity.Application.Reports;
+using DynamicEntity.Application.Metrics;
+using DynamicEntity.Application.Alerts;
+using DynamicEntity.Contracts.Analytics;
+using DynamicEntity.Contracts.Reports;
+using DynamicEntity.Contracts.Metrics;
+using DynamicEntity.Contracts.Alerts;
 using DynamicEntity.Contracts.Entities;
 using DynamicEntity.Contracts.Fields;
 using DynamicEntity.Contracts.Records;
@@ -24,6 +33,10 @@ using DynamicEntity.Domain.Tenants;
 using DynamicEntity.Domain.Validation;
 using DynamicEntity.Domain.Views;
 using DynamicEntity.SqlServer;
+using DynamicEntity.SqlServer.Migrations;
+using DynamicEntity.SqlServer.Analytics;
+using DynamicEntity.Domain.Analytics;
+using DynamicEntity.Domain.Queries;
 using DynamicEntity.Infrastructure.Imports;
 using DynamicEntity.Infrastructure.Authorization;
 using OpenTelemetry.Metrics;
@@ -43,6 +56,8 @@ builder.Services.AddSingleton<SqlServerControlPlaneStore>();
 builder.Services.AddSingleton<IControlPlaneStore>(services => services.GetRequiredService<SqlServerControlPlaneStore>());
 builder.Services.AddSingleton<IControlPlaneInitializer>(services => services.GetRequiredService<SqlServerControlPlaneStore>());
 builder.Services.AddSingleton<ITenantDatabaseProvisioner, SqlServerTenantDatabaseProvisioner>();
+builder.Services.AddSingleton<ITenantDatabaseMigrator, SqlServerTenantDatabaseMigrator>();
+builder.Services.AddHostedService<TenantDatabaseMigrationHostedService>();
 builder.Services.AddSingleton<IEntityMetadataStore, SqlServerEntityMetadataStore>();
 builder.Services.AddSingleton<IFieldMetadataStore, SqlServerFieldMetadataStore>();
 builder.Services.AddSingleton<IEntityStorageResolver, EntityStorageResolver>();
@@ -51,6 +66,12 @@ builder.Services.AddSingleton<IRecordConstraintValidator, SqlServerRecordConstra
 builder.Services.AddSingleton<IFacetStore, SqlServerFacetStore>();
 builder.Services.AddSingleton<IEntityIndexManager, SqlServerEntityIndexManager>();
 builder.Services.AddSingleton<IViewStore, SqlServerViewStore>();
+builder.Services.AddSingleton<IAnalyticsStore, SqlAnalyticsStore>();
+builder.Services.AddSingleton<IReportStore, SqlReportStore>();
+builder.Services.AddSingleton<IMetricStore, SqlMetricStore>();
+builder.Services.AddSingleton<IAlertStore, SqlAlertStore>();
+builder.Services.AddSingleton<IAlertEvaluationStore, SqlAlertEvaluationStore>();
+builder.Services.AddSingleton<IAlertNotificationStore, SqlAlertNotificationStore>();
 builder.Services.AddSingleton<IImportStore, SqlServerImportStore>();
 builder.Services.AddSingleton<IBulkRecordStore, SqlServerBulkRecordStore>();
 builder.Services.AddSingleton<IRecordMergeStore, SqlServerRecordMergeStore>();
@@ -58,6 +79,10 @@ builder.Services.AddSingleton<ITabularFileParser, TabularFileParser>();
 builder.Services.AddSingleton<IEntityAuthorizationService, AllowAllEntityAuthorizationService>();
 builder.Services.AddSingleton(new RecordValidationOptions(AllowUnknownFields: false));
 builder.Services.AddSingleton<IRecordValidator, RecordValidator>();
+builder.Services.AddSingleton(new AnalyticsValidationOptions());
+builder.Services.AddSingleton<AnalyticsQueryValidator>();
+builder.Services.AddSingleton<AlertThresholdEvaluator>();
+builder.Services.AddSingleton<IAlertNotifier, InAppAlertNotifier>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<TenantService>();
 builder.Services.AddScoped<EntityService>();
@@ -70,6 +95,12 @@ builder.Services.AddScoped<ImportService>();
 builder.Services.AddScoped<BulkRecordService>();
 builder.Services.AddScoped<MergeService>();
 builder.Services.AddScoped<RecordExportService>();
+builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<MetricService>();
+builder.Services.AddScoped<AlertService>();
+builder.Services.AddScoped<AlertEvaluationWorker>();
+builder.Services.AddHostedService<AlertSchedulerHostedService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContextAccessor, HttpTenantContextAccessor>();
 builder.Services.AddProblemDetails();
@@ -77,7 +108,7 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing.AddAspNetCoreInstrumentation().AddSqlClientInstrumentation())
+    .WithTracing(tracing => tracing.AddSource(AnalyticsTelemetry.SourceName).AddAspNetCoreInstrumentation().AddSqlClientInstrumentation())
     .WithMetrics(metrics => metrics.AddAspNetCoreInstrumentation());
 
 var app = builder.Build();
@@ -108,11 +139,24 @@ entities.AddEndpointFilter(async (context, next) =>
     var path = http.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
     var schemaOperation = entityId == Guid.Empty || path.Contains("/fields", StringComparison.OrdinalIgnoreCase) ||
         path.EndsWith(entityId.ToString("D"), StringComparison.OrdinalIgnoreCase);
-    var allowed = http.Request.Method == HttpMethods.Get
-        ? await authorization.CanReadAsync(tenant, entityId, http.RequestAborted)
-        : schemaOperation
-            ? await authorization.CanManageSchemaAsync(tenant, entityId, http.RequestAborted)
-            : await authorization.CanWriteAsync(tenant, entityId, http.RequestAborted);
+    var isAlert = path.Contains("/alerts", StringComparison.OrdinalIgnoreCase);
+    var isAnalytics = path.Contains("/analytics", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/reports", StringComparison.OrdinalIgnoreCase) || path.Contains("/metrics", StringComparison.OrdinalIgnoreCase);
+    var allowed = isAlert
+        ? http.Request.Method == HttpMethods.Get && path.EndsWith("/history", StringComparison.OrdinalIgnoreCase)
+            ? await authorization.CanViewAlertHistoryAsync(tenant, entityId, http.RequestAborted)
+            : http.Request.Method == HttpMethods.Get
+                ? await authorization.CanReadAnalyticsAsync(tenant, entityId, http.RequestAborted)
+                : await authorization.CanManageAlertsAsync(tenant, entityId, http.RequestAborted)
+        : isAnalytics
+            ? http.Request.Method == HttpMethods.Get
+                ? await authorization.CanReadAnalyticsAsync(tenant, entityId, http.RequestAborted)
+                : await authorization.CanManageAnalyticsAsync(tenant, entityId, http.RequestAborted)
+            : http.Request.Method == HttpMethods.Get
+                ? await authorization.CanReadAsync(tenant, entityId, http.RequestAborted)
+                : schemaOperation
+                    ? await authorization.CanManageSchemaAsync(tenant, entityId, http.RequestAborted)
+                    : await authorization.CanWriteAsync(tenant, entityId, http.RequestAborted);
     return allowed ? await next(context) : Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Access denied.");
 });
 
@@ -215,6 +259,182 @@ entities.MapDelete("/{entityId:guid}/fields/{fieldId:guid}", async (
     var tenant = tenantAccessor.GetRequiredTenant();
     await service.DeactivateAsync(tenant.TenantId, entityId, fieldId, cancellationToken);
     return Results.NoContent();
+});
+
+entities.MapPost("/{entityId:guid}/analytics/preview", async (Guid entityId, AnalyticsPreviewRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, AnalyticsService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    return Results.Ok(ToAnalyticsResponse(await service.ExecuteAsync(
+        tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields), token)));
+});
+
+entities.MapGet("/{entityId:guid}/reports", async (Guid entityId, ITenantContextAccessor tenantAccessor,
+    ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToReportResponse));
+});
+entities.MapGet("/{entityId:guid}/reports/{reportId:guid}", async (Guid entityId, Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToReportResponse(await service.GetAsync(tenant.TenantId, entityId, reportId, token)));
+});
+entities.MapPost("/{entityId:guid}/reports/preview", async (Guid entityId, AnalyticsPreviewRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    return Results.Ok(ToAnalyticsResponse(await service.PreviewAsync(
+        tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields), token)));
+});
+entities.MapPost("/{entityId:guid}/reports", async (Guid entityId, SaveReportRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields),
+        request.Visualization, request.VisualizationConfiguration?.GetRawText());
+    var report = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
+        specification, null, token);
+    return Results.Created($"/api/entities/{entityId}/reports/{report.Id}", ToReportResponse(report));
+});
+entities.MapPatch("/{entityId:guid}/reports/{reportId:guid}", async (Guid entityId, Guid reportId,
+    SaveReportRequest request, ITenantContextAccessor tenantAccessor, FieldService fieldService,
+    ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields),
+        request.Visualization, request.VisualizationConfiguration?.GetRawText());
+    return Results.Ok(ToReportResponse(await service.UpdateAsync(tenant.TenantId, entityId, reportId,
+        request.Name, request.Description, specification, token)));
+});
+entities.MapDelete("/{entityId:guid}/reports/{reportId:guid}", async (Guid entityId, Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    await service.DeleteAsync(tenant.TenantId, entityId, reportId, token);
+    return Results.NoContent();
+});
+entities.MapPost("/{entityId:guid}/reports/{reportId:guid}/run", async (Guid entityId, Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToAnalyticsResponse(await service.RunAsync(tenant.TenantId, entityId, reportId, token)));
+});
+entities.MapGet("/{entityId:guid}/reports/{reportId:guid}/export", async (Guid entityId, Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var result = await service.RunAsync(tenant.TenantId, entityId, reportId, token);
+    var csv = new StringBuilder(); csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(column.Label))));
+    foreach (var row in result.Rows) csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(
+        row.TryGetValue(column.Key, out var value) ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) : null))));
+    return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"report-{reportId:D}.csv");
+});
+
+entities.MapGet("/{entityId:guid}/metrics", async (Guid entityId, ITenantContextAccessor tenantAccessor,
+    MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToMetricResponse));
+});
+entities.MapPost("/{entityId:guid}/metrics", async (Guid entityId, SaveMetricRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    var metric = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
+        request.Aggregate, request.FieldId, RecordQueryFactory.CreateFilter(request.Filter, fields),
+        request.Format?.GetRawText(), null, token);
+    return Results.Created($"/api/entities/{entityId}/metrics/{metric.Id}", ToMetricResponse(metric));
+});
+entities.MapPost("/{entityId:guid}/metrics/preview", async (Guid entityId, SaveMetricRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    var result = await service.PreviewAsync(tenant.TenantId, entityId, request.Aggregate, request.FieldId,
+        RecordQueryFactory.CreateFilter(request.Filter, fields), token);
+    return Results.Ok(new MetricEvaluationResponse(result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt));
+});
+entities.MapPatch("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entityId, Guid metricId,
+    SaveMetricRequest request, ITenantContextAccessor tenantAccessor, FieldService fieldService,
+    MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    return Results.Ok(ToMetricResponse(await service.UpdateAsync(tenant.TenantId, entityId, metricId,
+        request.Name, request.Description, request.Aggregate, request.FieldId,
+        RecordQueryFactory.CreateFilter(request.Filter, fields), request.Format?.GetRawText(), token)));
+});
+entities.MapDelete("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entityId, Guid metricId,
+    ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); await service.DeleteAsync(tenant.TenantId, entityId, metricId, token);
+    return Results.NoContent();
+});
+entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/evaluate", async (Guid entityId, Guid metricId,
+    ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var result = await service.EvaluateAsync(tenant.TenantId, entityId, metricId, token);
+    return Results.Ok(new MetricEvaluationResponse(result.Value, result.EvaluatedAt));
+});
+
+entities.MapGet("/{entityId:guid}/alerts", async (Guid entityId, ITenantContextAccessor tenantAccessor,
+    AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToAlertResponse));
+});
+entities.MapPost("/{entityId:guid}/alerts", async (Guid entityId, SaveAlertRequest request,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var alert = await service.CreateAsync(tenant.TenantId, entityId, request.MetricId, request.Name,
+        request.ComparisonOperator, request.Threshold.GetRawText(), request.Interval, request.Timezone,
+        TimeSpan.FromSeconds(request.CooldownSeconds), request.NotifyOnRecovery, request.IsEnabled, null, token);
+    return Results.Created($"/api/entities/{entityId}/alerts/{alert.Id}", ToAlertResponse(alert));
+});
+entities.MapPatch("/{entityId:guid}/alerts/{alertId:guid}", async (Guid entityId, Guid alertId,
+    SaveAlertRequest request, ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToAlertResponse(await service.UpdateAsync(tenant.TenantId, entityId, alertId,
+        request.MetricId, request.Name, request.ComparisonOperator, request.Threshold.GetRawText(),
+        request.Interval, request.Timezone, TimeSpan.FromSeconds(request.CooldownSeconds),
+        request.NotifyOnRecovery, request.IsEnabled, token)));
+});
+entities.MapDelete("/{entityId:guid}/alerts/{alertId:guid}", async (Guid entityId, Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    await service.DeleteAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.NoContent();
+});
+entities.MapGet("/{entityId:guid}/alerts/{alertId:guid}/history", async (Guid entityId, Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var history = await service.HistoryAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.Ok(new AlertHistoryResponse(history.Item1.Select(ToAlertEvaluationResponse).ToArray(),
+        history.Item2.Select(ToAlertNotificationResponse).ToArray()));
+});
+entities.MapPost("/{entityId:guid}/alerts/{alertId:guid}/test", async (Guid entityId, Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, IAlertStore store, IControlPlaneStore control,
+    AlertEvaluationWorker worker, TimeProvider timeProvider, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant(); var alert = await service.GetAsync(tenant.TenantId, entityId, alertId, token);
+    var storage = await control.GetTenantStorageAsync(tenant.TenantId, token)
+        ?? throw new DynamicEntity.Application.Common.NotFoundException("Tenant storage was not found.");
+    var now = timeProvider.GetUtcNow();
+    await store.UpdateAsync(tenant.TenantId, alert with { IsEnabled = true, NextEvaluationAt = now, UpdatedAt = now }, storage, token);
+    await worker.ProcessTenantAsync(tenant.TenantId, $"test:{Guid.NewGuid():N}", token);
+    if (!alert.IsEnabled)
+    {
+        var evaluated = await service.GetAsync(tenant.TenantId, entityId, alertId, token);
+        await store.UpdateAsync(tenant.TenantId, evaluated with { IsEnabled = false, UpdatedAt = timeProvider.GetUtcNow() }, storage, token);
+    }
+    var history = await service.HistoryAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.Ok(ToAlertEvaluationResponse(history.Item1.First()));
 });
 
 entities.MapPost("/{entityId:guid}/records", async (
@@ -494,5 +714,55 @@ static ViewResponse ToViewResponse(ViewDefinition view) =>
 static ImportJobResponse ToImportResponse(ImportJob job) =>
     new(job.Id, job.EntityId, job.FileName, job.Status, job.Columns, job.TotalRows,
         job.ValidRows, job.InvalidRows, job.CreatedAt, job.UpdatedAt);
+
+static AnalyticsResultResponse ToAnalyticsResponse(AnalyticsResult result) => new(
+    result.Columns.Select(column => new AnalyticsColumnResponse(column.Key, column.Label, column.DataType, column.Role)).ToArray(),
+    result.Rows.Select(row => (IReadOnlyDictionary<string, JsonElement>)row.ToDictionary(
+        item => item.Key, item => JsonSerializer.SerializeToElement(item.Value))).ToArray(),
+    result.GeneratedAt, result.Truncated);
+
+static ReportResponse ToReportResponse(ReportDefinition report)
+{
+    var definition = ReportService.Deserialize(report);
+    return new(report.Id, report.EntityId, report.Name, report.Description, ToAnalyticsRequest(definition.Query),
+        definition.Visualization, definition.VisualizationConfigurationJson is null ? null :
+            JsonSerializer.Deserialize<JsonElement>(definition.VisualizationConfigurationJson),
+        report.CreatedBy, report.CreatedAt, report.UpdatedAt);
+}
+
+static MetricResponse ToMetricResponse(MetricDefinition metric) => new(
+    metric.Id, metric.EntityId, metric.Name, metric.Description, metric.Aggregate, metric.FieldId,
+    ToFilterRequest(MetricService.DeserializeFilter(metric.FilterJson)), metric.FormatJson is null ? null :
+        JsonSerializer.Deserialize<JsonElement>(metric.FormatJson), metric.CreatedBy, metric.CreatedAt, metric.UpdatedAt);
+
+static AnalyticsPreviewRequest ToAnalyticsRequest(AnalyticsQuery query) => new(
+    ToFilterRequest(query.Filter), query.Dimensions, query.Measures, query.Sort, query.Limit);
+
+static FilterNodeRequest? ToFilterRequest(FilterNode? node) => node switch
+{
+    null => null,
+    FilterGroup group => new(group.Logic, group.Conditions.Select(ToFilterRequest).Cast<FilterNodeRequest>().ToArray(), null, null, null),
+    FilterCondition condition => new(null, null, condition.FieldId, condition.Operator, condition.Value),
+    _ => throw new InvalidOperationException("Unknown filter node.")
+};
+
+static AlertResponse ToAlertResponse(AlertDefinition alert) => new(
+    alert.Id, alert.EntityId, alert.MetricId, alert.Name, alert.ComparisonOperator,
+    JsonSerializer.Deserialize<JsonElement>(alert.ThresholdJson), alert.Interval, alert.Timezone,
+    Convert.ToInt32(alert.Cooldown.TotalSeconds), alert.NotifyOnRecovery, alert.IsEnabled,
+    alert.LastState, alert.LastEvaluatedAt, alert.NextEvaluationAt, alert.CreatedAt, alert.UpdatedAt);
+
+static AlertEvaluationResponse ToAlertEvaluationResponse(AlertEvaluation evaluation) => new(
+    evaluation.Id, evaluation.AlertId,
+    evaluation.ValueJson is null ? null : JsonSerializer.Deserialize<JsonElement>(evaluation.ValueJson),
+    JsonSerializer.Deserialize<JsonElement>(evaluation.ThresholdJson), evaluation.State,
+    evaluation.Error, evaluation.EvaluatedAt);
+
+static AlertNotificationResponse ToAlertNotificationResponse(AlertNotification notification) => new(
+    notification.Id, notification.AlertId, notification.EvaluationId, notification.Channel,
+    notification.Status, notification.Attempts, notification.LastError, notification.CreatedAt,
+    notification.DeliveredAt);
+
+static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
 
 public partial class Program;

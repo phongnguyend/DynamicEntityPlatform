@@ -1,3 +1,4 @@
+using DynamicEntity.Domain.Analytics;
 using DynamicEntity.Domain.Entities;
 using DynamicEntity.Domain.Storage;
 using DynamicEntity.Domain.Tenants;
@@ -141,4 +142,53 @@ public interface IImportStore
     Task SaveValidationAsync(Guid tenantId, Guid importId, IReadOnlyList<ImportSourceRow> rows, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task SetPreviewAsync(Guid tenantId, Guid importId, int total, int valid, int invalid, ImportStatus status, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<int> CommitAsync(Guid tenantId, ImportJob job, EntityStorageLocation entityStorage, EntityStorageLocation tenantStorage, CancellationToken cancellationToken);
+}
+
+public interface IAnalyticsStore
+{
+    Task<AnalyticsStoreResult> ExecuteAsync(
+        TenantContext tenant, EntityDefinition entity, AnalyticsQuery query,
+        CancellationToken cancellationToken);
+}
+
+public interface IReportStore
+{
+    Task<ReportDefinition> CreateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<ReportDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<ReportDefinition?> UpdateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
+}
+
+public interface IMetricStore
+{
+    Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<MetricDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<MetricDefinition?> UpdateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
+}
+
+public interface IAlertStore
+{
+    Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token);
+    Task<AlertDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+    Task<AlertDefinition?> UpdateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);
+    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+    Task<AlertDefinition?> ClaimDueAsync(Guid tenantId, string owner, DateTimeOffset now, DateTimeOffset leaseExpiresAt,
+        EntityStorageLocation storage, CancellationToken token);
+    Task CompleteAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);
+}
+
+public interface IAlertEvaluationStore
+{
+    Task CreateAsync(Guid tenantId, AlertEvaluation evaluation, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<AlertEvaluation>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+}
+
+public interface IAlertNotificationStore
+{
+    Task CreateAsync(Guid tenantId, AlertNotification notification, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<AlertNotification>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
 }

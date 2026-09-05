@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DynamicEntity.Application.Common;
+using DynamicEntity.Application.Abstractions;
 using DynamicEntity.Application.Entities;
 using DynamicEntity.Application.Fields;
 using DynamicEntity.Application.Records;
@@ -7,7 +8,10 @@ using DynamicEntity.Application.Storage;
 using DynamicEntity.Application.Tenants;
 using DynamicEntity.Domain.Entities;
 using DynamicEntity.Domain.Storage;
+using DynamicEntity.Domain.Analytics;
+using DynamicEntity.Domain.Queries;
 using DynamicEntity.SqlServer;
+using DynamicEntity.SqlServer.Analytics;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.IntegrationTests;
@@ -40,6 +44,7 @@ public sealed class SqlServerProvisioningAndCrudTests
             var tenant = await new TenantService(control, control, provisioner, TimeProvider.System)
                 .CreateAsync("Integration tenant", CancellationToken.None);
             tenantId = tenant.Id;
+            await AssertAnalyticsMigrationsAsync(options, tenant.Id);
             var metadata = new SqlServerEntityMetadataStore(options);
             var entity = await new EntityService(control, metadata, TimeProvider.System)
                 .CreateAsync(tenant.Id, "customer", "Customer", null, CancellationToken.None);
@@ -48,6 +53,12 @@ public sealed class SqlServerProvisioningAndCrudTests
             var field = await fieldService
                 .CreateAsync(tenant.Id, entity.Id, "name", "Name", FieldDataType.Text, true, true,
                     true, true, true, true, null, "{\"maxLength\":200}", 0, CancellationToken.None);
+            var amountField = await fieldService
+                .CreateAsync(tenant.Id, entity.Id, "amount", "Amount", FieldDataType.Decimal, false, false,
+                    true, true, false, false, null, null, 1, CancellationToken.None);
+            var dateField = await fieldService
+                .CreateAsync(tenant.Id, entity.Id, "occurred", "Occurred", FieldDataType.Date, false, false,
+                    true, true, false, false, null, null, 2, CancellationToken.None);
 
             var resolver = new EntityStorageResolver(control, metadata);
             var indexService = new EntityIndexService(control, metadata, fieldStore,
@@ -55,19 +66,24 @@ public sealed class SqlServerProvisioningAndCrudTests
             var index = await indexService.CreateAsync(tenant.Id, entity.Id,
                 [new EntityIndexColumnInput(field.Id, false)], CancellationToken.None);
             Assert.NotNull((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
-                .Single().IndexColumnName);
+                .Single(item => item.Id == field.Id).IndexColumnName);
             await indexService.DeleteAsync(tenant.Id, entity.Id, index.Id, CancellationToken.None);
             Assert.Null((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
-                .Single().IndexColumnName);
+                .Single(item => item.Id == field.Id).IndexColumnName);
+            await indexService.CreateAsync(tenant.Id, entity.Id,
+                [new EntityIndexColumnInput(amountField.Id, false)], CancellationToken.None);
 
             var records = new SqlServerRecordStore(options, resolver);
             var constraints = new SqlServerRecordConstraintValidator(options, resolver);
             var service = new RecordService(control, metadata, fieldStore,
                 new RecordValidator(new RecordValidationOptions()), constraints, records);
-            using var input = JsonDocument.Parse("{\"name\":\"Ada\"}");
+            using var input = JsonDocument.Parse("{\"name\":\"Ada\",\"amount\":12.5,\"occurred\":\"2026-09-05\"}");
             var created = await service.CreateAsync(tenant.Id, entity.Id, input.RootElement, null, CancellationToken.None);
             var loaded = await service.GetAsync(tenant.Id, entity.Id, created.Id, CancellationToken.None);
             Assert.Contains(field.StorageKey, loaded.Data);
+            var analyticsFields = await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None);
+            Assert.NotNull(analyticsFields.Single(item => item.Id == amountField.Id).IndexColumnName);
+            await ExerciseAnalyticsAsync(options, control, resolver, tenant.Id, entity with { Fields = analyticsFields });
 
             await Assert.ThrowsAsync<ConflictException>(() => service.UpdateAsync(tenant.Id, entity.Id,
                 created.Id, input.RootElement, new byte[8], null, CancellationToken.None));
@@ -79,6 +95,94 @@ public sealed class SqlServerProvisioningAndCrudTests
             if (tenantId is not null) await DropDatabaseAsync(serverConnection, PhysicalName.ForTenantDatabase(tenantId.Value));
             await DropDatabaseAsync(serverConnection, controlName);
         }
+    }
+
+    private static async Task ExerciseAnalyticsAsync(SqlServerOptions options, IControlPlaneStore control,
+        IEntityStorageResolver resolver, Guid tenantId, EntityDefinition entity)
+    {
+        var storage = await control.GetTenantStorageAsync(tenantId, CancellationToken.None);
+        Assert.NotNull(storage);
+        var query = new AnalyticsQuery(null, [], [new AnalyticsMeasure(AggregateFunction.Count, null, "value")], [], 10);
+        var analytics = await new SqlAnalyticsStore(options, resolver).ExecuteAsync(
+            new DynamicEntity.Domain.Tenants.TenantContext(tenantId), entity, query, CancellationToken.None);
+        Assert.Equal(1L, analytics.Rows.Single()["value"]);
+        var amount = entity.Fields.Single(field => field.Name == "amount");
+        var sumQuery = new AnalyticsQuery(null, [], [new AnalyticsMeasure(AggregateFunction.Sum, amount.Id, "total")], [], 10);
+        var sum = await new SqlAnalyticsStore(options, resolver).ExecuteAsync(
+            new DynamicEntity.Domain.Tenants.TenantContext(tenantId), entity, sumQuery, CancellationToken.None);
+        Assert.Equal(12.5m, sum.Rows.Single()["total"]);
+        var occurred = entity.Fields.Single(field => field.Name == "occurred");
+        var groupedQuery = new AnalyticsQuery(null, [new AnalyticsDimension(occurred.Id, DateBucket.Month, "month")],
+            [new AnalyticsMeasure(AggregateFunction.Count, null, "count")], [], 10);
+        var grouped = await new SqlAnalyticsStore(options, resolver).ExecuteAsync(
+            new DynamicEntity.Domain.Tenants.TenantContext(tenantId), entity, groupedQuery, CancellationToken.None);
+        Assert.Single(grouped.Rows);
+
+        var now = DateTimeOffset.UtcNow;
+        var reportStore = new SqlReportStore(options);
+        var report = await reportStore.CreateAsync(tenantId,
+            new ReportDefinition(Guid.NewGuid(), entity.Id, "Count report", null, "{\"query\":{}}", null, now, now),
+            storage, CancellationToken.None);
+        Assert.Single(await reportStore.ListAsync(tenantId, entity.Id, storage, CancellationToken.None));
+        Assert.NotNull(await reportStore.UpdateAsync(tenantId, report with { Name = "Updated report" }, storage, CancellationToken.None));
+
+        var metricStore = new SqlMetricStore(options);
+        var metric = await metricStore.CreateAsync(tenantId,
+            new MetricDefinition(Guid.NewGuid(), entity.Id, "Count metric", null, AggregateFunction.Count,
+                null, null, "{\"style\":\"integer\"}", null, now, now), storage, CancellationToken.None);
+        Assert.NotNull(await metricStore.GetAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
+
+        var alertStore = new SqlAlertStore(options);
+        var alert = await alertStore.CreateAsync(tenantId,
+            new AlertDefinition(Guid.NewGuid(), entity.Id, metric.Id, "Count alert", AlertComparisonOperator.GreaterThan,
+                "0", AlertInterval.FiveMinutes, "UTC", TimeSpan.Zero, true, true, null, null, now,
+                null, null, null, now, now), storage, CancellationToken.None);
+        var claimed = await alertStore.ClaimDueAsync(tenantId, "worker-1", now, now.AddMinutes(1), storage, CancellationToken.None);
+        Assert.NotNull(claimed);
+        Assert.Null(await alertStore.ClaimDueAsync(tenantId, "worker-2", now, now.AddMinutes(1), storage, CancellationToken.None));
+
+        var evaluationStore = new SqlAlertEvaluationStore(options);
+        var evaluation = new AlertEvaluation(Guid.NewGuid(), alert.Id, "1", "0", AlertState.Firing, null, now);
+        await evaluationStore.CreateAsync(tenantId, evaluation, storage, CancellationToken.None);
+        var notificationStore = new SqlAlertNotificationStore(options);
+        await notificationStore.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id, evaluation.Id,
+            "InApp", NotificationStatus.Delivered, 1, null, now, now), storage, CancellationToken.None);
+        Assert.Single(await evaluationStore.ListAsync(tenantId, alert.Id, storage, CancellationToken.None));
+        Assert.Single(await notificationStore.ListAsync(tenantId, alert.Id, storage, CancellationToken.None));
+        await alertStore.CompleteAsync(tenantId, claimed! with { LastState = AlertState.Firing,
+            LastEvaluatedAt = now, NextEvaluationAt = now.AddMinutes(5) }, storage, CancellationToken.None);
+        Assert.True(await alertStore.DeleteAsync(tenantId, entity.Id, alert.Id, storage, CancellationToken.None));
+        Assert.True(await metricStore.DeleteAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
+        Assert.True(await reportStore.DeleteAsync(tenantId, entity.Id, report.Id, storage, CancellationToken.None));
+    }
+
+    private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId)
+    {
+        var storage = new EntityStorageLocation(options.ConnectionKey, PhysicalName.ForTenantDatabase(tenantId),
+            string.Empty, EntityStorageMode.DedicatedTable, false);
+        var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator(options);
+        await migrator.MigrateAsync(storage, CancellationToken.None);
+
+        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString)
+        {
+            InitialCatalog = storage.DatabaseName
+        };
+        await using var connection = new SqlConnection(builder.ConnectionString);
+        await connection.OpenAsync();
+        const string sql = """
+            SELECT
+                (SELECT COUNT(*) FROM dbo.SchemaMigrations),
+                CASE WHEN OBJECT_ID(N'dbo.ReportDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.MetricDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.AlertDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.AlertEvaluations', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NULL THEN 0 ELSE 1 END;
+            """;
+        await using var command = new SqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(2, reader.GetInt32(0));
+        for (var ordinal = 1; ordinal <= 5; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 
     private static async Task DropDatabaseAsync(string serverConnection, string databaseName)

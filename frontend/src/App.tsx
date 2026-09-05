@@ -7,6 +7,10 @@ import { Modal } from './components/Modal'
 import { RecordsListPage } from './pages/RecordsListPage'
 import { RecordFormPage } from './pages/RecordFormPage'
 import { FieldsPage } from './pages/FieldsPage'
+import { ReportsPage } from './pages/ReportsPage'
+import { ReportBuilderPage } from './pages/ReportBuilderPage'
+import { MetricsPage } from './pages/MetricsPage'
+import { AlertsPage } from './pages/AlertsPage'
 
 const tenantStorageKey = 'dynamic-data.tenant-id'
 
@@ -75,6 +79,11 @@ function Shell({ tenantId, onChangeTenant }: { tenantId: string; onChangeTenant:
         <Route path="/entities/:entityId/records/new" element={<RecordFormPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/records/:recordId/edit" element={<RecordFormPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/fields" element={<FieldsPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/reports" element={<ReportsPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/reports/new" element={<ReportBuilderPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/reports/:reportId" element={<ReportBuilderPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/metrics" element={<MetricsPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/alerts" element={<AlertsPage tenantId={tenantId} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>}
       {creatingEntity && <Modal title="Create an entity" onClose={() => setCreatingEntity(false)}>

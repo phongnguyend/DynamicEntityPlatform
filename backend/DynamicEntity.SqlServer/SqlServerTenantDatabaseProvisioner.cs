@@ -1,5 +1,6 @@
 using DynamicEntity.Application.Abstractions;
 using DynamicEntity.Domain.Storage;
+using DynamicEntity.SqlServer.Migrations;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
@@ -26,19 +27,13 @@ public sealed class SqlServerTenantDatabaseProvisioner(SqlServerOptions options)
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        builder.InitialCatalog = databaseName;
-        await using (var tenantConnection = new SqlConnection(builder.ConnectionString))
-        {
-            await tenantConnection.OpenAsync(cancellationToken);
-            await using var command = new SqlCommand(SqlServerSchema.TenantDatabase, tenantConnection);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        return new EntityStorageLocation(
+        var location = new EntityStorageLocation(
             options.ConnectionKey,
             databaseName,
             string.Empty,
             EntityStorageMode.DedicatedTable,
             false);
+        await new SqlServerTenantDatabaseMigrator(options).MigrateAsync(location, cancellationToken);
+        return location;
     }
 }

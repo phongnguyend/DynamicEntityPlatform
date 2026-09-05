@@ -17,11 +17,21 @@ A metadata-driven, multi-tenant data platform.
 - streamed CSV/XLSX parsing, batched staging, validation preview, and set-based commit
 - set-based bulk patch/delete and staged merge/upsert
 - saved views and streaming CSV export
+- tenant-scoped reports with grouped analytics, date buckets, live preview, five visualization modes, and aggregated CSV export
+- reusable scalar metrics with presentation-only number, percentage, currency, and duration formatting
+- leased scheduled alerts with thresholds, cooldowns, recovery behavior, in-app notifications, and evaluation history
+- versioned tenant schema migrations applied to both new and existing active tenants
 - tenant-scoped authorization seam, Problem Details errors, structured logging, and OpenTelemetry ASP.NET/SQL instrumentation
 - unit tests and an opt-in real-SQL integration test
 
 Dynamic JSON remains the source of truth. Display names never become SQL identifiers,
 and all filter values are SQL parameters.
+
+Reports, metrics, and alerts use the same metadata-validated aggregation engine. Analytics
+queries are parameterized, cancellable, row-limited, and use the configurable
+`SqlServer:AnalyticsCommandTimeoutSeconds` timeout. External email and webhook alert
+delivery are intentionally deferred until the in-app notification workflow is validated
+in production.
 
 ## Prerequisites
 

@@ -27,6 +27,12 @@ public static class RecordQueryFactory
         return new RecordQuery(request.PageSize, request.Cursor, filter, sort);
     }
 
+    public static FilterGroup? CreateFilter(FilterNodeRequest? request, IReadOnlyList<FieldDefinition> fields)
+    {
+        if (request is null) return null;
+        return ParseGroup(request, fields.Where(static field => field.IsActive).ToDictionary(field => field.Id), 0);
+    }
+
     private static FilterGroup ParseGroup(FilterNodeRequest request, IReadOnlyDictionary<Guid, FieldDefinition> fields, int depth)
     {
         if (depth > 10) throw new ValidationException("Filter nesting cannot exceed 10 levels.");

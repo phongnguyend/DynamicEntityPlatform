@@ -1,4 +1,4 @@
-import type { DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, RecordPage, SavedView, Tenant } from './types'
+import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant } from './types'
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ''
 
@@ -69,4 +69,27 @@ export const api = {
     if (!response.ok) throw new Error('Export failed.')
     return response.blob()
   },
+  previewAnalytics: (tenantId: string, entityId: string, query: AnalyticsQuery) =>
+    request<AnalyticsResult>(`/api/entities/${entityId}/analytics/preview`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
+  reports: (tenantId: string, entityId: string) => request<Report[]>(`/api/entities/${entityId}/reports`, {}, tenantId),
+  report: (tenantId: string, entityId: string, reportId: string) => request<Report>(`/api/entities/${entityId}/reports/${reportId}`, {}, tenantId),
+  saveReport: (tenantId: string, entityId: string, input: Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, reportId?: string) =>
+    request<Report>(`/api/entities/${entityId}/reports${reportId ? `/${reportId}` : ''}`, { method: reportId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
+  deleteReport: (tenantId: string, entityId: string, reportId: string) => request<void>(`/api/entities/${entityId}/reports/${reportId}`, { method: 'DELETE' }, tenantId),
+  runReport: (tenantId: string, entityId: string, reportId: string) => request<AnalyticsResult>(`/api/entities/${entityId}/reports/${reportId}/run`, { method: 'POST' }, tenantId),
+  exportReport: async (tenantId: string, entityId: string, reportId: string) => {
+    const response = await fetch(`${baseUrl}/api/entities/${entityId}/reports/${reportId}/export`, { headers: { 'X-Tenant-Id': tenantId } })
+    if (!response.ok) throw new Error('Report export failed.'); return response.blob()
+  },
+  metrics: (tenantId: string, entityId: string) => request<Metric[]>(`/api/entities/${entityId}/metrics`, {}, tenantId),
+  saveMetric: (tenantId: string, entityId: string, input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, metricId?: string) =>
+    request<Metric>(`/api/entities/${entityId}/metrics${metricId ? `/${metricId}` : ''}`, { method: metricId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
+  evaluateMetric: (tenantId: string, entityId: string, metricId: string) => request<MetricEvaluation>(`/api/entities/${entityId}/metrics/${metricId}/evaluate`, { method: 'POST' }, tenantId),
+  previewMetric: (tenantId: string, entityId: string, input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>) => request<MetricEvaluation>(`/api/entities/${entityId}/metrics/preview`, { method: 'POST', body: JSON.stringify(input) }, tenantId),
+  deleteMetric: (tenantId: string, entityId: string, metricId: string) => request<void>(`/api/entities/${entityId}/metrics/${metricId}`, { method: 'DELETE' }, tenantId),
+  alerts: (tenantId: string, entityId: string) => request<Alert[]>(`/api/entities/${entityId}/alerts`, {}, tenantId),
+  saveAlert: (tenantId: string, entityId: string, input: Omit<Alert, 'id' | 'entityId' | 'lastState' | 'lastEvaluatedAt' | 'nextEvaluationAt' | 'createdAt' | 'updatedAt'>, alertId?: string) => request<Alert>(`/api/entities/${entityId}/alerts${alertId ? `/${alertId}` : ''}`, { method: alertId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
+  deleteAlert: (tenantId: string, entityId: string, alertId: string) => request<void>(`/api/entities/${entityId}/alerts/${alertId}`, { method: 'DELETE' }, tenantId),
+  alertHistory: (tenantId: string, entityId: string, alertId: string) => request<AlertHistory>(`/api/entities/${entityId}/alerts/${alertId}/history`, {}, tenantId),
+  testAlert: (tenantId: string, entityId: string, alertId: string) => request<import('./types').AlertEvaluation>(`/api/entities/${entityId}/alerts/${alertId}/test`, { method: 'POST' }, tenantId),
 }
