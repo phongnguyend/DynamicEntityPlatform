@@ -115,9 +115,6 @@ Use **Remove index** beside an indexed field to drop its SQL index and computed 
 - Delete archives entity metadata; it does not immediately drop physical tables.
 - Import files may be `.csv` or `.xlsx`; multi-choice cells use semicolon-delimited values.
 
-Example requests are available in
-[`DynamicEntity.Api.http`](backend/DynamicEntity.Api/DynamicEntity.Api.http).
-
 ## Production integration points
 
 `AllowAllEntityAuthorizationService` is deliberately a development policy. Replace
