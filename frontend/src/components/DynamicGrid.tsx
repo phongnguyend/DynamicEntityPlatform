@@ -21,9 +21,10 @@ export function DynamicGrid({ fields, records, selectedFilterFieldId, appliedFil
       selected={selectedFilterFieldId === field.id}
       filtered={appliedFilterFieldId === field.id}
       onSelect={() => onSelectFilter(field)}>{renderFilter(field)}</FilterHeader> : field.displayName}
-  </th>)}<th>Updated</th><th /></tr></thead>
+  </th>)}<th>Created</th><th>Updated</th><th /></tr></thead>
     <tbody>{records.map(record => <tr key={record.id}>{shown.map(field =>
       <td key={field.id}>{display(record.data[field.storageKey])}</td>)}
+      <td>{new Date(record.createdAt).toLocaleString()}</td>
       <td>{new Date(record.updatedAt).toLocaleString()}</td><td className="row-actions">
         <button className="link" onClick={() => onEdit(record)}>Edit</button>
         <button className="link danger" onClick={() => onDelete(record)}>Delete</button></td></tr>)}</tbody></table>
