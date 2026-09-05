@@ -34,10 +34,11 @@ export const api = {
     configuration?: unknown; sortOrder: number
   }) => request<Field>(`/api/entities/${entityId}/fields/${fieldId}`,
     { method: 'PATCH', body: JSON.stringify(input) }, tenantId),
-  createFieldIndex: (tenantId: string, entityId: string, fieldId: string) =>
-    request<EntityIndex>(`/api/entities/${entityId}/fields/${fieldId}/index`, { method: 'POST' }, tenantId),
-  deleteFieldIndex: (tenantId: string, entityId: string, fieldId: string) =>
-    request<void>(`/api/entities/${entityId}/fields/${fieldId}/index`, { method: 'DELETE' }, tenantId),
+  indexes: (tenantId: string, entityId: string) => request<EntityIndex[]>(`/api/entities/${entityId}/indexes`, {}, tenantId),
+  createIndex: (tenantId: string, entityId: string, columns: Array<{ fieldId: string; descending: boolean }>) =>
+    request<EntityIndex>(`/api/entities/${entityId}/indexes`, { method: 'POST', body: JSON.stringify({ columns }) }, tenantId),
+  deleteIndex: (tenantId: string, entityId: string, indexId: string) =>
+    request<void>(`/api/entities/${entityId}/indexes/${indexId}`, { method: 'DELETE' }, tenantId),
   records: (tenantId: string, entityId: string) =>
     request<RecordPage>(`/api/entities/${entityId}/records?pageSize=100`, {}, tenantId),
   createRecord: (tenantId: string, entityId: string, data: Record<string, unknown>) =>

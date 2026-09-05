@@ -100,12 +100,16 @@ public interface IEntityIndexManager
     Task<EntityIndexDefinition> CreateAsync(
         TenantContext tenant,
         EntityDefinition entity,
-        FieldDefinition field,
+        IReadOnlyList<(FieldDefinition Field, bool Descending)> columns,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<EntityIndexDefinition>> ListAsync(
+        TenantContext tenant,
+        EntityDefinition entity,
         CancellationToken cancellationToken);
     Task<bool> DeleteAsync(
         TenantContext tenant,
         EntityDefinition entity,
-        FieldDefinition field,
+        Guid indexId,
         CancellationToken cancellationToken);
 }
 

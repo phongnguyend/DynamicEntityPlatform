@@ -115,14 +115,28 @@ internal static class SqlServerSchema
             (
                 Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_EntityIndexDefinitions PRIMARY KEY,
                 EntityId UNIQUEIDENTIFIER NOT NULL,
-                FieldId UNIQUEIDENTIFIER NOT NULL,
-                PhysicalColumnName SYSNAME NOT NULL,
                 IndexName SYSNAME NOT NULL,
                 Status NVARCHAR(32) NOT NULL,
                 CreatedAt DATETIMEOFFSET(7) NOT NULL,
                 CONSTRAINT FK_EntityIndexDefinitions_Entities FOREIGN KEY (EntityId) REFERENCES dbo.EntityDefinitions(Id),
-                CONSTRAINT FK_EntityIndexDefinitions_Fields FOREIGN KEY (FieldId) REFERENCES dbo.FieldDefinitions(Id),
-                CONSTRAINT UQ_EntityIndexDefinitions_Field UNIQUE (EntityId, FieldId)
+                CONSTRAINT UQ_EntityIndexDefinitions_Name UNIQUE (EntityId, IndexName)
+            );
+        END;
+
+        IF OBJECT_ID(N'dbo.EntityIndexColumns', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.EntityIndexColumns
+            (
+                Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_EntityIndexColumns PRIMARY KEY,
+                IndexId UNIQUEIDENTIFIER NOT NULL,
+                FieldId UNIQUEIDENTIFIER NOT NULL,
+                PhysicalColumnName SYSNAME NOT NULL,
+                SortOrder INT NOT NULL,
+                IsDescending BIT NOT NULL,
+                CONSTRAINT FK_EntityIndexColumns_Indexes FOREIGN KEY (IndexId) REFERENCES dbo.EntityIndexDefinitions(Id),
+                CONSTRAINT FK_EntityIndexColumns_Fields FOREIGN KEY (FieldId) REFERENCES dbo.FieldDefinitions(Id),
+                CONSTRAINT UQ_EntityIndexColumns_Index_Field UNIQUE (IndexId, FieldId),
+                CONSTRAINT UQ_EntityIndexColumns_Index_SortOrder UNIQUE (IndexId, SortOrder)
             );
         END;
 

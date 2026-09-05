@@ -14,7 +14,8 @@ export interface Field {
   configuration?: { values?: string[]; [key: string]: unknown }; sortOrder: number
   indexColumnName?: string
 }
-export interface EntityIndex { id: string; fieldId: string; physicalColumnName: string; indexName: string; status: string; createdAt: string }
+export interface EntityIndexColumn { fieldId: string; physicalColumnName: string; sortOrder: number; isDescending: boolean }
+export interface EntityIndex { id: string; indexName: string; status: string; createdAt: string; columns: EntityIndexColumn[] }
 export interface DynamicRecord {
   id: string; data: Record<string, unknown>; createdAt: string; createdBy?: string
   updatedAt: string; updatedBy?: string; version: string

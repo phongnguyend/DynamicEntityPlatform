@@ -52,10 +52,11 @@ public sealed class SqlServerProvisioningAndCrudTests
             var resolver = new EntityStorageResolver(control, metadata);
             var indexService = new EntityIndexService(control, metadata, fieldStore,
                 new SqlServerEntityIndexManager(options, resolver));
-            await indexService.CreateAsync(tenant.Id, entity.Id, field.Id, CancellationToken.None);
+            var index = await indexService.CreateAsync(tenant.Id, entity.Id,
+                [new EntityIndexColumnInput(field.Id, false)], CancellationToken.None);
             Assert.NotNull((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
                 .Single().IndexColumnName);
-            await indexService.DeleteAsync(tenant.Id, entity.Id, field.Id, CancellationToken.None);
+            await indexService.DeleteAsync(tenant.Id, entity.Id, index.Id, CancellationToken.None);
             Assert.Null((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
                 .Single().IndexColumnName);
 

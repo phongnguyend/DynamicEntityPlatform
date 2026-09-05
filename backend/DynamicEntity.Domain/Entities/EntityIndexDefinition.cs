@@ -1,10 +1,15 @@
 namespace DynamicEntity.Domain.Entities;
 
+public sealed record EntityIndexColumn(
+    Guid FieldId,
+    string PhysicalColumnName,
+    int SortOrder,
+    bool IsDescending);
+
 public sealed record EntityIndexDefinition(
     Guid Id,
     Guid EntityId,
-    Guid FieldId,
-    string PhysicalColumnName,
     string IndexName,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<EntityIndexColumn> Columns);

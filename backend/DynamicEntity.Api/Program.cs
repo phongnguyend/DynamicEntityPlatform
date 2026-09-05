@@ -281,28 +281,41 @@ entities.MapGet("/{entityId:guid}/fields/{fieldId:guid}/facets", async (
     return Results.Ok(values.Select(value => new FacetValueResponse(value.Value, value.RecordCount)));
 });
 
-entities.MapPost("/{entityId:guid}/fields/{fieldId:guid}/index", async (
+entities.MapGet("/{entityId:guid}/indexes", async (
     Guid entityId,
-    Guid fieldId,
     ITenantContextAccessor tenantAccessor,
     EntityIndexService service,
     CancellationToken cancellationToken) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
-    var index = await service.CreateAsync(tenant.TenantId, entityId, fieldId, cancellationToken);
-    return Results.Ok(new EntityIndexResponse(index.Id, index.FieldId, index.PhysicalColumnName,
-        index.IndexName, index.Status, index.CreatedAt));
+    var indexes = await service.ListAsync(tenant.TenantId, entityId, cancellationToken);
+    return Results.Ok(indexes.Select(ToIndexResponse));
 });
 
-entities.MapDelete("/{entityId:guid}/fields/{fieldId:guid}/index", async (
+entities.MapPost("/{entityId:guid}/indexes", async (
     Guid entityId,
-    Guid fieldId,
+    CreateEntityIndexRequest request,
     ITenantContextAccessor tenantAccessor,
     EntityIndexService service,
     CancellationToken cancellationToken) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
-    await service.DeleteAsync(tenant.TenantId, entityId, fieldId, cancellationToken);
+    var columns = request.Columns
+        .Select(column => new EntityIndexColumnInput(column.FieldId, column.Descending))
+        .ToArray();
+    var index = await service.CreateAsync(tenant.TenantId, entityId, columns, cancellationToken);
+    return Results.Ok(ToIndexResponse(index));
+});
+
+entities.MapDelete("/{entityId:guid}/indexes/{indexId:guid}", async (
+    Guid entityId,
+    Guid indexId,
+    ITenantContextAccessor tenantAccessor,
+    EntityIndexService service,
+    CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    await service.DeleteAsync(tenant.TenantId, entityId, indexId, cancellationToken);
     return Results.NoContent();
 });
 
@@ -449,6 +462,11 @@ static FieldResponse ToFieldResponse(FieldDefinition field) =>
 static RecordResponse ToRecordResponse(DynamicRecord record) =>
     new(record.Id, JsonSerializer.Deserialize<JsonElement>(record.Data), record.CreatedAt, record.CreatedBy,
         record.UpdatedAt, record.UpdatedBy, Convert.ToBase64String(record.Version));
+
+static EntityIndexResponse ToIndexResponse(EntityIndexDefinition index) =>
+    new(index.Id, index.IndexName, index.Status, index.CreatedAt,
+        index.Columns.Select(column => new EntityIndexColumnResponse(
+            column.FieldId, column.PhysicalColumnName, column.SortOrder, column.IsDescending)).ToArray());
 
 static JsonElement? ParseOptionalJson(string? json) =>
     json is null ? null : JsonSerializer.Deserialize<JsonElement>(json);

@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { EntityDesigner } from '../components/EntityDesigner'
 import { FieldManager } from '../components/FieldManager'
+import { IndexManager } from '../components/IndexManager'
 import { EntityTabs } from '../components/EntityTabs'
 import { useEntityContext } from './useEntityContext'
 
@@ -20,5 +21,6 @@ export function FieldsPage({ tenantId }: { tenantId: string }) {
       <div className="panel"><EntityDesigner tenantId={tenantId} entity={entity} /></div>
       <div className="panel wide"><FieldManager tenantId={tenantId} entityId={entityId} fields={fields} /></div>
     </div>
+    <div className="panel wide"><IndexManager tenantId={tenantId} entityId={entityId} fields={fields} /></div>
   </section>
 }

@@ -12,47 +12,18 @@ interface Props {
 
 export function FieldManager({ tenantId, entityId, fields }: Props) {
   const [editing, setEditing] = useState<Field>()
-  const client = useQueryClient()
-  const createIndex = useMutation({
-    mutationFn: (field: Field) => api.createFieldIndex(tenantId, entityId, field.id),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['fields', tenantId, entityId] }),
-  })
-  const deleteIndex = useMutation({
-    mutationFn: (field: Field) => api.deleteFieldIndex(tenantId, entityId, field.id),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['fields', tenantId, entityId] }),
-  })
-
-  function confirmIndex(field: Field) {
-    if (confirm(`Create a SQL index for ${field.displayName}? Index creation can take time on large entities.`)) {
-      createIndex.mutate(field)
-    }
-  }
-
-  function confirmIndexRemoval(field: Field) {
-    if (confirm(`Remove the SQL index for ${field.displayName}? Queries using this field may become slower.`)) {
-      deleteIndex.mutate(field)
-    }
-  }
 
   return <div className="field-manager">
     <h3>Manage fields</h3>
-    <p className="field-note">Indexes can improve filtering and sorting, but consume storage and may take time to create.</p>
+    <p className="field-note">Indexes can improve filtering and sorting. Manage them from the Indexes section.</p>
     {fields.length === 0 ? <p className="empty">No fields have been added.</p> :
       <ul className="field-list">{fields.map(field => <li key={field.id}>
         <div><strong>{field.displayName}</strong><small>{field.name} · {field.dataType}</small></div>
         <div className="field-actions">
-          {field.indexColumnName ? <><span className="index-status">Indexed</span>
-            <button type="button" className="link danger" disabled={deleteIndex.isPending}
-              onClick={() => confirmIndexRemoval(field)}>{deleteIndex.isPending && deleteIndex.variables?.id === field.id ? 'Removing…' : 'Remove index'}</button></> :
-            field.dataType === 'LongText' || field.dataType === 'MultiChoice' ?
-              <span className="index-status muted">Index unsupported</span> :
-              <button type="button" className="link" disabled={createIndex.isPending}
-                onClick={() => confirmIndex(field)}>{createIndex.isPending && createIndex.variables?.id === field.id ? 'Creating…' : 'Create index'}</button>}
+          {field.indexColumnName && <span className="index-status">Indexed</span>}
           <button type="button" className="link" onClick={() => setEditing(field)}>Edit</button>
         </div>
       </li>)}</ul>}
-    {createIndex.error && <p className="error">{createIndex.error.message}</p>}
-    {deleteIndex.error && <p className="error">{deleteIndex.error.message}</p>}
     {editing && <Modal title={`Edit ${editing.displayName}`} onClose={() => setEditing(undefined)}>
       <FieldEditor key={editing.id} tenantId={tenantId} entityId={entityId}
         field={editing} onClose={() => setEditing(undefined)} />

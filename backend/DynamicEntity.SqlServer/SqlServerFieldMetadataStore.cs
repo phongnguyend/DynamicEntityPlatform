@@ -75,10 +75,15 @@ public sealed class SqlServerFieldMetadataStore(SqlServerOptions options) : IFie
         const string sql = """
             SELECT f.Id, f.EntityId, f.Name, f.DisplayName, f.DataType, f.IsRequired, f.IsUnique,
                    f.IsFilterable, f.IsSortable, f.IsFacetable, f.IsSearchable, f.DefaultValueJson,
-                   f.ConfigurationJson, f.SortOrder, f.IsActive, f.CreatedAt, f.UpdatedAt, i.PhysicalColumnName
+                   f.ConfigurationJson, f.SortOrder, f.IsActive, f.CreatedAt, f.UpdatedAt, idx.PhysicalColumnName
             FROM dbo.FieldDefinitions AS f
             INNER JOIN dbo.EntityDefinitions AS e ON e.Id = f.EntityId
-            LEFT JOIN dbo.EntityIndexDefinitions AS i ON i.EntityId = f.EntityId AND i.FieldId = f.Id AND i.Status = N'Active'
+            OUTER APPLY (
+                SELECT TOP 1 ic.PhysicalColumnName
+                FROM dbo.EntityIndexColumns AS ic
+                INNER JOIN dbo.EntityIndexDefinitions AS i ON i.Id = ic.IndexId AND i.Status = N'Active'
+                WHERE ic.FieldId = f.Id
+            ) AS idx
             WHERE e.TenantId = @tenantId AND f.EntityId = @entityId AND f.IsActive = 1
             ORDER BY f.SortOrder, f.Id;
             """;
