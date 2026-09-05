@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Field } from '../types'
+import { Modal } from './Modal'
 
 interface Props {
   tenantId: string
@@ -52,8 +53,10 @@ export function FieldManager({ tenantId, entityId, fields }: Props) {
       </li>)}</ul>}
     {createIndex.error && <p className="error">{createIndex.error.message}</p>}
     {deleteIndex.error && <p className="error">{deleteIndex.error.message}</p>}
-    {editing && <FieldEditor key={editing.id} tenantId={tenantId} entityId={entityId}
-      field={editing} onClose={() => setEditing(undefined)} />}
+    {editing && <Modal title={`Edit ${editing.displayName}`} onClose={() => setEditing(undefined)}>
+      <FieldEditor key={editing.id} tenantId={tenantId} entityId={entityId}
+        field={editing} onClose={() => setEditing(undefined)} />
+    </Modal>}
   </div>
 }
 
@@ -104,9 +107,8 @@ function FieldEditor({ tenantId, entityId, field, onClose }: {
   }
 
   return <form className="field-editor" onSubmit={submit}>
-    <div className="field-editor-title"><h4>Edit {field.displayName}</h4><span className="pill">{field.dataType}</span></div>
-    <p className="field-note">The data type cannot be changed after creation.</p>
-    <label className="field"><span>Machine name</span><input required pattern="[A-Za-z][A-Za-z0-9_]*"
+    <p className="field-note">Data type: {field.dataType} · The data type cannot be changed after creation.</p>
+    <label className="field"><span>Field name</span><input required pattern="[A-Za-z][A-Za-z0-9_]*"
       value={name} onChange={event => setName(event.target.value)} /></label>
     <label className="field"><span>Display name</span><input required value={displayName}
       onChange={event => setDisplayName(event.target.value)} /></label>

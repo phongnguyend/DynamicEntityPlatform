@@ -5,7 +5,9 @@ import type { Entity, FieldDataType } from '../types'
 
 const dataTypes: FieldDataType[] = ['Text', 'LongText', 'Integer', 'Decimal', 'Boolean', 'Date', 'DateTime', 'Email', 'Url', 'Choice', 'MultiChoice', 'Lookup']
 
-export function EntityDesigner({ tenantId, entity }: { tenantId: string; entity?: Entity }) {
+export function EntityDesigner({ tenantId, entity, onEntityCreated }: {
+  tenantId: string; entity?: Entity; onEntityCreated?: (entity: Entity) => void
+}) {
   const client = useQueryClient()
   const [name, setName] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -20,7 +22,10 @@ export function EntityDesigner({ tenantId, entity }: { tenantId: string; entity?
 
   const createEntity = useMutation({
     mutationFn: () => api.createEntity(tenantId, { name, displayName }),
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ['entities', tenantId] }); setName(''); setDisplayName('') },
+    onSuccess: createdEntity => {
+      void client.invalidateQueries({ queryKey: ['entities', tenantId] })
+      setName(''); setDisplayName(''); onEntityCreated?.(createdEntity)
+    },
   })
   const createField = useMutation({
     mutationFn: () => api.createField(tenantId, entity!.id, {
@@ -44,8 +49,8 @@ export function EntityDesigner({ tenantId, entity }: { tenantId: string; entity?
   const mutation = entity ? createField : createEntity
 
   return <form className="designer" onSubmit={submit}>
-    <h3>{entity ? `Add a field to ${entity.displayName}` : 'Create an entity'}</h3>
-    <label className="field"><span>Machine name</span><input required pattern="[A-Za-z][A-Za-z0-9_]*" value={name} onChange={e => setName(e.target.value)} /></label>
+    {entity && <h3>Add a field to {entity.displayName}</h3>}
+    <label className="field"><span>{entity ? 'Field name' : 'Entity name'}</span><input required pattern="[A-Za-z][A-Za-z0-9_]*" value={name} onChange={e => setName(e.target.value)} /></label>
     <label className="field"><span>Display name</span><input required value={displayName} onChange={e => setDisplayName(e.target.value)} /></label>
     {entity && <>
       <label className="field"><span>Data type</span><select value={dataType} onChange={e => setDataType(e.target.value as FieldDataType)}>

@@ -33,8 +33,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: dotnet restore DynamicEntity.slnx
+        working-directory: backend
       - run: dotnet build DynamicEntity.slnx --no-restore --configuration Release
+        working-directory: backend
       - run: dotnet test DynamicEntity.slnx --no-build --no-restore --configuration Release
+        working-directory: backend
       - run: npm ci
         working-directory: frontend
       - run: npm run build

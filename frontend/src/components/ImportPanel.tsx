@@ -14,7 +14,7 @@ export function ImportPanel({ tenantId, entityId, fields }: { tenantId: string; 
   const commit = useMutation({ mutationFn: () => api.commitImport(tenantId, job!.id), onSuccess: () => {
     void client.invalidateQueries({ queryKey: ['records', tenantId, entityId] }); setJob(undefined); setPreview(undefined)
   } })
-  return <div className="import-panel"><h3>Import CSV / Excel</h3>{!job ? <input type="file" accept=".csv,.xlsx" onChange={event => {
+  return <div className="import-panel">{!job ? <input type="file" accept=".csv,.xlsx" onChange={event => {
     const file = event.target.files?.[0]; if (file) upload.mutate(file)
   }} /> : <><p><strong>{job.fileName}</strong></p>{job.columns.map(column => <label className="mapping" key={column}><span>{column}</span>
     <select value={mapping[column] ?? ''} onChange={event => setMapping(current => ({ ...current, [column]: event.target.value }))}>
