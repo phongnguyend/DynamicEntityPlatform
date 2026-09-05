@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="DynamicEntity.Api/DynamicEntity.Api.csproj" />
+  <Project Path="DynamicEntity.Application/DynamicEntity.Application.csproj" />
+  <Project Path="DynamicEntity.Contracts/DynamicEntity.Contracts.csproj" />
+  <Project Path="DynamicEntity.Domain/DynamicEntity.Domain.csproj" />
+  <Project Path="DynamicEntity.Infrastructure/DynamicEntity.Infrastructure.csproj" />
+  <Project Path="DynamicEntity.SqlServer/DynamicEntity.SqlServer.csproj" />
+  <Project Path="DynamicEntity.IntegrationTests/DynamicEntity.IntegrationTests.csproj" />
+  <Project Path="DynamicEntity.UnitTests/DynamicEntity.UnitTests.csproj" />
+</Solution>

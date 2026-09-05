@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Strong_Test_Password_123!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Strong_Test_Password_123!' -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DYNAMIC_ENTITY_TEST_SQL: Server=localhost,1433;Database=tempdb;User Id=sa;Password=Strong_Test_Password_123!;Encrypt=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: dotnet restore DynamicEntity.slnx
+      - run: dotnet build DynamicEntity.slnx --no-restore --configuration Release
+      - run: dotnet test DynamicEntity.slnx --no-build --no-restore --configuration Release
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

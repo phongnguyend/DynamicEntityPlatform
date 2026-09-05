@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.18.0" />
+    <ProjectReference Include="..\DynamicEntity.Application\DynamicEntity.Application.csproj" />
+    <ProjectReference Include="..\DynamicEntity.Contracts\DynamicEntity.Contracts.csproj" />
+    <ProjectReference Include="..\DynamicEntity.Domain\DynamicEntity.Domain.csproj" />
+    <ProjectReference Include="..\DynamicEntity.Infrastructure\DynamicEntity.Infrastructure.csproj" />
+    <ProjectReference Include="..\DynamicEntity.SqlServer\DynamicEntity.SqlServer.csproj" />
+  </ItemGroup>
+
+</Project>
