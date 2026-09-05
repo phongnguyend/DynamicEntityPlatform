@@ -18,7 +18,7 @@ export function FieldsPage({ tenantId }: { tenantId: string }) {
       <span className="pill">Schema v{entity.schemaVersion}</span></header>
     <EntityTabs entityId={entityId} />
     <div className="workspace-grid">
-      <div className="panel"><EntityDesigner tenantId={tenantId} entity={entity} /></div>
+      <div className="panel"><EntityDesigner tenantId={tenantId} entity={entity} fields={fields} /></div>
       <div className="panel wide"><FieldManager tenantId={tenantId} entityId={entityId} fields={fields} /></div>
     </div>
     <div className="panel wide"><IndexManager tenantId={tenantId} entityId={entityId} fields={fields} /></div>

@@ -29,9 +29,9 @@ export const api = {
     isSearchable: boolean; configuration?: unknown; sortOrder: number
   }) => request<Field>(`/api/entities/${entityId}/fields`, { method: 'POST', body: JSON.stringify(input) }, tenantId),
   updateField: (tenantId: string, entityId: string, fieldId: string, input: {
-    name: string; displayName: string; isRequired: boolean; isUnique: boolean
-    isFilterable: boolean; isSortable: boolean; isFacetable: boolean; isSearchable: boolean
-    configuration?: unknown; sortOrder: number
+    name?: string; displayName?: string; isRequired?: boolean; isUnique?: boolean
+    isFilterable?: boolean; isSortable?: boolean; isFacetable?: boolean; isSearchable?: boolean
+    configuration?: unknown; sortOrder?: number
   }) => request<Field>(`/api/entities/${entityId}/fields/${fieldId}`,
     { method: 'PATCH', body: JSON.stringify(input) }, tenantId),
   indexes: (tenantId: string, entityId: string) => request<EntityIndex[]>(`/api/entities/${entityId}/indexes`, {}, tenantId),

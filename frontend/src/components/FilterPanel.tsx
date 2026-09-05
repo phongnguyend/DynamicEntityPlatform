@@ -3,16 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Field } from '../types'
 
-export function FilterPanel({ tenantId, entityId, fields, onApply }: {
-  tenantId: string; entityId: string; fields: Field[]; onApply: (query: Record<string, unknown> | null) => void
+export function FilterPanel({ tenantId, entityId, field, condition, onApply, onClose }: {
+  tenantId: string; entityId: string; field: Field
+  condition?: { operator: string; value: unknown }
+  onApply: (query: Record<string, unknown> | null) => void
+  onClose: () => void
 }) {
-  const filterable = fields.filter(field => field.isFilterable)
-  const [fieldId, setFieldId] = useState(filterable[0]?.id ?? '')
-  const [operator, setOperator] = useState('Equal')
-  const [value, setValue] = useState('')
-  const field = fields.find(item => item.id === fieldId)
+  const [operator, setOperator] = useState(condition?.operator ?? 'Equal')
+  const [value, setValue] = useState(condition?.value == null ? '' : String(condition.value))
+  const fieldId = field.id
   const facets = useQuery({ queryKey: ['facets', tenantId, entityId, fieldId],
-    queryFn: () => api.facets(tenantId, entityId, fieldId), enabled: Boolean(field?.isFacetable) })
+    queryFn: () => api.facets(tenantId, entityId, fieldId), enabled: field.isFacetable })
 
   function apply(event: FormEvent) {
     event.preventDefault()
@@ -21,15 +22,17 @@ export function FilterPanel({ tenantId, entityId, fields, onApply }: {
     if (field.dataType === 'Integer' || field.dataType === 'Decimal') typed = Number(value)
     if (field.dataType === 'Boolean') typed = value === 'true'
     onApply({ filter: { logic: 'And', conditions: [{ fieldId, operator, value: typed }] }, pageSize: 100 })
+    onClose()
   }
-  if (filterable.length === 0) return null
-  return <form className="filter-bar" onSubmit={apply}><select value={fieldId} onChange={event => setFieldId(event.target.value)}>
-    {filterable.map(item => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select>
+  return <form className="filter-bar" onSubmit={apply}><span className="filter-field">{field.displayName}</span>
     <select value={operator} onChange={event => setOperator(event.target.value)}>
       <option>Equal</option><option>NotEqual</option><option>Contains</option><option>StartsWith</option><option>GreaterThan</option><option>LessThan</option>
     </select>
     {facets.data?.length ? <select value={value} onChange={event => setValue(event.target.value)}><option value="">Value…</option>
       {facets.data.map(item => <option key={item.value} value={item.value}>{item.value} ({item.recordCount})</option>)}</select>
       : <input value={value} placeholder="Value" onChange={event => setValue(event.target.value)} />}
-    <button>Apply</button><button type="button" className="secondary" onClick={() => onApply(null)}>Clear</button></form>
+    <button>Apply</button><button type="button" className="secondary" onClick={() => {
+      onApply(null)
+      onClose()
+    }}>Clear</button></form>
 }

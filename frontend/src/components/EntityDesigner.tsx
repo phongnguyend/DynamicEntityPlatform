@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import type { Entity, FieldDataType } from '../types'
+import type { Entity, Field, FieldDataType } from '../types'
 
 const dataTypes: FieldDataType[] = ['Text', 'LongText', 'Integer', 'Decimal', 'Boolean', 'Date', 'DateTime', 'Email', 'Url', 'Choice', 'MultiChoice', 'Lookup']
 
-export function EntityDesigner({ tenantId, entity, onEntityCreated }: {
-  tenantId: string; entity?: Entity; onEntityCreated?: (entity: Entity) => void
+export function EntityDesigner({ tenantId, entity, fields = [], onEntityCreated }: {
+  tenantId: string; entity?: Entity; fields?: Field[]; onEntityCreated?: (entity: Entity) => void
 }) {
   const client = useQueryClient()
   const [name, setName] = useState('')
@@ -33,7 +33,7 @@ export function EntityDesigner({ tenantId, entity, onEntityCreated }: {
       isFilterable: filterable, isSortable: sortable, isFacetable: facetable, isSearchable: searchable,
       configuration: dataType === 'Choice' || dataType === 'MultiChoice'
         ? { allowCustomValues: false, values: choices.split('\n').map(value => value.trim()).filter(Boolean) } : undefined,
-      sortOrder: 0,
+      sortOrder: Math.max(-1, ...fields.map(field => field.sortOrder)) + 1,
     }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['fields', tenantId, entity?.id] })

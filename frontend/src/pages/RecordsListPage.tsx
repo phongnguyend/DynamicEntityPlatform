@@ -17,6 +17,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
   const client = useQueryClient()
   const { entity, fields, isLoading, error } = useEntityContext(tenantId, entityId)
   const [queryDefinition, setQueryDefinition] = useState<Record<string, unknown> | null>(null)
+  const [filterFieldId, setFilterFieldId] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const records = useQuery({
     queryKey: ['records', tenantId, entityId, queryDefinition],
@@ -27,6 +28,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
     mutationFn: (record: DynamicRecord) => api.deleteRecord(tenantId, entityId, record),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['records', tenantId, entityId] }),
   })
+  const appliedFilterFieldId = getAppliedFilterFieldId(queryDefinition)
 
   if (isLoading) return <p>Loading…</p>
   if (error) return <p className="error">{error.message}</p>
@@ -47,9 +49,13 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
       </div>
     </div>
     <SavedViewSelector tenantId={tenantId} entityId={entityId} definition={queryDefinition} onSelect={setQueryDefinition} />
-    <FilterPanel tenantId={tenantId} entityId={entityId} fields={fields} onApply={setQueryDefinition} />
     {records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
       <DynamicGrid fields={fields} records={records.data?.items ?? []}
+        selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
+        onSelectFilter={field => setFilterFieldId(current => current === field.id ? '' : field.id)}
+        renderFilter={field => <FilterPanel key={field.id} tenantId={tenantId} entityId={entityId}
+          field={field} condition={getAppliedFilterCondition(queryDefinition, field.id)}
+          onApply={setQueryDefinition} onClose={() => setFilterFieldId('')} />}
         onEdit={record => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
         onDelete={record => { if (confirm('Delete this record?')) remove.mutate(record) }} />
       <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
@@ -58,4 +64,19 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
       <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} />
     </Modal>}
   </section>
+}
+
+function getAppliedFilterFieldId(query: Record<string, unknown> | null) {
+  return getAppliedFilterCondition(query)?.fieldId
+}
+
+function getAppliedFilterCondition(query: Record<string, unknown> | null, fieldId?: string) {
+  if (!query || typeof query.filter !== 'object' || query.filter === null) return undefined
+  const conditions = (query.filter as { conditions?: unknown }).conditions
+  if (!Array.isArray(conditions)) return undefined
+  const condition = conditions.find(item => typeof item === 'object' && item !== null &&
+    typeof (item as { fieldId?: unknown }).fieldId === 'string' &&
+    (!fieldId || (item as { fieldId: string }).fieldId === fieldId)) as Record<string, unknown> | undefined
+  if (!condition || typeof condition.fieldId !== 'string' || typeof condition.operator !== 'string') return undefined
+  return { fieldId: condition.fieldId, operator: condition.operator, value: condition.value }
 }

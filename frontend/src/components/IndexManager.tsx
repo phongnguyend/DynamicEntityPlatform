@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type DragEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Field } from '../types'
@@ -74,6 +74,7 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
   const client = useQueryClient()
   const indexableFields = fields.filter(field => !UNINDEXABLE_TYPES.has(field.dataType))
   const [selection, setSelection] = useState<Array<{ fieldId: string; descending: boolean }>>([])
+  const [draggedId, setDraggedId] = useState<string>()
   const create = useMutation({
     mutationFn: () => api.createIndex(tenantId, entityId, selection),
     onSuccess: () => {
@@ -93,16 +94,23 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
     setSelection(current => current.map(entry => entry.fieldId === fieldId ? { ...entry, descending } : entry))
   }
 
-  function move(fieldId: string, delta: number) {
+  function move(fromIndex: number, toIndex: number) {
     setSelection(current => {
-      const index = current.findIndex(entry => entry.fieldId === fieldId)
-      const target = index + delta
-      if (index < 0 || target < 0 || target >= current.length) return current
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 ||
+          fromIndex >= current.length || toIndex >= current.length) return current
       const next = current.slice()
-      const [entry] = next.splice(index, 1)
-      next.splice(target, 0, entry)
+      const [entry] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, entry)
       return next
     })
+  }
+
+  function dragOver(event: DragEvent<HTMLLIElement>, targetId: string) {
+    event.preventDefault()
+    if (!draggedId || draggedId === targetId) return
+    const fromIndex = selection.findIndex(entry => entry.fieldId === draggedId)
+    const toIndex = selection.findIndex(entry => entry.fieldId === targetId)
+    move(fromIndex, toIndex)
   }
 
   function submit(event: FormEvent) {
@@ -112,31 +120,51 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
   }
 
   return <form className="index-creator" onSubmit={submit}>
-    <p className="field-note">Select one or more columns and pick a sort direction for each. Order determines column order in the index.</p>
+    <p className="field-note">Select one or more columns, then drag them into index order and choose a direction.</p>
     <ul className="field-list">{indexableFields.map(field => {
-      const selected = selection.find(entry => entry.fieldId === field.id)
+      const selected = selection.some(entry => entry.fieldId === field.id)
       return <li key={field.id}>
         <label className="check">
-          <input type="checkbox" checked={!!selected}
+          <input type="checkbox" checked={selected}
             onChange={event => toggleField(field.id, event.target.checked)} />
           {field.displayName}<small> {field.name} · {field.dataType}</small>
         </label>
-        {selected && <div className="field-actions">
-          <select value={selected.descending ? 'DESC' : 'ASC'}
-            onChange={event => setDescending(field.id, event.target.value === 'DESC')}>
-            <option value="ASC">Ascending</option>
-            <option value="DESC">Descending</option>
-          </select>
-          <button type="button" className="link" onClick={() => move(field.id, -1)}>Up</button>
-          <button type="button" className="link" onClick={() => move(field.id, 1)}>Down</button>
-        </div>}
       </li>
     })}</ul>
-    {selection.length > 0 && <ol className="index-order-preview">
-      {selection.map(entry => <li key={entry.fieldId}>
-        {fields.find(field => field.id === entry.fieldId)?.displayName} ({entry.descending ? 'DESC' : 'ASC'})
-      </li>)}
-    </ol>}
+    {selection.length > 0 && <div className="index-column-order">
+      <h4>Index column order</h4>
+      <ol className="field-order-list">{selection.map((entry, index) => {
+        const field = fields.find(candidate => candidate.id === entry.fieldId)
+        const label = field?.displayName ?? entry.fieldId
+        return <li key={entry.fieldId} draggable
+          className={draggedId === entry.fieldId ? 'dragging' : ''}
+          onDragStart={event => {
+            setDraggedId(entry.fieldId)
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('text/plain', entry.fieldId)
+          }}
+          onDragOver={event => dragOver(event, entry.fieldId)}
+          onDragEnd={() => setDraggedId(undefined)}>
+          <span className="drag-handle" aria-hidden="true">&#x2630;</span>
+          <div><strong>{label}</strong>
+            {field && <small>{field.name} &middot; {field.dataType}</small>}</div>
+          <div className="index-column-controls">
+            <select aria-label={`Direction for ${label}`}
+              value={entry.descending ? 'DESC' : 'ASC'}
+              onChange={event => setDescending(entry.fieldId, event.target.value === 'DESC')}>
+              <option value="ASC">Ascending</option>
+              <option value="DESC">Descending</option>
+            </select>
+            <div className="order-actions">
+              <button type="button" className="link" aria-label={`Move ${label} up`}
+                disabled={index === 0} onClick={() => move(index, index - 1)}>&uarr;</button>
+              <button type="button" className="link" aria-label={`Move ${label} down`}
+                disabled={index === selection.length - 1} onClick={() => move(index, index + 1)}>&darr;</button>
+            </div>
+          </div>
+        </li>
+      })}</ol>
+    </div>}
     {create.error && <p className="error">{create.error.message}</p>}
     <div className="actions">
       <button disabled={selection.length === 0 || create.isPending}>

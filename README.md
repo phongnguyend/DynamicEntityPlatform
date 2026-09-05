@@ -1,7 +1,6 @@
 # Dynamic Entity Platform
 
-A metadata-driven, multi-tenant data platform built from the accompanying
-[`implementation plan`](dynamic-entity-platform-implementation-plan.md).
+A metadata-driven, multi-tenant data platform.
 
 ## Capabilities
 
