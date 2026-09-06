@@ -41,9 +41,18 @@ public sealed class TenantService(
         }
     }
 
-    public async Task<Tenant> UpdateAsync(Guid tenantId, string name, string connectionString, CancellationToken cancellationToken)
+    public async Task<Tenant> UpdateAsync(Guid tenantId, string name, CancellationToken cancellationToken)
     {
         name = ValidateName(name);
+        await initializer.InitializeAsync(cancellationToken);
+        var current = await controlPlane.GetTenantAsync(tenantId, cancellationToken)
+            ?? throw new NotFoundException($"Tenant '{tenantId}' was not found.");
+        await controlPlane.UpdateTenantNameAsync(tenantId, name, cancellationToken);
+        return current with { Name = name, UpdatedAt = timeProvider.GetUtcNow() };
+    }
+
+    public async Task<Tenant> ConfigureConnectionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ValidationException("A connection string for an existing tenant database is required.");
         await initializer.InitializeAsync(cancellationToken);
@@ -58,8 +67,7 @@ public sealed class TenantService(
             nextStatus = TenantStatus.Active;
             await controlPlane.SetTenantStatusAsync(tenantId, nextStatus, cancellationToken);
         }
-        await controlPlane.UpdateTenantNameAsync(tenantId, name, cancellationToken);
-        return current with { Name = name, Status = nextStatus, UpdatedAt = timeProvider.GetUtcNow() };
+        return current with { Status = nextStatus, UpdatedAt = timeProvider.GetUtcNow() };
     }
 
     public async Task DisableAsync(Guid tenantId, CancellationToken cancellationToken)

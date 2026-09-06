@@ -143,7 +143,16 @@ app.MapGet("/api/tenants", async (TenantService service, IControlPlaneStore cont
 app.MapPatch("/api/tenants/{tenantId:guid}", async (
     Guid tenantId, UpdateTenantRequest request, TenantService service, IControlPlaneStore controlPlane, CancellationToken cancellationToken) =>
 {
-    var tenant = await service.UpdateAsync(tenantId, request.Name, request.ConnectionString ?? string.Empty, cancellationToken);
+    var tenant = await service.UpdateAsync(tenantId, request.Name, cancellationToken);
+    var storage = await controlPlane.GetTenantStorageAsync(tenant.Id, cancellationToken);
+    return Results.Ok(ToTenantResponse(tenant, storage));
+});
+
+app.MapPut("/api/tenants/{tenantId:guid}/connection", async (
+    Guid tenantId, ConfigureTenantConnectionRequest request, TenantService service, IControlPlaneStore controlPlane,
+    CancellationToken cancellationToken) =>
+{
+    var tenant = await service.ConfigureConnectionAsync(tenantId, request.ConnectionString ?? string.Empty, cancellationToken);
     var storage = await controlPlane.GetTenantStorageAsync(tenant.Id, cancellationToken);
     return Results.Ok(ToTenantResponse(tenant, storage));
 });
