@@ -1,4 +1,5 @@
 import type { Field } from '../types'
+import { FolderPlus, Funnel, Trash2 } from 'lucide-react'
 
 type FilterLogic = 'And' | 'Or'
 type FilterCondition = { fieldId: string; operator: string; value?: unknown }
@@ -16,8 +17,8 @@ export function AnalyticsFilterEditor({ fields, value, onChange }: { fields: Fie
 
   return <div className="builder-section analytics-filters">
     <div className="panel-title"><h3>Filters</h3><div className="actions">
-      {group && <button type="button" className="link danger" onClick={() => onChange(undefined)}>Clear all</button>}
-      {!group && <button type="button" className="secondary" disabled={!filterableFields.length} onClick={startFilter}>Add filter</button>}
+      {group && <button type="button" className="link danger" onClick={() => onChange(undefined)}><Trash2 />Clear all</button>}
+      {!group && <button type="button" className="secondary" disabled={!filterableFields.length} onClick={startFilter}><Funnel />Add filter</button>}
     </div></div>
     {!group && <p className="empty">No filters. All records are included.</p>}
     {group && <FilterGroupEditor fields={filterableFields} group={group} depth={0} onChange={onChange} />}
@@ -53,22 +54,22 @@ function FilterGroupEditor({ fields, group, depth, onChange, onRemove }: {
 
   return <div className={`analytics-filter-group${depth ? ' nested' : ''}`}>
     <div className="filter-group-header">
-      <label className="field filter-logic">Match
-        <select aria-label={`Group level ${depth + 1} logic`} value={group.logic} onChange={event => onChange({ ...group, logic: event.target.value as FilterLogic })}>
-          <option value="And">All items (AND)</option><option value="Or">Any item (OR)</option>
-        </select>
-      </label>
       <div className="actions">
-        <button type="button" className="secondary" disabled={!fields.length || full} onClick={addCondition}>Add filter</button>
-        <button type="button" className="secondary" disabled={!fields.length || full || depth >= 10} onClick={addGroup}>Add group</button>
-        {onRemove && <button type="button" className="link danger" onClick={onRemove}>Remove group</button>}
+        <button type="button" className="secondary" disabled={!fields.length || full} onClick={addCondition}><Funnel />Add filter</button>
+        <button type="button" className="secondary" disabled={!fields.length || full || depth >= 10} onClick={addGroup}><FolderPlus />Add group</button>
+        {onRemove && <button type="button" className="link danger" onClick={onRemove}><Trash2 />Remove group</button>}
       </div>
     </div>
     {group.conditions.length === 0 && <p className="empty">This group is empty.</p>}
-    <div className="filter-group-children">{group.conditions.map((node, index) => isGroup(node)
-      ? <FilterGroupEditor key={index} fields={fields} group={node} depth={depth + 1} onChange={next => updateNode(index, next)} onRemove={() => removeNode(index)} />
-      : <FilterConditionEditor key={index} fields={fields} condition={node} label={`Filter ${index + 1}`} onChange={next => updateNode(index, next)} onRemove={() => removeNode(index)} />
-    )}</div>
+    <div className="filter-group-children">{group.conditions.map((node, index) => <div className="filter-group-child" key={index}>
+      {index > 0 && <select className="condition-logic" aria-label={`Logic before filter ${index + 1}`}
+        value={group.logic} onChange={event => onChange({ ...group, logic: event.target.value as FilterLogic })}>
+        <option value="And">AND</option><option value="Or">OR</option>
+      </select>}
+      {isGroup(node)
+        ? <FilterGroupEditor fields={fields} group={node} depth={depth + 1} onChange={next => updateNode(index, next)} onRemove={() => removeNode(index)} />
+        : <FilterConditionEditor fields={fields} condition={node} label={`Filter ${index + 1}`} onChange={next => updateNode(index, next)} onRemove={() => removeNode(index)} />}
+    </div>)}</div>
   </div>
 }
 
@@ -96,7 +97,7 @@ function FilterConditionEditor({ fields, condition, label, onChange, onRemove }:
     <select aria-label={`${label} field`} value={condition.fieldId} onChange={event => changeField(event.target.value)}>{fields.map(item => <option value={item.id} key={item.id}>{item.displayName}</option>)}</select>
     <select aria-label={`${label} operator`} value={condition.operator} onChange={event => changeOperator(event.target.value)}>{operators.map(operator => <option key={operator}>{operator}</option>)}</select>
     {hasValue ? <FilterValue field={field} value={condition.value} onChange={value => onChange({ ...condition, value })} /> : <span className="filter-no-value">No value</span>}
-    <button type="button" className="link danger" onClick={onRemove}>Remove</button>
+    <button type="button" className="link danger icon-only" aria-label={`Remove ${label}`} title="Remove filter" onClick={onRemove}><Trash2 /></button>
   </div>
 }
 

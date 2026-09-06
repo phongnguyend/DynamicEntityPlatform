@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { Funnel, Pencil, Trash2 } from 'lucide-react'
 import type { DynamicRecord, Field } from '../types'
 
 interface Props {
@@ -23,11 +24,11 @@ export function DynamicGrid({ fields, records, selectedFilterFieldId, appliedFil
       onSelect={() => onSelectFilter(field)}>{renderFilter(field)}</FilterHeader> : field.displayName}
   </th>)}<th>Created</th><th>Updated</th><th /></tr></thead>
     <tbody>{records.map(record => <tr key={record.id}>{shown.map(field =>
-      <td key={field.id}>{display(record.data[field.storageKey])}</td>)}
+      <td key={field.id}>{display(record.data[field.storageKey], field)}</td>)}
       <td>{new Date(record.createdAt).toLocaleString()}</td>
       <td>{new Date(record.updatedAt).toLocaleString()}</td><td className="row-actions">
-        <button className="link" onClick={() => onEdit(record)}>Edit</button>
-        <button className="link danger" onClick={() => onDelete(record)}>Delete</button></td></tr>)}</tbody></table>
+        <button className="link icon-only" aria-label="Edit record" title="Edit" onClick={() => onEdit(record)}><Pencil /></button>
+        <button className="link danger icon-only" aria-label="Delete record" title="Delete" onClick={() => onDelete(record)}><Trash2 /></button></td></tr>)}</tbody></table>
     {records.length === 0 && <p className="empty">No records yet.</p>}</div>
 }
 
@@ -81,17 +82,19 @@ function FilterHeader({ field, selected, filtered, onSelect, children }: {
       className={`column-filter${selected || filtered ? ' active' : ''}`}
       aria-pressed={filtered} aria-expanded={selected} onClick={onSelect}>
       <span>{field.displayName}</span>
-      <svg className="filter-icon" viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M3 4h14l-5.5 6.3V15l-3 1.5v-6.2L3 4Z" />
-      </svg>
+      <Funnel className="filter-icon" aria-hidden="true" />
     </button>
     {selected && position && createPortal(
       <div ref={popoverRef} className="column-filter-popover" style={position}>{children}</div>, document.body)}
   </div>
 }
 
-function display(value: unknown) {
+function display(value: unknown, field: Field) {
   if (value == null) return '—'
+  if (field.dataType === 'DateTime' && (typeof value === 'string' || typeof value === 'number')) {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) return date.toLocaleString()
+  }
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   return String(value)

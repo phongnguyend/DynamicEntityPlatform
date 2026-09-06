@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
+import { Save, X } from 'lucide-react'
 
 export function JsonEditorModal({ title, value, onClose, onSave }: {
   title: string
@@ -43,8 +44,8 @@ export function JsonEditorModal({ title, value, onClose, onSave }: {
       </label>
       {error && <p className="error">{error}</p>}
       <div className="actions">
-        <button type="button" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save JSON'}</button>
-        <button type="button" className="secondary" disabled={saving} onClick={onClose}>Cancel</button>
+        <button type="button" disabled={saving} onClick={save}><Save />{saving ? 'Saving…' : 'Save JSON'}</button>
+        <button type="button" className="secondary" disabled={saving} onClick={onClose}><X />Cancel</button>
       </div>
     </div>
   </Modal>

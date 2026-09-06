@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
+import { Save } from 'lucide-react'
 
 export function SavedViewSelector({ tenantId, entityId, definition, onSelect }: {
   tenantId: string; entityId: string; definition: Record<string, unknown> | null
@@ -14,5 +15,5 @@ export function SavedViewSelector({ tenantId, entityId, definition, onSelect }: 
     const view = views.data?.find(item => item.id === event.target.value); if (view) onSelect(view.definition)
   }}><option value="">Saved views…</option>{views.data?.map(view => <option key={view.id} value={view.id}>{view.name}</option>)}</select>
     <input value={name} placeholder="View name" onChange={event => setName(event.target.value)} />
-    <button disabled={!name || save.isPending} onClick={() => save.mutate()}>Save view</button></div>
+    <button disabled={!name || save.isPending} onClick={() => save.mutate()}><Save />Save view</button></div>
 }

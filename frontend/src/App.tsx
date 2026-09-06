@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { ArrowRight, Building2, Database, Plus, Repeat2 } from 'lucide-react'
 import { api } from './api'
 import { EntityDesigner } from './components/EntityDesigner'
 import { Modal } from './components/Modal'
@@ -45,12 +46,12 @@ export default function App() {
           {tenants.data.map(tenant => <option key={tenant.id} value={tenant.id} disabled={tenant.status !== 'Active'}>
             {tenant.name}{tenant.status === 'Active' ? '' : ` (${tenant.status})`}
           </option>)}
-        </select><button type="button" disabled={!existingTenantId} onClick={openTenant}>Open workspace</button></div> :
+        </select><button type="button" disabled={!existingTenantId} onClick={openTenant}>Open workspace <ArrowRight /></button></div> :
         <p className="empty">No existing tenants yet.</p>}
     </div>
     <div className="create-workspace"><h2>Create a workspace</h2>
       <form onSubmit={provision}><input required placeholder="Organization name" value={tenantName} onChange={e => setTenantName(e.target.value)} />
-        <button disabled={createTenant.isPending || isDuplicateName}>{createTenant.isPending ? 'Provisioning…' : 'Create workspace'}</button></form>
+        <button disabled={createTenant.isPending || isDuplicateName}><Plus />{createTenant.isPending ? 'Provisioning…' : 'Create workspace'}</button></form>
       {isDuplicateName && <p className="error">A tenant named "{tenantName}" already exists.</p>}
       {createTenant.error && <p className="error">{createTenant.error.message}</p>}</div></section></main>
 
@@ -64,16 +65,18 @@ function Shell({ tenantId, onChangeTenant }: { tenantId: string; onChangeTenant:
   const tenantName = tenants.data?.find(tenant => tenant.id === tenantId)?.name ?? tenantId.slice(0, 8) + '…'
   const [creatingEntity, setCreatingEntity] = useState(false)
 
-  return <div className="shell"><aside><div className="brand"><span className="mark">D</span><strong>Dynamic Data</strong></div>
-    <p className="nav-label">Entities</p><nav>{entities.data?.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
-      className={({ isActive }) => isActive ? 'active' : ''}>{entity.displayName}</NavLink>)}
-      <button type="button" onClick={() => setCreatingEntity(true)}>+ New entity</button></nav>
-    <button className="tenant" onClick={onChangeTenant}>Change tenant<br /><small>{tenantName}</small></button></aside>
+  return <div className="shell"><aside><div className="brand"><span className="mark"><Database size={18} /></span><strong>Dynamic Data</strong></div>
+    <div className="nav-heading"><p className="nav-label">Entities</p>
+      <button type="button" className="nav-add" aria-label="Create a new entity" title="New entity"
+        onClick={() => setCreatingEntity(true)}><Plus /></button></div>
+    <nav>{entities.data?.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
+      className={({ isActive }) => isActive ? 'active' : ''}>{entity.displayName}</NavLink>)}</nav>
+    <button className="tenant" onClick={onChangeTenant}><Repeat2 /><span className="tenant-copy">Change tenant<small>{tenantName}</small></span></button></aside>
     <main>{entities.isLoading ? <p>Loading workspace…</p> : entities.error ? <p className="error">{entities.error.message}</p> :
       <Routes>
         <Route path="/" element={entities.data?.[0] ? <Navigate to={`/entities/${entities.data[0].id}/records`} replace /> :
           <div className="first-entity"><p className="empty">No entities yet.</p>
-            <button type="button" onClick={() => setCreatingEntity(true)}>Create an entity</button></div>} />
+            <button type="button" onClick={() => setCreatingEntity(true)}><Building2 />Create an entity</button></div>} />
         <Route path="/entities/:entityId" element={<RedirectToRecords />} />
         <Route path="/entities/:entityId/records" element={<RecordsListPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/records/new" element={<RecordFormPage tenantId={tenantId} />} />

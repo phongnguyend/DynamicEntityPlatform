@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Download, Plus, Upload } from 'lucide-react'
 import { api } from '../api'
 import type { DynamicRecord } from '../types'
 import { DynamicGrid } from '../components/DynamicGrid'
@@ -43,9 +44,9 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
         <button className="link" onClick={async () => {
           const blob = await api.exportRecords(tenantId, entityId); const url = URL.createObjectURL(blob)
           const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${entity.name}.csv`; anchor.click(); URL.revokeObjectURL(url)
-        }}>Export CSV</button>
-        <button type="button" className="secondary" onClick={() => setImportOpen(true)}>Import</button>
-        <button type="button" disabled={fields.length === 0} onClick={() => navigate(`/entities/${entityId}/records/new`)}>New record</button>
+        }}><Download />Export CSV</button>
+        <button type="button" className="secondary" onClick={() => setImportOpen(true)}><Upload />Import</button>
+        <button type="button" disabled={fields.length === 0} onClick={() => navigate(`/entities/${entityId}/records/new`)}><Plus />New record</button>
       </div>
     </div>
     <SavedViewSelector tenantId={tenantId} entityId={entityId} definition={queryDefinition} onSelect={setQueryDefinition} />

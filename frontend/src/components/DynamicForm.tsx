@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import type { DynamicRecord, Field } from '../types'
+import { Save, X } from 'lucide-react'
 import { DynamicField } from './DynamicField'
 
 interface Props {
@@ -21,7 +22,7 @@ export function DynamicForm({ fields, record, busy, onSubmit, onCancel }: Props)
   return <form className="dynamic-form" onSubmit={submit}>
     {fields.map(field => <DynamicField key={field.id} field={field} value={values[field.name]}
       onChange={value => setValues(current => ({ ...current, [field.name]: value }))} />)}
-    <div className="actions"><button disabled={busy} type="submit">{busy ? 'Saving…' : 'Save'}</button>
-      {onCancel && <button type="button" className="secondary" onClick={onCancel}>Cancel</button>}</div>
+    <div className="actions"><button disabled={busy} type="submit"><Save />{busy ? 'Saving…' : 'Save'}</button>
+      {onCancel && <button type="button" className="secondary" onClick={onCancel}><X />Cancel</button>}</div>
   </form>
 }

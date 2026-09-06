@@ -1,5 +1,6 @@
 import { useState, type DragEvent, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowDown, ArrowUp, GripVertical, Pencil, Save, X } from 'lucide-react'
 import { api } from '../api'
 import type { Field } from '../types'
 import { Modal } from './Modal'
@@ -18,7 +19,7 @@ export function FieldManager({ tenantId, entityId, fields }: Props) {
     <div className="field-manager-header">
       <h3>Manage fields</h3>
       <button type="button" className="secondary" disabled={fields.length < 2}
-        onClick={() => setReordering(true)}>Change order</button>
+        onClick={() => setReordering(true)}><GripVertical />Change order</button>
     </div>
     <p className="field-note">Indexes can improve filtering and sorting. Manage them from the Indexes section.</p>
     {fields.length === 0 ? <p className="empty">No fields have been added.</p> :
@@ -26,7 +27,7 @@ export function FieldManager({ tenantId, entityId, fields }: Props) {
         <div><strong>{field.displayName}</strong><small>{field.name} · {field.dataType}</small></div>
         <div className="field-actions">
           {field.indexColumnName && <span className="index-status">Indexed</span>}
-          <button type="button" className="link" onClick={() => setEditing(field)}>Edit</button>
+          <button type="button" className="link" onClick={() => setEditing(field)}><Pencil />Edit</button>
         </div>
       </li>)}</ul>}
     {editing && <Modal title={`Edit ${editing.displayName}`} onClose={() => setEditing(undefined)}>
@@ -85,22 +86,22 @@ function FieldOrderEditor({ tenantId, entityId, fields, onClose }: Props & { onC
         }}
         onDragOver={event => dragOver(event, field.id)}
         onDragEnd={() => setDraggedId(undefined)}>
-        <span className="drag-handle" aria-hidden="true">&#x2630;</span>
+        <span className="drag-handle" aria-hidden="true"><GripVertical /></span>
         <div><strong>{field.displayName}</strong><small>{field.name} &middot; {field.dataType}</small></div>
         <div className="order-actions">
           <button type="button" className="link" aria-label={`Move ${field.displayName} up`}
-            disabled={index === 0} onClick={() => moveField(index, index - 1)}>&uarr;</button>
+            disabled={index === 0} onClick={() => moveField(index, index - 1)}><ArrowUp /></button>
           <button type="button" className="link" aria-label={`Move ${field.displayName} down`}
-            disabled={index === orderedFields.length - 1} onClick={() => moveField(index, index + 1)}>&darr;</button>
+            disabled={index === orderedFields.length - 1} onClick={() => moveField(index, index + 1)}><ArrowDown /></button>
         </div>
       </li>)}
     </ol>
     {save.error && <p className="error">{save.error.message}</p>}
     <div className="actions">
-      <button type="button" disabled={save.isPending} onClick={() => save.mutate()}>
+      <button type="button" disabled={save.isPending} onClick={() => save.mutate()}><Save />
         {save.isPending ? 'Saving…' : 'Save order'}
       </button>
-      <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}>Cancel</button>
+      <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}><X />Cancel</button>
     </div>
   </div>
 }
@@ -168,7 +169,7 @@ function FieldEditor({ tenantId, entityId, field, onClose }: {
       placeholder="{}" onChange={event => setConfiguration(event.target.value)} /></label>
     {configurationError && <p className="error">{configurationError}</p>}
     {save.error && <p className="error">{save.error.message}</p>}
-    <div className="actions"><button disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save field'}</button>
-      <button type="button" className="secondary" onClick={onClose}>Cancel</button></div>
+    <div className="actions"><button disabled={save.isPending}><Save />{save.isPending ? 'Saving…' : 'Save field'}</button>
+      <button type="button" className="secondary" onClick={onClose}><X />Cancel</button></div>
   </form>
 }

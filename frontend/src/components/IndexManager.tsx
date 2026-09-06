@@ -1,5 +1,6 @@
 import { useState, type DragEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../api'
 import type { Field } from '../types'
 import { Modal } from './Modal'
@@ -37,7 +38,7 @@ export function IndexManager({ tenantId, entityId, fields }: Props) {
   return <div className="index-manager">
     <div className="index-manager-header">
       <h3>Indexes</h3>
-      <button type="button" onClick={() => setCreating(true)}>Create index</button>
+      <button type="button" onClick={() => setCreating(true)}><Plus />Create index</button>
     </div>
     <p className="field-note">Composite SQL indexes can speed up filtering and sorting across multiple columns.</p>
     {indexes.isLoading && <p>Loading…</p>}
@@ -55,7 +56,7 @@ export function IndexManager({ tenantId, entityId, fields }: Props) {
           <span className="index-status">{index.status}</span>
           <button type="button" className="link danger" disabled={deleteIndex.isPending}
             onClick={() => confirmRemoval(index.id, index.indexName)}>
-            {deleteIndex.isPending && deleteIndex.variables === index.id ? 'Removing…' : 'Remove'}
+            <Trash2 />{deleteIndex.isPending && deleteIndex.variables === index.id ? 'Removing…' : 'Remove'}
           </button>
         </div>
       </li>)}</ul>}
@@ -145,7 +146,7 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
           }}
           onDragOver={event => dragOver(event, entry.fieldId)}
           onDragEnd={() => setDraggedId(undefined)}>
-          <span className="drag-handle" aria-hidden="true">&#x2630;</span>
+          <span className="drag-handle" aria-hidden="true"><GripVertical /></span>
           <div><strong>{label}</strong>
             {field && <small>{field.name} &middot; {field.dataType}</small>}</div>
           <div className="index-column-controls">
@@ -157,9 +158,9 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
             </select>
             <div className="order-actions">
               <button type="button" className="link" aria-label={`Move ${label} up`}
-                disabled={index === 0} onClick={() => move(index, index - 1)}>&uarr;</button>
+                disabled={index === 0} onClick={() => move(index, index - 1)}><ArrowUp /></button>
               <button type="button" className="link" aria-label={`Move ${label} down`}
-                disabled={index === selection.length - 1} onClick={() => move(index, index + 1)}>&darr;</button>
+                disabled={index === selection.length - 1} onClick={() => move(index, index + 1)}><ArrowDown /></button>
             </div>
           </div>
         </li>
@@ -167,10 +168,10 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
     </div>}
     {create.error && <p className="error">{create.error.message}</p>}
     <div className="actions">
-      <button disabled={selection.length === 0 || create.isPending}>
+      <button disabled={selection.length === 0 || create.isPending}><Plus />
         {create.isPending ? 'Creating…' : 'Create index'}
       </button>
-      <button type="button" className="secondary" onClick={onClose}>Cancel</button>
+      <button type="button" className="secondary" onClick={onClose}><X />Cancel</button>
     </div>
   </form>
 }

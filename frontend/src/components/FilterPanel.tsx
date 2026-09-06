@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Filter, RotateCcw } from 'lucide-react'
 import { api } from '../api'
 import type { Field } from '../types'
 
@@ -31,8 +32,8 @@ export function FilterPanel({ tenantId, entityId, field, condition, onApply, onC
     {facets.data?.length ? <select value={value} onChange={event => setValue(event.target.value)}><option value="">Value…</option>
       {facets.data.map(item => <option key={item.value} value={item.value}>{item.value} ({item.recordCount})</option>)}</select>
       : <input value={value} placeholder="Value" onChange={event => setValue(event.target.value)} />}
-    <button>Apply</button><button type="button" className="secondary" onClick={() => {
+    <button><Filter />Apply</button><button type="button" className="secondary" onClick={() => {
       onApply(null)
       onClose()
-    }}>Clear</button></form>
+    }}><RotateCcw />Clear</button></form>
 }
