@@ -141,15 +141,13 @@ public sealed class SqlServerRecordStore(
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
             throw new NotSupportedException("The configured storage mode is not implemented by this record store yet.");
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
         var connection = await OpenConnectionAsync(storage, cancellationToken);
         return (connection, PhysicalName.QuoteSqlIdentifier(storage.TableName));
     }
 
     private async Task<SqlConnection> OpenConnectionAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        var connection = SqlServerTenantConnection.Create(options, storage);
+        var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

@@ -16,7 +16,7 @@ public sealed class SqlServerFacetStore(
         CancellationToken cancellationToken)
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        await using var connection = SqlServerTenantConnection.Create(options, storage);
+        await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
         var entityWhere = storage.RequiresEntityPredicate ? " AND r.EntityId = @entityId" : string.Empty;

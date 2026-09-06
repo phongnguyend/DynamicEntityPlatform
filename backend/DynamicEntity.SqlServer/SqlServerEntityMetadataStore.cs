@@ -149,7 +149,7 @@ public sealed class SqlServerEntityMetadataStore(SqlServerOptions options) : IEn
         EntityStorageLocation storage,
         CancellationToken cancellationToken)
     {
-        var connection = SqlServerTenantConnection.Create(options, storage);
+        var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

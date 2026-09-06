@@ -26,7 +26,6 @@ public sealed class SqlServerTenantDatabaseProvisioner(SqlServerOptions options)
             throw new ValidationException("The tenant connection string contains escaped backslashes. Enter it as plain text, for example Server=(localdb)\\MSSQLLocalDB;Database=Tenant_name.");
 
         var location = new EntityStorageLocation(
-            options.ConnectionKey,
             databaseName,
             string.Empty,
             EntityStorageMode.DedicatedTable,

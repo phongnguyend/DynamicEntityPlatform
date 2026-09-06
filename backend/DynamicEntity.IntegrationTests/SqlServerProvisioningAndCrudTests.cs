@@ -34,8 +34,7 @@ public sealed class SqlServerProvisioningAndCrudTests
         var tenantBuilder = new SqlConnectionStringBuilder(serverConnection) { InitialCatalog = tenantDatabaseName };
         var options = new SqlServerOptions
         {
-            ControlDatabaseConnectionString = controlBuilder.ConnectionString,
-            ConnectionKey = "IntegrationSql"
+            ControlDatabaseConnectionString = controlBuilder.ConnectionString
         };
         try
         {
@@ -173,7 +172,7 @@ public sealed class SqlServerProvisioningAndCrudTests
     private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId, string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
-        var storage = new EntityStorageLocation(options.ConnectionKey, builder.InitialCatalog,
+        var storage = new EntityStorageLocation(builder.InitialCatalog,
             string.Empty, EntityStorageMode.DedicatedTable, false, builder.ConnectionString);
         var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator(options);
         await migrator.MigrateAsync(storage, CancellationToken.None);

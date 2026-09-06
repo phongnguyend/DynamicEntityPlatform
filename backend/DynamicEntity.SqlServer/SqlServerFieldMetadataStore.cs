@@ -196,7 +196,7 @@ public sealed class SqlServerFieldMetadataStore(SqlServerOptions options) : IFie
 
     private async Task<SqlConnection> OpenTenantAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        var connection = SqlServerTenantConnection.Create(options, storage);
+        var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

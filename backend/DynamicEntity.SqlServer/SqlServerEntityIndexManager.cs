@@ -20,9 +20,6 @@ public sealed class SqlServerEntityIndexManager(
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
             throw new NotSupportedException("Computed indexes currently require dedicated table storage.");
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-
         var indexId = Guid.NewGuid();
         var indexName = $"IX_{indexId:N}";
         var createdAt = DateTimeOffset.UtcNow;
@@ -31,7 +28,7 @@ public sealed class SqlServerEntityIndexManager(
         var indexColumns = columns.Select((entry, position) => new EntityIndexColumn(
             entry.Field.Id, $"F_{entry.Field.Id:N}", position, entry.Descending)).ToArray();
 
-        await using var connection = SqlServerTenantConnection.Create(options, storage);
+        await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -101,9 +98,6 @@ public sealed class SqlServerEntityIndexManager(
         CancellationToken cancellationToken)
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-
         const string sql = """
             SELECT i.Id, i.IndexName, i.Status, i.CreatedAt, c.FieldId, c.PhysicalColumnName, c.SortOrder, c.IsDescending
             FROM dbo.EntityIndexDefinitions AS i
@@ -111,7 +105,7 @@ public sealed class SqlServerEntityIndexManager(
             WHERE i.EntityId = @entityId AND i.Status = N'Active'
             ORDER BY i.CreatedAt, c.SortOrder;
             """;
-        await using var connection = SqlServerTenantConnection.Create(options, storage);
+        await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@entityId", entity.Id);
@@ -149,11 +143,8 @@ public sealed class SqlServerEntityIndexManager(
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
             throw new NotSupportedException("Computed indexes currently require dedicated table storage.");
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
-        await using var connection = SqlServerTenantConnection.Create(options, storage);
+        await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try

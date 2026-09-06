@@ -20,7 +20,6 @@ internal static class SqlServerSchema
             CREATE TABLE dbo.TenantStorage
             (
                 TenantId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_TenantStorage PRIMARY KEY,
-                ConnectionKey NVARCHAR(100) NOT NULL,
                 DatabaseName SYSNAME NOT NULL,
                 ConnectionString NVARCHAR(4000) NULL,
                 Status NVARCHAR(32) NOT NULL,
@@ -32,6 +31,9 @@ internal static class SqlServerSchema
 
         IF COL_LENGTH(N'dbo.TenantStorage', N'ConnectionString') IS NULL
             ALTER TABLE dbo.TenantStorage ADD ConnectionString NVARCHAR(4000) NULL;
+
+        IF COL_LENGTH(N'dbo.TenantStorage', N'ConnectionKey') IS NOT NULL
+            ALTER TABLE dbo.TenantStorage DROP COLUMN ConnectionKey;
         """;
 
     public const string TenantDatabaseV1 = """

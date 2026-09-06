@@ -70,7 +70,7 @@ public sealed class SqlReportStore(SqlServerOptions options) : IReportStore
 
     private async Task<SqlConnection> OpenAsync(EntityStorageLocation storage, CancellationToken token)
     {
-        var connection = SqlServerTenantConnection.Create(options, storage); await connection.OpenAsync(token); return connection;
+        var connection = SqlServerTenantConnection.Create(storage); await connection.OpenAsync(token); return connection;
     }
     private static void Add(SqlCommand command, Guid tenantId, ReportDefinition report)
     {

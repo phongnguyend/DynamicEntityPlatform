@@ -16,7 +16,7 @@ public sealed class SqlAnalyticsStore(
         CancellationToken cancellationToken)
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        await using var connection = SqlServerTenantConnection.Create(options, storage);
+        await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         var plan = SqlAnalyticsQueryBuilder.Build(entity, storage, query);
         await using var command = new SqlCommand(plan.Sql, connection) { CommandTimeout = options.AnalyticsCommandTimeoutSeconds };

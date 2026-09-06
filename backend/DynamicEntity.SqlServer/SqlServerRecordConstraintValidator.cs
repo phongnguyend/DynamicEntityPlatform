@@ -89,7 +89,7 @@ public sealed class SqlServerRecordConstraintValidator(
 
     private async Task<SqlConnection> OpenAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        var connection = SqlServerTenantConnection.Create(options, storage);
+        var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

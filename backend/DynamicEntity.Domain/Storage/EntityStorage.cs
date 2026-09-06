@@ -11,7 +11,6 @@ public enum EntityStorageMode
 }
 
 public sealed record EntityStorageLocation(
-    string ConnectionKey,
     string DatabaseName,
     string TableName,
     EntityStorageMode Mode,

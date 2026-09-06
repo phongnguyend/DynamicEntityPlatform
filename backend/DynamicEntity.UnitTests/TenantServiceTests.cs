@@ -131,7 +131,7 @@ public sealed class TenantServiceTests
         {
             events.Add("configure");
             if (shouldFail) throw new InvalidOperationException("Provisioning failed");
-            return Task.FromResult(new EntityStorageLocation("test", "Acme", string.Empty,
+            return Task.FromResult(new EntityStorageLocation("Acme", string.Empty,
                 EntityStorageMode.DedicatedTable, false, connectionString));
         }
     }

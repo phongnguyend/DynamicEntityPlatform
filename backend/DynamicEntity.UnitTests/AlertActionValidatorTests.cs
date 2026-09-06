@@ -55,7 +55,7 @@ public sealed class AlertActionValidatorTests
         var evaluation = new AlertEvaluation(Guid.NewGuid(), alert.Id, "2", "1", AlertState.Firing, null, now);
 
         await new InAppAlertNotifier(store).NotifyAsync(Guid.NewGuid(), alert, evaluation,
-            new EntityStorageLocation("sql", "tenant", "", EntityStorageMode.DedicatedTable, false), CancellationToken.None);
+            new EntityStorageLocation("tenant", "", EntityStorageMode.DedicatedTable, false), CancellationToken.None);
 
         Assert.Single(store.Notifications);
         Assert.Equal("InApp", store.Notifications[0].Channel);
