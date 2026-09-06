@@ -14,9 +14,7 @@ public sealed class SqlServerRecordMergeStore(SqlServerOptions options, IEntityS
     {
         var storage = await resolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable) throw new NotSupportedException("Merge currently requires dedicated storage.");
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal)) throw new InvalidOperationException("Unknown connection key.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        await using var connection = new SqlConnection(builder.ConnectionString); await connection.OpenAsync(cancellationToken);
+        await using var connection = SqlServerTenantConnection.Create(options, storage); await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         await using (var create = new SqlCommand("CREATE TABLE #MergeRows(SourceRow INT NOT NULL PRIMARY KEY, ExternalKey NVARCHAR(4000) NOT NULL, NewData NVARCHAR(MAX) NOT NULL);", connection, transaction))
             await create.ExecuteNonQueryAsync(cancellationToken);

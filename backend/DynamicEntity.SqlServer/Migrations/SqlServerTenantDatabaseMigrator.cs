@@ -17,11 +17,7 @@ public sealed class SqlServerTenantDatabaseMigrator(SqlServerOptions options) : 
 
     public async Task MigrateAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString)
-        {
-            InitialCatalog = storage.DatabaseName
-        };
-        await using var connection = new SqlConnection(builder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
 
         const string ensureTrackingSql = """

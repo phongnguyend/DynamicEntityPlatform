@@ -18,7 +18,10 @@ async function request<T>(path: string, init: RequestInit = {}, tenantId?: strin
 
 export const api = {
   tenants: () => request<Tenant[]>('/api/tenants'),
-  createTenant: (name: string) => request<Tenant>('/api/tenants', { method: 'POST', body: JSON.stringify({ name }) }),
+  createTenant: (name: string, connectionString: string) => request<Tenant>('/api/tenants', { method: 'POST', body: JSON.stringify({ name, connectionString }) }),
+  updateTenant: (tenantId: string, name: string, connectionString: string) =>
+    request<Tenant>(`/api/tenants/${tenantId}`, { method: 'PATCH', body: JSON.stringify({ name, connectionString }) }),
+  disableTenant: (tenantId: string) => request<void>(`/api/tenants/${tenantId}/disable`, { method: 'POST' }),
   entities: (tenantId: string) => request<Entity[]>('/api/entities', {}, tenantId),
   createEntity: (tenantId: string, input: { name: string; displayName: string; description?: string }) =>
     request<Entity>('/api/entities', { method: 'POST', body: JSON.stringify(input) }, tenantId),

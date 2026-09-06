@@ -38,7 +38,8 @@ implemented yet; evaluations continue to create only in-app notifications.
 - .NET SDK 10
 - Node.js 24+
 - SQL Server reachable by the API identity
-- SQL permission to create the control and tenant databases
+- A pre-created control database and one pre-created database per tenant
+- SQL permission to create and update tables, indexes, and data in those databases (database creation permission is not required)
 
 The development configuration in
 [`appsettings.json`](backend/DynamicEntity.Api/appsettings.json) uses the default SQL Server
@@ -50,7 +51,6 @@ Example environment-variable overrides:
 
 ```powershell
 $env:SqlServer__ControlDatabaseConnectionString = 'Server=(localdb)\MSSQLLocalDB;Database=DynamicEntityControl;Integrated Security=true;TrustServerCertificate=true'
-$env:SqlServer__TenantServerConnectionString = 'Server=(localdb)\MSSQLLocalDB;Database=DynamicEntityControl;Integrated Security=true;TrustServerCertificate=true'
 ```
 
 ## Build and test
@@ -92,10 +92,11 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. Vite proxies `/api` to the backend. The start screen
-lists existing tenants so you can select and open an active one, or create a new tenant.
-The last opened tenant is remembered in browser local storage; use **Change tenant**
-in the sidebar to return to the selector. The API does not connect to SQL during
-startup; provisioning begins when tenants are first listed or created.
+lists existing tenants so you can select and open an active one, or register a new tenant
+with a connection string for an existing database. The application applies its tables
+and schema migrations but does not create that database. The last opened tenant is
+remembered in browser local storage. Use **Manage tenants** in the sidebar to list,
+create, update, disable, or switch tenants; connection strings are write-only in the API.
 
 To edit a field, open its entity and use **Manage fields**. Select **Edit**, change
 its names, sort order, behavior flags, or JSON configuration, and select **Save field**.

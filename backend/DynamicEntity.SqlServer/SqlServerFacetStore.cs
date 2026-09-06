@@ -16,10 +16,7 @@ public sealed class SqlServerFacetStore(
         CancellationToken cancellationToken)
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        await using var connection = new SqlConnection(builder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
         var entityWhere = storage.RequiresEntityPredicate ? " AND r.EntityId = @entityId" : string.Empty;

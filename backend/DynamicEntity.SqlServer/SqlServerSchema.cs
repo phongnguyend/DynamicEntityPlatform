@@ -22,12 +22,16 @@ internal static class SqlServerSchema
                 TenantId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_TenantStorage PRIMARY KEY,
                 ConnectionKey NVARCHAR(100) NOT NULL,
                 DatabaseName SYSNAME NOT NULL,
+                ConnectionString NVARCHAR(4000) NULL,
                 Status NVARCHAR(32) NOT NULL,
                 CreatedAt DATETIMEOFFSET(7) NOT NULL,
                 UpdatedAt DATETIMEOFFSET(7) NOT NULL,
                 CONSTRAINT FK_TenantStorage_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants(Id)
             );
         END;
+
+        IF COL_LENGTH(N'dbo.TenantStorage', N'ConnectionString') IS NULL
+            ALTER TABLE dbo.TenantStorage ADD ConnectionString NVARCHAR(4000) NULL;
         """;
 
     public const string TenantDatabaseV1 = """
@@ -334,22 +338,36 @@ internal static class SqlServerSchema
         """;
 
     public const string TenantDatabaseV5 = """
-        IF COL_LENGTH(N'dbo.AlertActions', N'WebhookUrlsJson') IS NULL
+        IF OBJECT_ID(N'dbo.AlertActions', N'U') IS NOT NULL
         BEGIN
-            ALTER TABLE dbo.AlertActions DROP CONSTRAINT CK_AlertActions_Configuration;
-            ALTER TABLE dbo.AlertActions ADD WebhookUrlsJson NVARCHAR(MAX) NULL;
-            UPDATE dbo.AlertActions
-            SET WebhookUrlsJson = N'["' + STRING_ESCAPE(WebhookUrl, 'json') + N'"]'
-            WHERE ActionType = N'Webhook' AND WebhookUrl IS NOT NULL;
-            ALTER TABLE dbo.AlertActions DROP COLUMN WebhookUrl;
-            ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_WebhookUrlsJson
-                CHECK (WebhookUrlsJson IS NULL OR ISJSON(WebhookUrlsJson) = 1);
-            ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_Configuration
-                CHECK
-                (
-                    (ActionType = N'Email' AND EmailRecipientsJson IS NOT NULL AND WebhookUrlsJson IS NULL) OR
-                    (ActionType = N'Webhook' AND EmailRecipientsJson IS NULL AND WebhookUrlsJson IS NOT NULL)
-                );
+            IF OBJECT_ID(N'dbo.CK_AlertActions_Configuration', N'C') IS NOT NULL
+                ALTER TABLE dbo.AlertActions DROP CONSTRAINT CK_AlertActions_Configuration;
+
+            IF COL_LENGTH(N'dbo.AlertActions', N'WebhookUrlsJson') IS NULL
+                ALTER TABLE dbo.AlertActions ADD WebhookUrlsJson NVARCHAR(MAX) NULL;
+
+            IF COL_LENGTH(N'dbo.AlertActions', N'WebhookUrl') IS NOT NULL
+            BEGIN
+                EXEC sys.sp_executesql N'
+                    UPDATE dbo.AlertActions
+                    SET WebhookUrlsJson = N''["'' + STRING_ESCAPE(WebhookUrl, ''json'') + N''"]''
+                    WHERE ActionType = N''Webhook'' AND WebhookUrl IS NOT NULL AND WebhookUrlsJson IS NULL;';
+                ALTER TABLE dbo.AlertActions DROP COLUMN WebhookUrl;
+            END;
+
+            IF OBJECT_ID(N'dbo.CK_AlertActions_WebhookUrlsJson', N'C') IS NULL
+                EXEC sys.sp_executesql N'
+                    ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_WebhookUrlsJson
+                    CHECK (WebhookUrlsJson IS NULL OR ISJSON(WebhookUrlsJson) = 1);';
+
+            IF OBJECT_ID(N'dbo.CK_AlertActions_Configuration', N'C') IS NULL
+                EXEC sys.sp_executesql N'
+                    ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_Configuration
+                    CHECK
+                    (
+                        (ActionType = N''Email'' AND EmailRecipientsJson IS NOT NULL AND WebhookUrlsJson IS NULL) OR
+                        (ActionType = N''Webhook'' AND EmailRecipientsJson IS NULL AND WebhookUrlsJson IS NOT NULL)
+                    );';
         END;
         """;
 }

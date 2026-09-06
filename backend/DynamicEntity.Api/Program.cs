@@ -124,14 +124,36 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapPost("/api/tenants", async (
     CreateTenantRequest request,
     TenantService service,
+    IControlPlaneStore controlPlane,
     CancellationToken cancellationToken) =>
 {
-    var tenant = await service.CreateAsync(request.Name, cancellationToken);
-    return Results.Created($"/api/tenants/{tenant.Id}", ToTenantResponse(tenant));
+    var tenant = await service.CreateAsync(request.Name, request.ConnectionString ?? string.Empty, cancellationToken);
+    var storage = await controlPlane.GetTenantStorageAsync(tenant.Id, cancellationToken);
+    return Results.Created($"/api/tenants/{tenant.Id}", ToTenantResponse(tenant, storage));
 });
 
-app.MapGet("/api/tenants", async (TenantService service, CancellationToken cancellationToken) =>
-    Results.Ok((await service.ListAsync(cancellationToken)).Select(ToTenantResponse)));
+app.MapGet("/api/tenants", async (TenantService service, IControlPlaneStore controlPlane, CancellationToken cancellationToken) =>
+{
+    var tenants = await service.ListAsync(cancellationToken);
+    var responses = await Task.WhenAll(tenants.Select(async tenant =>
+        ToTenantResponse(tenant, await controlPlane.GetTenantStorageAsync(tenant.Id, cancellationToken))));
+    return Results.Ok(responses);
+});
+
+app.MapPatch("/api/tenants/{tenantId:guid}", async (
+    Guid tenantId, UpdateTenantRequest request, TenantService service, IControlPlaneStore controlPlane, CancellationToken cancellationToken) =>
+{
+    var tenant = await service.UpdateAsync(tenantId, request.Name, request.ConnectionString ?? string.Empty, cancellationToken);
+    var storage = await controlPlane.GetTenantStorageAsync(tenant.Id, cancellationToken);
+    return Results.Ok(ToTenantResponse(tenant, storage));
+});
+
+app.MapPost("/api/tenants/{tenantId:guid}/disable", async (
+    Guid tenantId, TenantService service, CancellationToken cancellationToken) =>
+{
+    await service.DisableAsync(tenantId, cancellationToken);
+    return Results.NoContent();
+});
 
 var entities = app.MapGroup("/api/entities");
 entities.AddEndpointFilter(async (context, next) =>
@@ -704,8 +726,9 @@ entities.MapDelete("/{entityId:guid}/records/{recordId:guid}", async (
 
 app.Run();
 
-static TenantResponse ToTenantResponse(Tenant tenant) =>
-    new(tenant.Id, tenant.Name, tenant.Status.ToString(), tenant.CreatedAt);
+static TenantResponse ToTenantResponse(Tenant tenant, EntityStorageLocation? storage) =>
+    new(tenant.Id, tenant.Name, tenant.Status.ToString(), tenant.CreatedAt,
+        storage is not null, storage?.DatabaseName);
 
 static EntityResponse ToEntityResponse(EntityDefinition entity) =>
     new(entity.Id, entity.Name, entity.DisplayName, entity.Description, entity.SchemaVersion,

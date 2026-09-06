@@ -149,16 +149,7 @@ public sealed class SqlServerEntityMetadataStore(SqlServerOptions options) : IEn
         EntityStorageLocation storage,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-        }
-
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString)
-        {
-            InitialCatalog = storage.DatabaseName
-        };
-        var connection = new SqlConnection(builder.ConnectionString);
+        var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

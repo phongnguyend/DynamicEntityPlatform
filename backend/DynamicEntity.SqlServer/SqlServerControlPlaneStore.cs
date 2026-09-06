@@ -65,6 +65,16 @@ public sealed class SqlServerControlPlaneStore(SqlServerOptions options)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken)
+    {
+        const string sql = "UPDATE dbo.Tenants SET Name = @name, UpdatedAt = SYSUTCDATETIME() WHERE Id = @id;";
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@id", tenantId);
+        command.Parameters.AddWithValue("@name", name);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken)
     {
         const string sql = "SELECT Id, Name, Status, CreatedAt, UpdatedAt FROM dbo.Tenants WHERE Id = @id;";
@@ -105,28 +115,32 @@ public sealed class SqlServerControlPlaneStore(SqlServerOptions options)
         CancellationToken cancellationToken)
     {
         const string sql = """
-            INSERT INTO dbo.TenantStorage
-                (TenantId, ConnectionKey, DatabaseName, Status, CreatedAt, UpdatedAt)
-            VALUES (@tenantId, @connectionKey, @databaseName, N'Active', SYSUTCDATETIME(), SYSUTCDATETIME());
+            MERGE dbo.TenantStorage AS target
+            USING (SELECT @tenantId AS TenantId) AS source ON target.TenantId = source.TenantId
+            WHEN MATCHED THEN UPDATE SET ConnectionKey=@connectionKey, DatabaseName=@databaseName,
+                ConnectionString=@connectionString, Status=N'Active', UpdatedAt=SYSUTCDATETIME()
+            WHEN NOT MATCHED THEN INSERT (TenantId, ConnectionKey, DatabaseName, ConnectionString, Status, CreatedAt, UpdatedAt)
+                VALUES (@tenantId, @connectionKey, @databaseName, @connectionString, N'Active', SYSUTCDATETIME(), SYSUTCDATETIME());
             """;
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@tenantId", tenantId);
         command.Parameters.AddWithValue("@connectionKey", location.ConnectionKey);
         command.Parameters.AddWithValue("@databaseName", location.DatabaseName);
+        command.Parameters.AddWithValue("@connectionString", (object?)location.ConnectionString ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<EntityStorageLocation?> GetTenantStorageAsync(Guid tenantId, CancellationToken cancellationToken)
     {
-        const string sql = "SELECT ConnectionKey, DatabaseName FROM dbo.TenantStorage WHERE TenantId = @tenantId AND Status = N'Active';";
+        const string sql = "SELECT ConnectionKey, DatabaseName, ConnectionString FROM dbo.TenantStorage WHERE TenantId = @tenantId AND Status = N'Active';";
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@tenantId", tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return null;
         return new EntityStorageLocation(reader.GetString(0), reader.GetString(1), string.Empty,
-            EntityStorageMode.DedicatedTable, false);
+            EntityStorageMode.DedicatedTable, false, reader.IsDBNull(2) ? null : reader.GetString(2));
     }
 
     private async Task<SqlConnection> OpenAsync(CancellationToken cancellationToken)

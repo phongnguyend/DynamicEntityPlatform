@@ -50,9 +50,7 @@ public sealed class SqlWebhookSubscriptionStore(SqlServerOptions options) : IWeb
 
     private async Task<SqlConnection> OpenAsync(EntityStorageLocation storage, CancellationToken token)
     {
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal)) throw new InvalidOperationException("Unknown tenant connection key.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        var connection = new SqlConnection(builder.ConnectionString); await connection.OpenAsync(token); return connection;
+        var connection = SqlServerTenantConnection.Create(options, storage); await connection.OpenAsync(token); return connection;
     }
 
     private static void Add(SqlCommand command, Guid tenantId, WebhookSubscription value)

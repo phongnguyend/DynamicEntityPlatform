@@ -60,9 +60,7 @@ public sealed class SqlServerBulkRecordStore(SqlServerOptions options, IEntitySt
     {
         var storage = await resolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable) throw new NotSupportedException("Bulk operations currently require dedicated storage.");
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal)) throw new InvalidOperationException("Unknown connection key.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        var connection = new SqlConnection(builder.ConnectionString); await connection.OpenAsync(cancellationToken);
+        var connection = SqlServerTenantConnection.Create(options, storage); await connection.OpenAsync(cancellationToken);
         var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         return (connection, transaction, PhysicalName.QuoteSqlIdentifier(storage.TableName));
     }

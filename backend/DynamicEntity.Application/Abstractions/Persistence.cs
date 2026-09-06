@@ -16,6 +16,7 @@ public interface IControlPlaneInitializer
 public interface IControlPlaneStore
 {
     Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken);
+    Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken);
     Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken);
     Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Tenant>> ListTenantsAsync(CancellationToken cancellationToken);
@@ -25,7 +26,7 @@ public interface IControlPlaneStore
 
 public interface ITenantDatabaseProvisioner
 {
-    Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, CancellationToken cancellationToken);
+    Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken);
 }
 
 public interface IEntityMetadataStore

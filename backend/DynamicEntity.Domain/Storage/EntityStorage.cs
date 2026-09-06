@@ -15,7 +15,8 @@ public sealed record EntityStorageLocation(
     string DatabaseName,
     string TableName,
     EntityStorageMode Mode,
-    bool RequiresEntityPredicate);
+    bool RequiresEntityPredicate,
+    string? ConnectionString = null);
 
 public interface IEntityStorageResolver
 {

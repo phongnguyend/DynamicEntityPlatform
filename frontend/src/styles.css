@@ -51,7 +51,9 @@
   .tenant-picker, .create-workspace { @apply mt-8 rounded-[14px] border border-[#d9e1d9] bg-white/70 p-5; }
   .tenant-picker h2, .create-workspace h2 { @apply mb-[.8rem] text-base; }
   .tenant-select, .hero form { @apply flex gap-3; }
-  .tenant-select select, .hero input { @apply w-full min-w-0 rounded-lg border border-input-border bg-input px-3 py-[.68rem] text-ink; }
+  .tenant-select select, .hero input, .hero textarea { @apply w-full min-w-0 rounded-lg border border-input-border bg-input px-3 py-[.68rem] text-ink; }
+  .onboarding-create { @apply flex-col; }
+  .onboarding-create textarea { @apply min-h-20 resize-y font-mono text-xs; }
 
   .eyebrow, .nav-label { @apply text-[.72rem] font-extrabold uppercase tracking-[.14em] text-[#638071]; }
   .nav-heading { @apply flex items-center justify-between pb-[.45rem] pl-4 pr-[.45rem]; }
@@ -59,9 +61,10 @@
   .nav-add { @apply size-[1.9rem] rounded-[7px] bg-transparent p-0 text-primary-light hover:bg-sidebar-hover hover:text-white; }
   .shell { @apply grid min-h-screen grid-cols-[230px_1fr]; }
   .brand { @apply mb-10 flex items-center gap-[.7rem]; }
+  .admin-nav { @apply mb-7 border-b border-[#345044] pb-4; }
+  .admin-nav a { @apply flex! items-center gap-2; }
+  .admin-nav svg { @apply size-4; }
   .mark { @apply grid size-8 place-items-center rounded-[9px] bg-primary-light font-black text-sidebar; }
-  .tenant { @apply mt-auto justify-start rounded-none border-t border-[#345044] bg-transparent text-left text-[#bcd0c7]; }
-  .tenant-copy { @apply grid gap-[.1rem]; }
 
   .workspace > header, .page > header { @apply mb-6 flex items-start justify-between; }
   .page > header { @apply gap-4; }
@@ -194,6 +197,12 @@
   .column-settings .check span { @apply min-w-0; }
   .webhook-note { @apply mt-1; }
   .webhook-endpoint { @apply max-w-[42rem] truncate; }
+  .tenant-actions { @apply flex justify-end gap-1; }
+  .current-tenant { @apply ml-2 rounded-full bg-primary-soft px-2 py-1 text-[.65rem] font-bold uppercase text-primary; }
+  .status { @apply rounded-full px-2 py-1 text-xs font-bold; }
+  .status-active { @apply bg-primary-soft text-primary; }
+  .status-disabled, .status-failed { @apply bg-[#fff0ee] text-danger; }
+  .status-provisioning { @apply bg-[#fff4d8] text-[#8a5b17]; }
 
   .analytics-filters, .flat-filter-tree, .flat-filter-item { @apply grid min-w-0 max-w-full gap-[.65rem]; }
   .analytics-filters { container-type: inline-size; }
@@ -216,7 +225,6 @@
 @media (max-width: 900px) {
   .shell, .workspace-grid, .workspace-grid:has(.metric-cards), .report-builder { @apply grid-cols-1; }
   aside, .preview-panel { @apply static; }
-  .tenant { @apply mt-4; }
   .panel.wide { @apply row-auto; }
 }
 

@@ -1,4 +1,5 @@
 using DynamicEntity.Application.Abstractions;
+using DynamicEntity.Application.Common;
 using DynamicEntity.Domain.Storage;
 using DynamicEntity.SqlServer.Migrations;
 using Microsoft.Data.SqlClient;
@@ -7,32 +8,30 @@ namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerTenantDatabaseProvisioner(SqlServerOptions options) : ITenantDatabaseProvisioner
 {
-    public async Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, CancellationToken cancellationToken)
+    public async Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken)
     {
-        var databaseName = PhysicalName.ForTenantDatabase(tenantId);
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString);
-
-        await using (var provisioningConnection = new SqlConnection(builder.ConnectionString))
+        SqlConnectionStringBuilder builder;
+        try
         {
-            await provisioningConnection.OpenAsync(cancellationToken);
-            const string createSql = """
-                IF DB_ID(@databaseName) IS NULL
-                BEGIN
-                    DECLARE @createDatabaseSql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(@databaseName) + N';';
-                    EXEC sys.sp_executesql @createDatabaseSql;
-                END;
-                """;
-            await using var command = new SqlCommand(createSql, provisioningConnection);
-            command.Parameters.AddWithValue("@databaseName", databaseName);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            builder = new SqlConnectionStringBuilder(connectionString);
         }
+        catch (ArgumentException exception)
+        {
+            throw new ValidationException($"The tenant connection string is invalid: {exception.Message}");
+        }
+        var databaseName = builder.InitialCatalog;
+        if (string.IsNullOrWhiteSpace(databaseName))
+            throw new ValidationException("The tenant connection string must specify Initial Catalog (Database).");
+        if (builder.DataSource.Contains("\\\\", StringComparison.Ordinal) || databaseName.Contains('\\'))
+            throw new ValidationException("The tenant connection string contains escaped backslashes. Enter it as plain text, for example Server=(localdb)\\MSSQLLocalDB;Database=Tenant_name.");
 
         var location = new EntityStorageLocation(
             options.ConnectionKey,
             databaseName,
             string.Empty,
             EntityStorageMode.DedicatedTable,
-            false);
+            false,
+            builder.ConnectionString);
         await new SqlServerTenantDatabaseMigrator(options).MigrateAsync(location, cancellationToken);
         return location;
     }

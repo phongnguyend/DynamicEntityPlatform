@@ -29,22 +29,22 @@ public sealed class SqlServerProvisioningAndCrudTests
 
         var suffix = Guid.NewGuid();
         var controlName = $"DynamicEntityControl_Test_{suffix:N}";
+        var tenantDatabaseName = $"DynamicEntityTenant_Test_{suffix:N}";
         var controlBuilder = new SqlConnectionStringBuilder(serverConnection) { InitialCatalog = controlName };
+        var tenantBuilder = new SqlConnectionStringBuilder(serverConnection) { InitialCatalog = tenantDatabaseName };
         var options = new SqlServerOptions
         {
             ControlDatabaseConnectionString = controlBuilder.ConnectionString,
-            TenantServerConnectionString = serverConnection,
             ConnectionKey = "IntegrationSql"
         };
-        Guid? tenantId = null;
         try
         {
+            await CreateDatabaseAsync(serverConnection, tenantDatabaseName);
             var control = new SqlServerControlPlaneStore(options);
             var provisioner = new SqlServerTenantDatabaseProvisioner(options);
             var tenant = await new TenantService(control, control, provisioner, TimeProvider.System)
-                .CreateAsync("Integration tenant", CancellationToken.None);
-            tenantId = tenant.Id;
-            await AssertAnalyticsMigrationsAsync(options, tenant.Id);
+                .CreateAsync("Integration tenant", tenantBuilder.ConnectionString, CancellationToken.None);
+            await AssertAnalyticsMigrationsAsync(options, tenant.Id, tenantBuilder.ConnectionString);
             var metadata = new SqlServerEntityMetadataStore(options);
             var entity = await new EntityService(control, metadata, TimeProvider.System)
                 .CreateAsync(tenant.Id, "customer", "Customer", null, CancellationToken.None);
@@ -92,7 +92,7 @@ public sealed class SqlServerProvisioningAndCrudTests
         }
         finally
         {
-            if (tenantId is not null) await DropDatabaseAsync(serverConnection, PhysicalName.ForTenantDatabase(tenantId.Value));
+            await DropDatabaseAsync(serverConnection, tenantDatabaseName);
             await DropDatabaseAsync(serverConnection, controlName);
         }
     }
@@ -170,17 +170,14 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await webhookStore.DeleteAsync(tenantId, entity.Id, webhook.Id, storage, CancellationToken.None));
     }
 
-    private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId)
+    private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId, string connectionString)
     {
-        var storage = new EntityStorageLocation(options.ConnectionKey, PhysicalName.ForTenantDatabase(tenantId),
-            string.Empty, EntityStorageMode.DedicatedTable, false);
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        var storage = new EntityStorageLocation(options.ConnectionKey, builder.InitialCatalog,
+            string.Empty, EntityStorageMode.DedicatedTable, false, builder.ConnectionString);
         var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator(options);
         await migrator.MigrateAsync(storage, CancellationToken.None);
 
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString)
-        {
-            InitialCatalog = storage.DatabaseName
-        };
         await using var connection = new SqlConnection(builder.ConnectionString);
         await connection.OpenAsync();
         const string sql = """
@@ -201,10 +198,22 @@ public sealed class SqlServerProvisioningAndCrudTests
         for (var ordinal = 1; ordinal <= 7; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 
+    private static async Task CreateDatabaseAsync(string serverConnection, string databaseName)
+    {
+        var builder = new SqlConnectionStringBuilder(serverConnection);
+        await using var connection = new SqlConnection(builder.ConnectionString);
+        await connection.OpenAsync();
+        var quoted = PhysicalName.QuoteSqlIdentifier(databaseName);
+        await using var command = new SqlCommand($"IF DB_ID(@name) IS NULL CREATE DATABASE {quoted};", connection);
+        command.Parameters.AddWithValue("@name", databaseName);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private static async Task DropDatabaseAsync(string serverConnection, string databaseName)
     {
         if (!databaseName.StartsWith("Tenant_", StringComparison.Ordinal) &&
-            !databaseName.StartsWith("DynamicEntityControl_Test_", StringComparison.Ordinal))
+            !databaseName.StartsWith("DynamicEntityControl_Test_", StringComparison.Ordinal) &&
+            !databaseName.StartsWith("DynamicEntityTenant_Test_", StringComparison.Ordinal))
             throw new InvalidOperationException("Refusing to drop a database outside the integration-test naming convention.");
         var builder = new SqlConnectionStringBuilder(serverConnection);
         await using var connection = new SqlConnection(builder.ConnectionString);

@@ -2,7 +2,7 @@ export type FieldDataType =
   | 'Text' | 'LongText' | 'Integer' | 'Decimal' | 'Boolean' | 'Date' | 'DateTime'
   | 'Email' | 'Url' | 'Choice' | 'MultiChoice' | 'Lookup'
 
-export interface Tenant { id: string; name: string; status: string; createdAt: string }
+export interface Tenant { id: string; name: string; status: string; createdAt: string; connectionConfigured: boolean; databaseName?: string }
 export interface Entity {
   id: string; name: string; displayName: string; description?: string
   schemaVersion: number; status: string; createdAt: string; updatedAt: string

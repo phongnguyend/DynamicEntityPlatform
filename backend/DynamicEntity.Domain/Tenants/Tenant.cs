@@ -4,6 +4,7 @@ public enum TenantStatus
 {
     Provisioning,
     Active,
+    Disabled,
     Failed,
     Archived
 }

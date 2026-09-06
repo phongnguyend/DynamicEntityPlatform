@@ -142,9 +142,7 @@ public sealed class SqlServerImportStore(SqlServerOptions options) : IImportStor
     }
     private async Task<SqlConnection> OpenAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal)) throw new InvalidOperationException($"Unknown connection key '{storage.ConnectionKey}'.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        var connection = new SqlConnection(builder.ConnectionString); await connection.OpenAsync(cancellationToken); return connection;
+        var connection = SqlServerTenantConnection.Create(options, storage); await connection.OpenAsync(cancellationToken); return connection;
     }
     private static ImportJob ReadJob(SqlDataReader reader) => new(reader.GetGuid(0),reader.GetGuid(1),reader.GetString(2),Enum.Parse<ImportStatus>(reader.GetString(3)),
         JsonSerializer.Deserialize<string[]>(reader.GetString(4)) ?? [],reader.GetInt32(5),reader.GetInt32(6),reader.GetInt32(7),reader.GetFieldValue<DateTimeOffset>(8),reader.GetFieldValue<DateTimeOffset>(9));

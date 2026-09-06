@@ -31,8 +31,7 @@ public sealed class SqlServerEntityIndexManager(
         var indexColumns = columns.Select((entry, position) => new EntityIndexColumn(
             entry.Field.Id, $"F_{entry.Field.Id:N}", position, entry.Descending)).ToArray();
 
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        await using var connection = new SqlConnection(builder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -112,8 +111,7 @@ public sealed class SqlServerEntityIndexManager(
             WHERE i.EntityId = @entityId AND i.Status = N'Active'
             ORDER BY i.CreatedAt, c.SortOrder;
             """;
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        await using var connection = new SqlConnection(builder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@entityId", entity.Id);
@@ -155,8 +153,7 @@ public sealed class SqlServerEntityIndexManager(
             throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
 
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
-        var connBuilder = new SqlConnectionStringBuilder(options.TenantServerConnectionString) { InitialCatalog = storage.DatabaseName };
-        await using var connection = new SqlConnection(connBuilder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try

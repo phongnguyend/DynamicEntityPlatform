@@ -16,13 +16,7 @@ public sealed class SqlAnalyticsStore(
         CancellationToken cancellationToken)
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        if (!string.Equals(storage.ConnectionKey, options.ConnectionKey, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Unknown tenant connection key '{storage.ConnectionKey}'.");
-        var builder = new SqlConnectionStringBuilder(options.TenantServerConnectionString)
-        {
-            InitialCatalog = storage.DatabaseName
-        };
-        await using var connection = new SqlConnection(builder.ConnectionString);
+        await using var connection = SqlServerTenantConnection.Create(options, storage);
         await connection.OpenAsync(cancellationToken);
         var plan = SqlAnalyticsQueryBuilder.Build(entity, storage, query);
         await using var command = new SqlCommand(plan.Sql, connection) { CommandTimeout = options.AnalyticsCommandTimeoutSeconds };

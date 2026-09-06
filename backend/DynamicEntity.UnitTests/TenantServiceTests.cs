@@ -8,16 +8,16 @@ namespace DynamicEntity.UnitTests;
 public sealed class TenantServiceTests
 {
     [Fact]
-    public async Task CreateAsync_ProvisionsStorageBeforeActivatingTenant()
+    public async Task CreateAsync_ConfiguresStorageBeforeActivatingTenant()
     {
         var store = new FakeControlPlaneStore();
         var provisioner = new FakeProvisioner(store.Events);
         var service = new TenantService(store, store, provisioner, TimeProvider.System);
 
-        var tenant = await service.CreateAsync("Acme", CancellationToken.None);
+        var tenant = await service.CreateAsync("Acme", "Server=sql;Database=Acme", CancellationToken.None);
 
         Assert.Equal(TenantStatus.Active, tenant.Status);
-        Assert.Equal(new[] { "initialize", "create", "provision", "storage", "Active" }, store.Events);
+        Assert.Equal(new[] { "initialize", "create", "configure", "storage", "Active" }, store.Events);
         Assert.Equal(tenant.Id, store.Tenant!.Id);
     }
 
@@ -28,9 +28,35 @@ public sealed class TenantServiceTests
         var service = new TenantService(store, store, new FakeProvisioner(store.Events, shouldFail: true), TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.CreateAsync("Acme", CancellationToken.None));
+            () => service.CreateAsync("Acme", "Server=sql;Database=Acme", CancellationToken.None));
 
         Assert.Equal(TenantStatus.Failed, store.Tenant!.Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithConnectionString_ConfiguresExistingDatabaseWithoutProvisioningOne()
+    {
+        var store = new FakeControlPlaneStore();
+        var service = new TenantService(store, store, new FakeProvisioner(store.Events), TimeProvider.System);
+
+        var tenant = await service.CreateAsync("Acme", "Server=sql;Database=Acme", CancellationToken.None);
+
+        Assert.Equal(TenantStatus.Active, tenant.Status);
+        Assert.Equal(new[] { "initialize", "create", "configure", "storage", "Active" }, store.Events);
+    }
+
+    [Fact]
+    public async Task DisableAsync_MarksTenantDisabled()
+    {
+        var store = new FakeControlPlaneStore
+        {
+            Tenant = new Tenant(Guid.NewGuid(), "Acme", TenantStatus.Active, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+        };
+        var service = new TenantService(store, store, new FakeProvisioner(store.Events), TimeProvider.System);
+
+        await service.DisableAsync(store.Tenant.Id, CancellationToken.None);
+
+        Assert.Equal(TenantStatus.Disabled, store.Tenant.Status);
     }
 
     [Fact]
@@ -68,6 +94,12 @@ public sealed class TenantServiceTests
             return Task.CompletedTask;
         }
 
+        public Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken)
+        {
+            Tenant = Tenant! with { Name = name };
+            return Task.CompletedTask;
+        }
+
         public Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken)
         {
             Events.Add(status.ToString());
@@ -95,14 +127,12 @@ public sealed class TenantServiceTests
 
     private sealed class FakeProvisioner(List<string> events, bool shouldFail = false) : ITenantDatabaseProvisioner
     {
-        public Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, CancellationToken cancellationToken)
+        public Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken)
         {
-            events.Add("provision");
-            var store = shouldFail
-                ? throw new InvalidOperationException("Provisioning failed")
-                : new EntityStorageLocation("test", PhysicalName.ForTenantDatabase(tenantId), string.Empty,
-                    EntityStorageMode.DedicatedTable, false);
-            return Task.FromResult(store);
+            events.Add("configure");
+            if (shouldFail) throw new InvalidOperationException("Provisioning failed");
+            return Task.FromResult(new EntityStorageLocation("test", "Acme", string.Empty,
+                EntityStorageMode.DedicatedTable, false, connectionString));
         }
     }
 }
