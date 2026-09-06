@@ -69,8 +69,8 @@ export const api = {
     if (!response.ok) throw new Error('Export failed.')
     return response.blob()
   },
-  previewAnalytics: (tenantId: string, entityId: string, query: AnalyticsQuery) =>
-    request<AnalyticsResult>(`/api/entities/${entityId}/analytics/preview`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
+  previewAnalytics: (tenantId: string, entityId: string, query: AnalyticsQuery, signal?: AbortSignal) =>
+    request<AnalyticsResult>(`/api/entities/${entityId}/analytics/preview`, { method: 'POST', body: JSON.stringify(query), signal }, tenantId),
   reports: (tenantId: string, entityId: string) => request<Report[]>(`/api/entities/${entityId}/reports`, {}, tenantId),
   report: (tenantId: string, entityId: string, reportId: string) => request<Report>(`/api/entities/${entityId}/reports/${reportId}`, {}, tenantId),
   saveReport: (tenantId: string, entityId: string, input: Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, reportId?: string) =>
