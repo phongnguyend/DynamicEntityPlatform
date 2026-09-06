@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Trash2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EntityTabs } from '../components/EntityTabs'
@@ -73,7 +74,7 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
           <label className="check"><input type="checkbox" checked={emailEnabled} onChange={event => setEmailEnabled(event.target.checked)} />Email</label>
           {emailEnabled && <label className="field">Recipients<input type="text" placeholder="ops@example.com, owner@example.com" value={emailRecipients} onChange={event => setEmailRecipients(event.target.value)} /></label>}
           <label className="check"><input type="checkbox" checked={webhookEnabled} onChange={event => setWebhookEnabled(event.target.checked)} />Webhook</label>
-          {webhookEnabled && <div className="webhook-url-list">{webhookUrls.map((url, index) => <div className="webhook-url-row" key={index}><label className="field">Webhook URL {index + 1}<input type="url" placeholder="https://example.com/alerts" value={url} onChange={event => setWebhookUrls(values => values.map((value, current) => current === index ? event.target.value : value))} /></label>{webhookUrls.length > 1 && <button type="button" className="link danger" onClick={() => setWebhookUrls(values => values.filter((_, current) => current !== index))}>Remove</button>}</div>)}<button type="button" className="secondary add-webhook-url" disabled={webhookUrls.length >= 20} onClick={() => setWebhookUrls(values => [...values, ''])}>Add URL</button></div>}
+          {webhookEnabled && <div className="webhook-url-list">{webhookUrls.map((url, index) => <div className="webhook-url-row" key={index}><label className="field">Webhook URL {index + 1}<input type="url" placeholder="https://example.com/alerts" value={url} onChange={event => setWebhookUrls(values => values.map((value, current) => current === index ? event.target.value : value))} /></label>{webhookUrls.length > 1 && <button type="button" className="link danger icon-only" aria-label={`Remove webhook URL ${index + 1}`} title="Remove webhook URL" onClick={() => setWebhookUrls(values => values.filter((_, current) => current !== index))}><Trash2 /></button>}</div>)}<button type="button" className="secondary icon-only justify-self-start" aria-label="Add webhook URL" title="Add webhook URL" disabled={webhookUrls.length >= 20} onClick={() => setWebhookUrls(values => [...values, ''])}><Plus /></button></div>}
         </fieldset>
         <label className="check"><input type="checkbox" checked={notifyOnRecovery} onChange={event => setRecovery(event.target.checked)} />Notify on recovery</label>
         <label className="check"><input type="checkbox" checked={isEnabled} onChange={event => setEnabled(event.target.checked)} />Enabled</label>

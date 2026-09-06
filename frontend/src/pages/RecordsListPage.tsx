@@ -38,6 +38,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
     <header><div><p className="eyebrow">Entity</p><h2>{entity.displayName}</h2><p>{entity.description}</p></div>
       <span className="pill">Schema v{entity.schemaVersion}</span></header>
     <EntityTabs entityId={entityId} />
+    <div className="panel">
     <div className="panel-title"><h3>Records</h3>
       <div className="page-actions">
         <button className="link" onClick={async () => {
@@ -59,6 +60,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
         onDelete={record => { if (confirm('Delete this record?')) remove.mutate(record) }} />
       <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
     </>}
+    </div>
     {importOpen && <Modal title="Import CSV / Excel" onClose={() => setImportOpen(false)}>
       <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} />
     </Modal>}
