@@ -12,11 +12,12 @@ interface Props {
   renderFilter: (field: Field) => ReactNode
   onEdit: (record: DynamicRecord) => void
   onDelete: (record: DynamicRecord) => void
+  maxColumns?: number
 }
 
 export function DynamicGrid({ fields, records, selectedFilterFieldId, appliedFilterFieldId,
-  onSelectFilter, renderFilter, onEdit, onDelete }: Props) {
-  const shown = fields.slice(0, 8)
+  onSelectFilter, renderFilter, onEdit, onDelete, maxColumns = 8 }: Props) {
+  const shown = fields.slice(0, maxColumns)
   return <div className="grid-wrap"><table><thead><tr>{shown.map(field => <th key={field.id}>
     {field.isFilterable ? <FilterHeader field={field}
       selected={selectedFilterFieldId === field.id}

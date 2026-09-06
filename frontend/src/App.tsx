@@ -12,6 +12,8 @@ import { ReportsPage } from './pages/ReportsPage'
 import { ReportBuilderPage } from './pages/ReportBuilderPage'
 import { MetricsPage } from './pages/MetricsPage'
 import { AlertsPage } from './pages/AlertsPage'
+import { ViewsPage } from './pages/ViewsPage'
+import { ViewDetailPage } from './pages/ViewDetailPage'
 
 const tenantStorageKey = 'dynamic-data.tenant-id'
 
@@ -79,6 +81,8 @@ function Shell({ tenantId, onChangeTenant }: { tenantId: string; onChangeTenant:
             <button type="button" onClick={() => setCreatingEntity(true)}><Building2 />Create an entity</button></div>} />
         <Route path="/entities/:entityId" element={<RedirectToRecords />} />
         <Route path="/entities/:entityId/records" element={<RecordsListPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/views" element={<ViewsPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/views/:viewId" element={<ViewDetailPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/records/new" element={<RecordFormPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/records/:recordId/edit" element={<RecordFormPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/fields" element={<FieldsPage tenantId={tenantId} />} />

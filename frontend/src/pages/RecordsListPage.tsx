@@ -6,7 +6,6 @@ import { api } from '../api'
 import type { DynamicRecord } from '../types'
 import { DynamicGrid } from '../components/DynamicGrid'
 import { FilterPanel } from '../components/FilterPanel'
-import { SavedViewSelector } from '../components/SavedViewSelector'
 import { ImportPanel } from '../components/ImportPanel'
 import { Modal } from '../components/Modal'
 import { EntityTabs } from '../components/EntityTabs'
@@ -49,7 +48,6 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
         <button type="button" disabled={fields.length === 0} onClick={() => navigate(`/entities/${entityId}/records/new`)}><Plus />New record</button>
       </div>
     </div>
-    <SavedViewSelector tenantId={tenantId} entityId={entityId} definition={queryDefinition} onSelect={setQueryDefinition} />
     {records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
       <DynamicGrid fields={fields} records={records.data?.items ?? []}
         selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
@@ -67,11 +65,11 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
   </section>
 }
 
-function getAppliedFilterFieldId(query: Record<string, unknown> | null) {
+export function getAppliedFilterFieldId(query: Record<string, unknown> | null) {
   return getAppliedFilterCondition(query)?.fieldId
 }
 
-function getAppliedFilterCondition(query: Record<string, unknown> | null, fieldId?: string) {
+export function getAppliedFilterCondition(query: Record<string, unknown> | null, fieldId?: string) {
   if (!query || typeof query.filter !== 'object' || query.filter === null) return undefined
   const conditions = (query.filter as { conditions?: unknown }).conditions
   if (!Array.isArray(conditions)) return undefined

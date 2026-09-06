@@ -56,6 +56,10 @@ export const api = {
   views: (tenantId: string, entityId: string) => request<SavedView[]>(`/api/entities/${entityId}/views`, {}, tenantId),
   createView: (tenantId: string, entityId: string, name: string, definition: Record<string, unknown>) =>
     request<SavedView>(`/api/entities/${entityId}/views`, { method: 'POST', body: JSON.stringify({ name, definition }) }, tenantId),
+  updateView: (tenantId: string, viewId: string, entityId: string, name: string, definition: Record<string, unknown>) =>
+    request<SavedView>(`/api/views/${viewId}`, { method: 'PATCH', body: JSON.stringify({ entityId, name, definition }) }, tenantId),
+  deleteView: (tenantId: string, viewId: string) =>
+    request<void>(`/api/views/${viewId}`, { method: 'DELETE' }, tenantId),
   uploadImport: async (tenantId: string, entityId: string, file: File) => {
     const body = new FormData(); body.append('file', file)
     return request<ImportJob>(`/api/entities/${entityId}/imports`, { method: 'POST', body }, tenantId)
