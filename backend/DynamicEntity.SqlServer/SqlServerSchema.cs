@@ -310,4 +310,46 @@ internal static class SqlServerSchema
             CREATE INDEX IX_WebhookSubscriptions_EntityId ON dbo.WebhookSubscriptions(EntityId);
         END;
         """;
+
+    public const string TenantDatabaseV4 = """
+        IF OBJECT_ID(N'dbo.AlertActions', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.AlertActions
+            (
+                AlertId UNIQUEIDENTIFIER NOT NULL,
+                ActionType NVARCHAR(32) NOT NULL,
+                EmailRecipientsJson NVARCHAR(MAX) NULL,
+                WebhookUrl NVARCHAR(2048) NULL,
+                CONSTRAINT PK_AlertActions PRIMARY KEY (AlertId, ActionType),
+                CONSTRAINT FK_AlertActions_Alerts FOREIGN KEY (AlertId) REFERENCES dbo.AlertDefinitions(Id),
+                CONSTRAINT CK_AlertActions_Type CHECK (ActionType IN (N'Email', N'Webhook')),
+                CONSTRAINT CK_AlertActions_EmailJson CHECK (EmailRecipientsJson IS NULL OR ISJSON(EmailRecipientsJson) = 1),
+                CONSTRAINT CK_AlertActions_Configuration CHECK
+                (
+                    (ActionType = N'Email' AND EmailRecipientsJson IS NOT NULL AND WebhookUrl IS NULL) OR
+                    (ActionType = N'Webhook' AND EmailRecipientsJson IS NULL AND WebhookUrl IS NOT NULL)
+                )
+            );
+        END;
+        """;
+
+    public const string TenantDatabaseV5 = """
+        IF COL_LENGTH(N'dbo.AlertActions', N'WebhookUrlsJson') IS NULL
+        BEGIN
+            ALTER TABLE dbo.AlertActions DROP CONSTRAINT CK_AlertActions_Configuration;
+            ALTER TABLE dbo.AlertActions ADD WebhookUrlsJson NVARCHAR(MAX) NULL;
+            UPDATE dbo.AlertActions
+            SET WebhookUrlsJson = N'["' + STRING_ESCAPE(WebhookUrl, 'json') + N'"]'
+            WHERE ActionType = N'Webhook' AND WebhookUrl IS NOT NULL;
+            ALTER TABLE dbo.AlertActions DROP COLUMN WebhookUrl;
+            ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_WebhookUrlsJson
+                CHECK (WebhookUrlsJson IS NULL OR ISJSON(WebhookUrlsJson) = 1);
+            ALTER TABLE dbo.AlertActions ADD CONSTRAINT CK_AlertActions_Configuration
+                CHECK
+                (
+                    (ActionType = N'Email' AND EmailRecipientsJson IS NOT NULL AND WebhookUrlsJson IS NULL) OR
+                    (ActionType = N'Webhook' AND EmailRecipientsJson IS NULL AND WebhookUrlsJson IS NOT NULL)
+                );
+        END;
+        """;
 }

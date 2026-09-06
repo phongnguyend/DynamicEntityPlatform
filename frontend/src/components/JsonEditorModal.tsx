@@ -51,11 +51,11 @@ export function JsonEditorModal({ title, value, onClose, onSave }: {
   </Modal>
 }
 
-export function requireJsonObject(value: unknown, fields: Record<string, 'string' | 'number' | 'boolean' | 'object'>) {
+export function requireJsonObject(value: unknown, fields: Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array'>) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('The definition must be a JSON object.')
   const object = value as Record<string, unknown>
   for (const [field, type] of Object.entries(fields)) {
-    if (typeof object[field] !== type || type === 'object' && (object[field] === null || Array.isArray(object[field]))) {
+    if (type === 'array' ? !Array.isArray(object[field]) : typeof object[field] !== type || type === 'object' && (object[field] === null || Array.isArray(object[field]))) {
       throw new Error(`Property "${field}" must be a ${type}.`)
     }
   }

@@ -19,7 +19,7 @@ A metadata-driven, multi-tenant data platform.
 - saved views and streaming CSV export
 - tenant-scoped reports with grouped analytics, date buckets, live preview, five visualization modes, and aggregated CSV export
 - reusable scalar metrics with presentation-only number, percentage, currency, and duration formatting
-- leased scheduled alerts with thresholds, cooldowns, recovery behavior, in-app notifications, and evaluation history
+- leased scheduled alerts with thresholds, cooldowns, recovery behavior, in-app notifications, evaluation history, and saved email/webhook action configuration
 - versioned tenant schema migrations applied to both new and existing active tenants
 - tenant-scoped authorization seam, Problem Details errors, structured logging, and OpenTelemetry ASP.NET/SQL instrumentation
 - unit tests and an opt-in real-SQL integration test
@@ -29,9 +29,9 @@ and all filter values are SQL parameters.
 
 Reports, metrics, and alerts use the same metadata-validated aggregation engine. Analytics
 queries are parameterized, cancellable, row-limited, and use the configurable
-`SqlServer:AnalyticsCommandTimeoutSeconds` timeout. External email and webhook alert
-delivery are intentionally deferred until the in-app notification workflow is validated
-in production.
+`SqlServer:AnalyticsCommandTimeoutSeconds` timeout. Alerts can capture validated email
+recipient and multiple HTTPS webhook action settings, but external delivery is intentionally not
+implemented yet; evaluations continue to create only in-app notifications.
 
 ## Prerequisites
 

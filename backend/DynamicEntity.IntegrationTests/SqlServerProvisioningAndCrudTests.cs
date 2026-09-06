@@ -135,8 +135,14 @@ public sealed class SqlServerProvisioningAndCrudTests
         var alertStore = new SqlAlertStore(options);
         var alert = await alertStore.CreateAsync(tenantId,
             new AlertDefinition(Guid.NewGuid(), entity.Id, metric.Id, "Count alert", AlertComparisonOperator.GreaterThan,
-                "0", AlertInterval.FiveMinutes, "UTC", TimeSpan.Zero, true, true, null, null, now,
+                "0", AlertInterval.FiveMinutes, "UTC", TimeSpan.Zero, true, true,
+                [new AlertActionConfiguration(AlertActionType.Email, ["ops@example.com"], null),
+                 new AlertActionConfiguration(AlertActionType.Webhook, null,
+                    [new Uri("https://example.test/hooks/alerts"), new Uri("https://backup.example.test/hooks/alerts")])], null, null, now,
                 null, null, null, now, now), storage, CancellationToken.None);
+        var savedAlert = (await alertStore.GetAsync(tenantId, entity.Id, alert.Id, storage, CancellationToken.None))!;
+        Assert.Equal(2, savedAlert.Actions.Count);
+        Assert.Equal(2, savedAlert.Actions.Single(action => action.Type == AlertActionType.Webhook).WebhookUrls!.Count);
         var claimed = await alertStore.ClaimDueAsync(tenantId, "worker-1", now, now.AddMinutes(1), storage, CancellationToken.None);
         Assert.NotNull(claimed);
         Assert.Null(await alertStore.ClaimDueAsync(tenantId, "worker-2", now, now.AddMinutes(1), storage, CancellationToken.None));
@@ -185,13 +191,14 @@ public sealed class SqlServerProvisioningAndCrudTests
                 CASE WHEN OBJECT_ID(N'dbo.AlertDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.AlertEvaluations', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NULL THEN 0 ELSE 1 END,
-                CASE WHEN OBJECT_ID(N'dbo.WebhookSubscriptions', N'U') IS NULL THEN 0 ELSE 1 END;
+                CASE WHEN OBJECT_ID(N'dbo.WebhookSubscriptions', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.AlertActions', N'U') IS NULL THEN 0 ELSE 1 END;
             """;
         await using var command = new SqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(3, reader.GetInt32(0));
-        for (var ordinal = 1; ordinal <= 6; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
+        Assert.Equal(5, reader.GetInt32(0));
+        for (var ordinal = 1; ordinal <= 7; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 
     private static async Task DropDatabaseAsync(string serverConnection, string databaseName)

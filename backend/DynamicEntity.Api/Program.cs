@@ -399,7 +399,8 @@ entities.MapPost("/{entityId:guid}/alerts", async (Guid entityId, SaveAlertReque
     var tenant = tenantAccessor.GetRequiredTenant();
     var alert = await service.CreateAsync(tenant.TenantId, entityId, request.MetricId, request.Name,
         request.ComparisonOperator, request.Threshold.GetRawText(), request.Interval, request.Timezone,
-        TimeSpan.FromSeconds(request.CooldownSeconds), request.NotifyOnRecovery, request.IsEnabled, null, token);
+        TimeSpan.FromSeconds(request.CooldownSeconds), request.NotifyOnRecovery, request.IsEnabled,
+        ToAlertActions(request.Actions), null, token);
     return Results.Created($"/api/entities/{entityId}/alerts/{alert.Id}", ToAlertResponse(alert));
 });
 entities.MapPatch("/{entityId:guid}/alerts/{alertId:guid}", async (Guid entityId, Guid alertId,
@@ -409,7 +410,7 @@ entities.MapPatch("/{entityId:guid}/alerts/{alertId:guid}", async (Guid entityId
     return Results.Ok(ToAlertResponse(await service.UpdateAsync(tenant.TenantId, entityId, alertId,
         request.MetricId, request.Name, request.ComparisonOperator, request.Threshold.GetRawText(),
         request.Interval, request.Timezone, TimeSpan.FromSeconds(request.CooldownSeconds),
-        request.NotifyOnRecovery, request.IsEnabled, token)));
+        request.NotifyOnRecovery, request.IsEnabled, ToAlertActions(request.Actions), token)));
 });
 entities.MapDelete("/{entityId:guid}/alerts/{alertId:guid}", async (Guid entityId, Guid alertId,
     ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
@@ -787,7 +788,11 @@ static AlertResponse ToAlertResponse(AlertDefinition alert) => new(
     alert.Id, alert.EntityId, alert.MetricId, alert.Name, alert.ComparisonOperator,
     JsonSerializer.Deserialize<JsonElement>(alert.ThresholdJson), alert.Interval, alert.Timezone,
     Convert.ToInt32(alert.Cooldown.TotalSeconds), alert.NotifyOnRecovery, alert.IsEnabled,
+    alert.Actions.Select(action => new AlertActionResponse(action.Type, action.EmailRecipients, action.WebhookUrls)).ToArray(),
     alert.LastState, alert.LastEvaluatedAt, alert.NextEvaluationAt, alert.CreatedAt, alert.UpdatedAt);
+
+static IReadOnlyList<AlertActionConfiguration> ToAlertActions(IReadOnlyList<SaveAlertActionRequest>? actions) =>
+    actions?.Select(action => new AlertActionConfiguration(action.Type, action.EmailRecipients, action.WebhookUrls)).ToArray() ?? [];
 
 static AlertEvaluationResponse ToAlertEvaluationResponse(AlertEvaluation evaluation) => new(
     evaluation.Id, evaluation.AlertId,

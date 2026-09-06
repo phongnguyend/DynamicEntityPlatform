@@ -9,6 +9,7 @@ public enum VisualizationType { Table, Number, Bar, Line, Donut }
 public enum AlertComparisonOperator { GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Equal, NotEqual }
 public enum AlertInterval { FiveMinutes, Hourly, Daily }
 public enum AlertState { Normal, Firing, Error, Recovered }
+public enum AlertActionType { Email, Webhook }
 public enum NotificationStatus { Pending, Delivered, Failed }
 public enum WebhookEvent { RecordCreated, RecordUpdated, RecordDeleted }
 
@@ -53,9 +54,13 @@ public sealed record MetricDefinition(
 public sealed record AlertDefinition(
     Guid Id, Guid EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
     string ThresholdJson, AlertInterval Interval, string Timezone, TimeSpan Cooldown,
-    bool NotifyOnRecovery, bool IsEnabled, AlertState? LastState, DateTimeOffset? LastEvaluatedAt,
+    bool NotifyOnRecovery, bool IsEnabled, IReadOnlyList<AlertActionConfiguration> Actions,
+    AlertState? LastState, DateTimeOffset? LastEvaluatedAt,
     DateTimeOffset NextEvaluationAt, string? LeaseOwner, DateTimeOffset? LeaseExpiresAt,
     Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
+public sealed record AlertActionConfiguration(
+    AlertActionType Type, IReadOnlyList<string>? EmailRecipients, IReadOnlyList<Uri>? WebhookUrls);
 
 public sealed record AlertEvaluation(
     Guid Id, Guid AlertId, string? ValueJson, string ThresholdJson, AlertState State,
