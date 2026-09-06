@@ -27,7 +27,7 @@ public sealed class EntityServiceTests
         public Tenant Tenant { get; } = new(
             Guid.NewGuid(), "Acme", TenantStatus.Active, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
         private EntityStorageLocation Storage { get; } =
-            new("test", "tenant", string.Empty, EntityStorageMode.DedicatedTable, false);
+            new("tenant", string.Empty, EntityStorageMode.DedicatedTable, false);
 
         public Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken) =>
             Task.FromResult<Tenant?>(Tenant);

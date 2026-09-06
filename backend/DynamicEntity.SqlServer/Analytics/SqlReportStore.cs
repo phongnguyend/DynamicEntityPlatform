@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer.Analytics;
 
-public sealed class SqlReportStore(SqlServerOptions options) : IReportStore
+public sealed class SqlReportStore : IReportStore
 {
     public async Task<ReportDefinition> CreateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken token)
     {

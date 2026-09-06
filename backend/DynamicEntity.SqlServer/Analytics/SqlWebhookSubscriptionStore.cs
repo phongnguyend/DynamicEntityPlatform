@@ -7,7 +7,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer.Analytics;
 
-public sealed class SqlWebhookSubscriptionStore(SqlServerOptions options) : IWebhookSubscriptionStore
+public sealed class SqlWebhookSubscriptionStore : IWebhookSubscriptionStore
 {
     private const string Columns = "w.Id,w.EntityId,w.Name,w.EndpointUrl,w.EventsJson,w.IsEnabled,w.CreatedBy,w.CreatedAt,w.UpdatedAt";
     private static readonly JsonSerializerOptions JsonOptions = new() { Converters = { new JsonStringEnumConverter() } };

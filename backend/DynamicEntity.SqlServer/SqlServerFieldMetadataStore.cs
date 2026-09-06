@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerFieldMetadataStore(SqlServerOptions options) : IFieldMetadataStore
+public sealed class SqlServerFieldMetadataStore : IFieldMetadataStore
 {
     public async Task<FieldDefinition> CreateAsync(
         Guid tenantId,

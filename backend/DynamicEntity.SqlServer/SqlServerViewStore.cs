@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerViewStore(SqlServerOptions options) : IViewStore
+public sealed class SqlServerViewStore : IViewStore
 {
     public async Task<ViewDefinition> CreateAsync(Guid tenantId, ViewDefinition view, EntityStorageLocation storage, CancellationToken cancellationToken)
     {

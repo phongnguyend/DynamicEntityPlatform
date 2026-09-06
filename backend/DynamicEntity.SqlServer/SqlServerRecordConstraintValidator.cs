@@ -11,7 +11,6 @@ using Microsoft.Data.SqlClient;
 namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerRecordConstraintValidator(
-    SqlServerOptions options,
     IEntityStorageResolver storageResolver) : IRecordConstraintValidator
 {
     public async Task<IReadOnlyList<RecordValidationError>> ValidateAsync(

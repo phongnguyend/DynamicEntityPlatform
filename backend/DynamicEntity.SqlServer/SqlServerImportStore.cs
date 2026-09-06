@@ -8,7 +8,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerImportStore(SqlServerOptions options) : IImportStore
+public sealed class SqlServerImportStore : IImportStore
 {
     public async Task CreateAsync(Guid tenantId, ImportJob job, EntityStorageLocation storage, CancellationToken cancellationToken)
     {

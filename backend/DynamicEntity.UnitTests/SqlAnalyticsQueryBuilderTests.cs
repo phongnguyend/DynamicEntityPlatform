@@ -58,5 +58,5 @@ public sealed class SqlAnalyticsQueryBuilderTests
     }
 
     private static (EntityDefinition,FieldDefinition,EntityStorageLocation) Fixture(FieldDataType type)
-    {var now=DateTimeOffset.UtcNow;var entityId=Guid.NewGuid();var field=new FieldDefinition(Guid.NewGuid(),entityId,"amount","Amount",type,false,false,true,true,false,false,null,null,0,true,now,now);var entity=new EntityDefinition(entityId,Guid.NewGuid(),"orders","Orders",null,1,EntityStatus.Active,now,now){Fields=[field]};return(entity,field,new("test","tenant","Records_Orders",EntityStorageMode.DedicatedTable,false));}
+    {var now=DateTimeOffset.UtcNow;var entityId=Guid.NewGuid();var field=new FieldDefinition(Guid.NewGuid(),entityId,"amount","Amount",type,false,false,true,true,false,false,null,null,0,true,now,now);var entity=new EntityDefinition(entityId,Guid.NewGuid(),"orders","Orders",null,1,EntityStatus.Active,now,now){Fields=[field]};return(entity,field,new("tenant","Records_Orders",EntityStorageMode.DedicatedTable,false));}
 }

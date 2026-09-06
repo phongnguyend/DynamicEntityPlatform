@@ -111,5 +111,5 @@ public sealed class SqlRecordQueryBuilderTests
     }
 
     private static EntityStorageLocation Storage(EntityDefinition entity) =>
-        new("test", "tenant", PhysicalName.ForEntityTable(entity.Id), EntityStorageMode.DedicatedTable, false);
+        new("tenant", PhysicalName.ForEntityTable(entity.Id), EntityStorageMode.DedicatedTable, false);
 }

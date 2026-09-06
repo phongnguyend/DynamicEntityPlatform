@@ -8,7 +8,6 @@ using Microsoft.Data.SqlClient;
 namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerEntityIndexManager(
-    SqlServerOptions options,
     IEntityStorageResolver storageResolver) : IEntityIndexManager
 {
     public async Task<EntityIndexDefinition> CreateAsync(

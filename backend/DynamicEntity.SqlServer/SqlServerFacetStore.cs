@@ -6,7 +6,6 @@ using Microsoft.Data.SqlClient;
 namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerFacetStore(
-    SqlServerOptions options,
     IEntityStorageResolver storageResolver) : IFacetStore
 {
     public async Task<IReadOnlyList<FacetValue>> GetValuesAsync(

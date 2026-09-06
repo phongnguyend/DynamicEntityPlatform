@@ -62,7 +62,7 @@ public sealed class RecordServiceTests
         public EntityDefinition Entity { get; }
         public FieldDefinition NameField { get; }
         public FieldDefinition AgeField { get; }
-        private EntityStorageLocation Storage { get; } = new("test", "tenant", "entity", EntityStorageMode.DedicatedTable, false);
+        private EntityStorageLocation Storage { get; } = new("tenant", "entity", EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()
         {

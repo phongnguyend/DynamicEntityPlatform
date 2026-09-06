@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerEntityMetadataStore(SqlServerOptions options) : IEntityMetadataStore
+public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
 {
     public async Task<EntityDefinition> CreateAsync(
         EntityDefinition entity,

@@ -7,7 +7,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerRecordMergeStore(SqlServerOptions options, IEntityStorageResolver resolver) : IRecordMergeStore
+public sealed class SqlServerRecordMergeStore(IEntityStorageResolver resolver) : IRecordMergeStore
 {
     public async Task<(int Inserted, int Updated)> MergeAsync(TenantContext tenant, EntityDefinition entity,
         FieldDefinition matchField, IReadOnlyList<string> normalizedRecords, Guid? userId, CancellationToken cancellationToken)

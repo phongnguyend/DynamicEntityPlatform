@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace DynamicEntity.SqlServer.Analytics;
 
-public sealed class SqlAlertStore(SqlServerOptions options) : IAlertStore
+public sealed class SqlAlertStore : IAlertStore
 {
     private const string Columns = "a.Id,a.EntityId,a.MetricId,a.Name,a.ComparisonOperator,a.ThresholdJson,a.[Interval],a.Timezone,a.CooldownSeconds,a.NotifyOnRecovery,a.IsEnabled,a.LastState,a.LastEvaluatedAt,a.NextEvaluationAt,a.LeaseOwner,a.LeaseExpiresAt,a.CreatedBy,a.CreatedAt,a.UpdatedAt";
     public async Task<AlertDefinition> CreateAsync(Guid tenantId,AlertDefinition a,EntityStorageLocation s,CancellationToken t){const string sql="""

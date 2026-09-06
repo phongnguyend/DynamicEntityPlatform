@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerTenantDatabaseProvisioner(SqlServerOptions options) : ITenantDatabaseProvisioner
+public sealed class SqlServerTenantDatabaseProvisioner : ITenantDatabaseProvisioner
 {
     public async Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken)
     {
@@ -31,7 +31,7 @@ public sealed class SqlServerTenantDatabaseProvisioner(SqlServerOptions options)
             EntityStorageMode.DedicatedTable,
             false,
             builder.ConnectionString);
-        await new SqlServerTenantDatabaseMigrator(options).MigrateAsync(location, cancellationToken);
+        await new SqlServerTenantDatabaseMigrator().MigrateAsync(location, cancellationToken);
         return location;
     }
 }

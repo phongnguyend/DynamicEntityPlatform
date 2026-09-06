@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer.Analytics;
 
-public sealed class SqlMetricStore(SqlServerOptions options) : IMetricStore
+public sealed class SqlMetricStore : IMetricStore
 {
     public async Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token)
     {

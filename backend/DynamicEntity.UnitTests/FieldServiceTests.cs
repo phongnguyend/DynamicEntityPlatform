@@ -35,7 +35,7 @@ public sealed class FieldServiceTests
         public FieldDefinition Field { get; }
         public FieldDefinition? SavedField { get; private set; }
         private EntityStorageLocation Storage { get; } =
-            new("test", "tenant", string.Empty, EntityStorageMode.DedicatedTable, false);
+            new("tenant", string.Empty, EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()
         {

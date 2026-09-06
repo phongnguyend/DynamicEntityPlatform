@@ -7,7 +7,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer;
 
-public sealed class SqlServerBulkRecordStore(SqlServerOptions options, IEntityStorageResolver resolver) : IBulkRecordStore
+public sealed class SqlServerBulkRecordStore(IEntityStorageResolver resolver) : IBulkRecordStore
 {
     public async Task<int> PatchAsync(TenantContext tenant, EntityDefinition entity, IReadOnlyList<Guid> recordIds,
         string normalizedPatch, Guid? userId, CancellationToken cancellationToken)

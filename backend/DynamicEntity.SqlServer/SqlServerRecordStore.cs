@@ -7,7 +7,6 @@ using DynamicEntity.SqlServer.Queries;
 namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerRecordStore(
-    SqlServerOptions options,
     IEntityStorageResolver storageResolver) : IRecordStore
 {
     public async Task<DynamicRecord?> GetAsync(

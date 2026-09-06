@@ -40,14 +40,14 @@ public sealed class SqlServerProvisioningAndCrudTests
         {
             await CreateDatabaseAsync(serverConnection, tenantDatabaseName);
             var control = new SqlServerControlPlaneStore(options);
-            var provisioner = new SqlServerTenantDatabaseProvisioner(options);
+            var provisioner = new SqlServerTenantDatabaseProvisioner();
             var tenant = await new TenantService(control, control, provisioner, TimeProvider.System)
                 .CreateAsync("Integration tenant", tenantBuilder.ConnectionString, CancellationToken.None);
-            await AssertAnalyticsMigrationsAsync(options, tenant.Id, tenantBuilder.ConnectionString);
-            var metadata = new SqlServerEntityMetadataStore(options);
+            await AssertAnalyticsMigrationsAsync(tenant.Id, tenantBuilder.ConnectionString);
+            var metadata = new SqlServerEntityMetadataStore();
             var entity = await new EntityService(control, metadata, TimeProvider.System)
                 .CreateAsync(tenant.Id, "customer", "Customer", null, CancellationToken.None);
-            var fieldStore = new SqlServerFieldMetadataStore(options);
+            var fieldStore = new SqlServerFieldMetadataStore();
             var fieldService = new FieldService(control, metadata, fieldStore, TimeProvider.System);
             var field = await fieldService
                 .CreateAsync(tenant.Id, entity.Id, "name", "Name", FieldDataType.Text, true, true,
@@ -61,7 +61,7 @@ public sealed class SqlServerProvisioningAndCrudTests
 
             var resolver = new EntityStorageResolver(control, metadata);
             var indexService = new EntityIndexService(control, metadata, fieldStore,
-                new SqlServerEntityIndexManager(options, resolver));
+                new SqlServerEntityIndexManager(resolver));
             var index = await indexService.CreateAsync(tenant.Id, entity.Id,
                 [new EntityIndexColumnInput(field.Id, false)], CancellationToken.None);
             Assert.NotNull((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
@@ -72,8 +72,8 @@ public sealed class SqlServerProvisioningAndCrudTests
             await indexService.CreateAsync(tenant.Id, entity.Id,
                 [new EntityIndexColumnInput(amountField.Id, false)], CancellationToken.None);
 
-            var records = new SqlServerRecordStore(options, resolver);
-            var constraints = new SqlServerRecordConstraintValidator(options, resolver);
+            var records = new SqlServerRecordStore(resolver);
+            var constraints = new SqlServerRecordConstraintValidator(resolver);
             var service = new RecordService(control, metadata, fieldStore,
                 new RecordValidator(new RecordValidationOptions()), constraints, records);
             using var input = JsonDocument.Parse("{\"name\":\"Ada\",\"amount\":12.5,\"occurred\":\"2026-09-05\"}");
@@ -118,20 +118,20 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.Single(grouped.Rows);
 
         var now = DateTimeOffset.UtcNow;
-        var reportStore = new SqlReportStore(options);
+        var reportStore = new SqlReportStore();
         var report = await reportStore.CreateAsync(tenantId,
             new ReportDefinition(Guid.NewGuid(), entity.Id, "Count report", null, "{\"query\":{}}", null, now, now),
             storage, CancellationToken.None);
         Assert.Single(await reportStore.ListAsync(tenantId, entity.Id, storage, CancellationToken.None));
         Assert.NotNull(await reportStore.UpdateAsync(tenantId, report with { Name = "Updated report" }, storage, CancellationToken.None));
 
-        var metricStore = new SqlMetricStore(options);
+        var metricStore = new SqlMetricStore();
         var metric = await metricStore.CreateAsync(tenantId,
             new MetricDefinition(Guid.NewGuid(), entity.Id, "Count metric", null, AggregateFunction.Count,
                 null, null, "{\"style\":\"integer\"}", null, now, now), storage, CancellationToken.None);
         Assert.NotNull(await metricStore.GetAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
 
-        var alertStore = new SqlAlertStore(options);
+        var alertStore = new SqlAlertStore();
         var alert = await alertStore.CreateAsync(tenantId,
             new AlertDefinition(Guid.NewGuid(), entity.Id, metric.Id, "Count alert", AlertComparisonOperator.GreaterThan,
                 "0", AlertInterval.FiveMinutes, "UTC", TimeSpan.Zero, true, true,
@@ -160,7 +160,7 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await metricStore.DeleteAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
         Assert.True(await reportStore.DeleteAsync(tenantId, entity.Id, report.Id, storage, CancellationToken.None));
 
-        var webhookStore = new SqlWebhookSubscriptionStore(options);
+        var webhookStore = new SqlWebhookSubscriptionStore();
         var webhook = await webhookStore.CreateAsync(tenantId,
             new WebhookSubscription(Guid.NewGuid(), entity.Id, "Record changes", new Uri("https://example.test/hooks/records"),
                 [WebhookEvent.RecordCreated, WebhookEvent.RecordUpdated], true, null, now, now), storage, CancellationToken.None);
@@ -169,12 +169,12 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await webhookStore.DeleteAsync(tenantId, entity.Id, webhook.Id, storage, CancellationToken.None));
     }
 
-    private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId, string connectionString)
+    private static async Task AssertAnalyticsMigrationsAsync(Guid tenantId, string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
         var storage = new EntityStorageLocation(builder.InitialCatalog,
             string.Empty, EntityStorageMode.DedicatedTable, false, builder.ConnectionString);
-        var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator(options);
+        var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator();
         await migrator.MigrateAsync(storage, CancellationToken.None);
 
         await using var connection = new SqlConnection(builder.ConnectionString);

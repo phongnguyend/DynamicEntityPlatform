@@ -4,7 +4,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DynamicEntity.SqlServer.Migrations;
 
-public sealed class SqlServerTenantDatabaseMigrator(SqlServerOptions options) : ITenantDatabaseMigrator
+public sealed class SqlServerTenantDatabaseMigrator : ITenantDatabaseMigrator
 {
     private static readonly (int Version, string Name, string Sql)[] Migrations =
     [
