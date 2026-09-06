@@ -9,7 +9,8 @@ public sealed class SqlServerTenantDatabaseMigrator(SqlServerOptions options) : 
     private static readonly (int Version, string Name, string Sql)[] Migrations =
     [
         (1, "Initial schema", SqlServerSchema.TenantDatabaseV1),
-        (2, "Analytics definitions", SqlServerSchema.TenantDatabaseV2)
+        (2, "Analytics definitions", SqlServerSchema.TenantDatabaseV2),
+        (3, "Webhook subscriptions", SqlServerSchema.TenantDatabaseV3)
     ];
 
     public async Task MigrateAsync(EntityStorageLocation storage, CancellationToken cancellationToken)

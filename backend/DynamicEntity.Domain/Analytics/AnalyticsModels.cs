@@ -10,6 +10,7 @@ public enum AlertComparisonOperator { GreaterThan, GreaterThanOrEqual, LessThan,
 public enum AlertInterval { FiveMinutes, Hourly, Daily }
 public enum AlertState { Normal, Firing, Error, Recovered }
 public enum NotificationStatus { Pending, Delivered, Failed }
+public enum WebhookEvent { RecordCreated, RecordUpdated, RecordDeleted }
 
 public sealed record AnalyticsDimension(Guid FieldId, DateBucket DateBucket, string Alias);
 public sealed record AnalyticsMeasure(AggregateFunction Aggregate, Guid? FieldId, string Alias);
@@ -63,3 +64,7 @@ public sealed record AlertEvaluation(
 public sealed record AlertNotification(
     Guid Id, Guid AlertId, Guid EvaluationId, string Channel, NotificationStatus Status,
     int Attempts, string? LastError, DateTimeOffset CreatedAt, DateTimeOffset? DeliveredAt);
+
+public sealed record WebhookSubscription(
+    Guid Id, Guid EntityId, string Name, Uri Endpoint, IReadOnlyList<WebhookEvent> Events,
+    bool IsEnabled, Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);

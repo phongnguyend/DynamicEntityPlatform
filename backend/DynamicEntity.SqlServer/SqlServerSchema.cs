@@ -289,4 +289,25 @@ internal static class SqlServerSchema
             CREATE INDEX IX_AlertNotifications_Status_CreatedAt ON dbo.AlertNotifications(Status, CreatedAt);
         END;
         """;
+
+    public const string TenantDatabaseV3 = """
+        IF OBJECT_ID(N'dbo.WebhookSubscriptions', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.WebhookSubscriptions
+            (
+                Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_WebhookSubscriptions PRIMARY KEY,
+                EntityId UNIQUEIDENTIFIER NOT NULL,
+                Name NVARCHAR(200) NOT NULL,
+                EndpointUrl NVARCHAR(2048) NOT NULL,
+                EventsJson NVARCHAR(MAX) NOT NULL,
+                IsEnabled BIT NOT NULL,
+                CreatedBy UNIQUEIDENTIFIER NULL,
+                CreatedAt DATETIMEOFFSET(7) NOT NULL,
+                UpdatedAt DATETIMEOFFSET(7) NOT NULL,
+                CONSTRAINT FK_WebhookSubscriptions_Entities FOREIGN KEY (EntityId) REFERENCES dbo.EntityDefinitions(Id),
+                CONSTRAINT CK_WebhookSubscriptions_EventsJson CHECK (ISJSON(EventsJson) = 1)
+            );
+            CREATE INDEX IX_WebhookSubscriptions_EntityId ON dbo.WebhookSubscriptions(EntityId);
+        END;
+        """;
 }

@@ -12,6 +12,7 @@ import { ReportsPage } from './pages/ReportsPage'
 import { ReportBuilderPage } from './pages/ReportBuilderPage'
 import { MetricsPage } from './pages/MetricsPage'
 import { AlertsPage } from './pages/AlertsPage'
+import { WebhooksPage } from './pages/WebhooksPage'
 import { ViewsPage } from './pages/ViewsPage'
 import { ViewDetailPage } from './pages/ViewDetailPage'
 
@@ -91,6 +92,7 @@ function Shell({ tenantId, onChangeTenant }: { tenantId: string; onChangeTenant:
         <Route path="/entities/:entityId/reports/:reportId" element={<ReportBuilderPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/metrics" element={<MetricsPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/alerts" element={<AlertsPage tenantId={tenantId} />} />
+        <Route path="/entities/:entityId/webhooks" element={<WebhooksPage tenantId={tenantId} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>}
       {creatingEntity && <Modal title="Create an entity" onClose={() => setCreatingEntity(false)}>

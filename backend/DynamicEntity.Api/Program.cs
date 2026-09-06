@@ -16,10 +16,12 @@ using DynamicEntity.Application.Analytics;
 using DynamicEntity.Application.Reports;
 using DynamicEntity.Application.Metrics;
 using DynamicEntity.Application.Alerts;
+using DynamicEntity.Application.Webhooks;
 using DynamicEntity.Contracts.Analytics;
 using DynamicEntity.Contracts.Reports;
 using DynamicEntity.Contracts.Metrics;
 using DynamicEntity.Contracts.Alerts;
+using DynamicEntity.Contracts.Webhooks;
 using DynamicEntity.Contracts.Entities;
 using DynamicEntity.Contracts.Fields;
 using DynamicEntity.Contracts.Records;
@@ -72,6 +74,7 @@ builder.Services.AddSingleton<IMetricStore, SqlMetricStore>();
 builder.Services.AddSingleton<IAlertStore, SqlAlertStore>();
 builder.Services.AddSingleton<IAlertEvaluationStore, SqlAlertEvaluationStore>();
 builder.Services.AddSingleton<IAlertNotificationStore, SqlAlertNotificationStore>();
+builder.Services.AddSingleton<IWebhookSubscriptionStore, SqlWebhookSubscriptionStore>();
 builder.Services.AddSingleton<IImportStore, SqlServerImportStore>();
 builder.Services.AddSingleton<IBulkRecordStore, SqlServerBulkRecordStore>();
 builder.Services.AddSingleton<IRecordMergeStore, SqlServerRecordMergeStore>();
@@ -100,6 +103,7 @@ builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<MetricService>();
 builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<AlertEvaluationWorker>();
+builder.Services.AddScoped<WebhookSubscriptionService>();
 builder.Services.AddHostedService<AlertSchedulerHostedService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContextAccessor, HttpTenantContextAccessor>();
@@ -140,9 +144,12 @@ entities.AddEndpointFilter(async (context, next) =>
     var schemaOperation = entityId == Guid.Empty || path.Contains("/fields", StringComparison.OrdinalIgnoreCase) ||
         path.EndsWith(entityId.ToString("D"), StringComparison.OrdinalIgnoreCase);
     var isAlert = path.Contains("/alerts", StringComparison.OrdinalIgnoreCase);
+    var isWebhook = path.Contains("/webhooks", StringComparison.OrdinalIgnoreCase);
     var isAnalytics = path.Contains("/analytics", StringComparison.OrdinalIgnoreCase) ||
         path.Contains("/reports", StringComparison.OrdinalIgnoreCase) || path.Contains("/metrics", StringComparison.OrdinalIgnoreCase);
-    var allowed = isAlert
+    var allowed = isWebhook
+        ? await authorization.CanManageWebhooksAsync(tenant, entityId, http.RequestAborted)
+        : isAlert
         ? http.Request.Method == HttpMethods.Get && path.EndsWith("/history", StringComparison.OrdinalIgnoreCase)
             ? await authorization.CanViewAlertHistoryAsync(tenant, entityId, http.RequestAborted)
             : http.Request.Method == HttpMethods.Get
@@ -435,6 +442,36 @@ entities.MapPost("/{entityId:guid}/alerts/{alertId:guid}/test", async (Guid enti
     }
     var history = await service.HistoryAsync(tenant.TenantId, entityId, alertId, token);
     return Results.Ok(ToAlertEvaluationResponse(history.Item1.First()));
+});
+
+entities.MapGet("/{entityId:guid}/webhooks", async (Guid entityId, ITenantContextAccessor tenantAccessor,
+    WebhookSubscriptionService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToWebhookResponse));
+});
+entities.MapPost("/{entityId:guid}/webhooks", async (Guid entityId, SaveWebhookSubscriptionRequest request,
+    ITenantContextAccessor tenantAccessor, WebhookSubscriptionService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var subscription = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Endpoint,
+        request.Events, request.IsEnabled, null, token);
+    return Results.Created($"/api/entities/{entityId}/webhooks/{subscription.Id}", ToWebhookResponse(subscription));
+});
+entities.MapPatch("/{entityId:guid}/webhooks/{subscriptionId:guid}", async (Guid entityId, Guid subscriptionId,
+    SaveWebhookSubscriptionRequest request, ITenantContextAccessor tenantAccessor,
+    WebhookSubscriptionService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToWebhookResponse(await service.UpdateAsync(tenant.TenantId, entityId, subscriptionId,
+        request.Name, request.Endpoint, request.Events, request.IsEnabled, token)));
+});
+entities.MapDelete("/{entityId:guid}/webhooks/{subscriptionId:guid}", async (Guid entityId, Guid subscriptionId,
+    ITenantContextAccessor tenantAccessor, WebhookSubscriptionService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    await service.DeleteAsync(tenant.TenantId, entityId, subscriptionId, token);
+    return Results.NoContent();
 });
 
 entities.MapPost("/{entityId:guid}/records", async (
@@ -762,6 +799,10 @@ static AlertNotificationResponse ToAlertNotificationResponse(AlertNotification n
     notification.Id, notification.AlertId, notification.EvaluationId, notification.Channel,
     notification.Status, notification.Attempts, notification.LastError, notification.CreatedAt,
     notification.DeliveredAt);
+
+static WebhookSubscriptionResponse ToWebhookResponse(WebhookSubscription subscription) => new(
+    subscription.Id, subscription.EntityId, subscription.Name, subscription.Endpoint,
+    subscription.Events, subscription.IsEnabled, subscription.CreatedAt, subscription.UpdatedAt);
 
 static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
 

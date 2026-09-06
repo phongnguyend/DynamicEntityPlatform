@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Bell, Calculator, Database, FileChartColumn, ListFilter, ListTree } from 'lucide-react'
+import { Bell, Calculator, Database, FileChartColumn, ListFilter, ListTree, Webhook } from 'lucide-react'
 
 export function EntityTabs({ entityId }: { entityId: string }) {
   return <nav className="tabs">
@@ -9,5 +9,6 @@ export function EntityTabs({ entityId }: { entityId: string }) {
     <NavLink to={`/entities/${entityId}/reports`} className={({ isActive }) => isActive ? 'active' : ''}><FileChartColumn />Reports</NavLink>
     <NavLink to={`/entities/${entityId}/metrics`} className={({ isActive }) => isActive ? 'active' : ''}><Calculator />Metrics</NavLink>
     <NavLink to={`/entities/${entityId}/alerts`} className={({ isActive }) => isActive ? 'active' : ''}><Bell />Alerts</NavLink>
+    <NavLink to={`/entities/${entityId}/webhooks`} className={({ isActive }) => isActive ? 'active' : ''}><Webhook />Webhooks</NavLink>
   </nav>
 }

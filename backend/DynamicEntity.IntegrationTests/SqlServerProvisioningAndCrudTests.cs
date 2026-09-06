@@ -154,6 +154,14 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await alertStore.DeleteAsync(tenantId, entity.Id, alert.Id, storage, CancellationToken.None));
         Assert.True(await metricStore.DeleteAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
         Assert.True(await reportStore.DeleteAsync(tenantId, entity.Id, report.Id, storage, CancellationToken.None));
+
+        var webhookStore = new SqlWebhookSubscriptionStore(options);
+        var webhook = await webhookStore.CreateAsync(tenantId,
+            new WebhookSubscription(Guid.NewGuid(), entity.Id, "Record changes", new Uri("https://example.test/hooks/records"),
+                [WebhookEvent.RecordCreated, WebhookEvent.RecordUpdated], true, null, now, now), storage, CancellationToken.None);
+        Assert.Single(await webhookStore.ListAsync(tenantId, entity.Id, storage, CancellationToken.None));
+        Assert.NotNull(await webhookStore.UpdateAsync(tenantId, webhook with { IsEnabled = false }, storage, CancellationToken.None));
+        Assert.True(await webhookStore.DeleteAsync(tenantId, entity.Id, webhook.Id, storage, CancellationToken.None));
     }
 
     private static async Task AssertAnalyticsMigrationsAsync(SqlServerOptions options, Guid tenantId)
@@ -176,13 +184,14 @@ public sealed class SqlServerProvisioningAndCrudTests
                 CASE WHEN OBJECT_ID(N'dbo.MetricDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.AlertDefinitions', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.AlertEvaluations', N'U') IS NULL THEN 0 ELSE 1 END,
-                CASE WHEN OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NULL THEN 0 ELSE 1 END;
+                CASE WHEN OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.WebhookSubscriptions', N'U') IS NULL THEN 0 ELSE 1 END;
             """;
         await using var command = new SqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(2, reader.GetInt32(0));
-        for (var ordinal = 1; ordinal <= 5; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
+        Assert.Equal(3, reader.GetInt32(0));
+        for (var ordinal = 1; ordinal <= 6; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 
     private static async Task DropDatabaseAsync(string serverConnection, string databaseName)

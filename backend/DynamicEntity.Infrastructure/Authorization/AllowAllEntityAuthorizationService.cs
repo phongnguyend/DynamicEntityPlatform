@@ -12,4 +12,5 @@ public sealed class AllowAllEntityAuthorizationService : IEntityAuthorizationSer
     public Task<bool> CanManageAnalyticsAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
     public Task<bool> CanManageAlertsAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
     public Task<bool> CanViewAlertHistoryAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<bool> CanManageWebhooksAsync(TenantContext tenant, Guid entityId, CancellationToken cancellationToken) => Task.FromResult(true);
 }

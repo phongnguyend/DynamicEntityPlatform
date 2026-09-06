@@ -1,4 +1,4 @@
-import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant } from './types'
+import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant, WebhookSubscription } from './types'
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ''
 
@@ -96,4 +96,8 @@ export const api = {
   deleteAlert: (tenantId: string, entityId: string, alertId: string) => request<void>(`/api/entities/${entityId}/alerts/${alertId}`, { method: 'DELETE' }, tenantId),
   alertHistory: (tenantId: string, entityId: string, alertId: string) => request<AlertHistory>(`/api/entities/${entityId}/alerts/${alertId}/history`, {}, tenantId),
   testAlert: (tenantId: string, entityId: string, alertId: string) => request<import('./types').AlertEvaluation>(`/api/entities/${entityId}/alerts/${alertId}/test`, { method: 'POST' }, tenantId),
+  webhooks: (tenantId: string, entityId: string) => request<WebhookSubscription[]>(`/api/entities/${entityId}/webhooks`, {}, tenantId),
+  saveWebhook: (tenantId: string, entityId: string, input: Omit<WebhookSubscription, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, subscriptionId?: string) =>
+    request<WebhookSubscription>(`/api/entities/${entityId}/webhooks${subscriptionId ? `/${subscriptionId}` : ''}`, { method: subscriptionId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
+  deleteWebhook: (tenantId: string, entityId: string, subscriptionId: string) => request<void>(`/api/entities/${entityId}/webhooks/${subscriptionId}`, { method: 'DELETE' }, tenantId),
 }

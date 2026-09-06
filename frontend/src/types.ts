@@ -45,3 +45,5 @@ export interface Alert { id: string; entityId: string; metricId: string; name: s
 export interface AlertEvaluation { id: string; alertId: string; value?: unknown; threshold: number; state: AlertState; error?: string; evaluatedAt: string }
 export interface AlertNotification { id: string; alertId: string; evaluationId: string; channel: string; status: string; attempts: number; lastError?: string; createdAt: string; deliveredAt?: string }
 export interface AlertHistory { evaluations: AlertEvaluation[]; notifications: AlertNotification[] }
+export type WebhookEvent = 'RecordCreated' | 'RecordUpdated' | 'RecordDeleted'
+export interface WebhookSubscription { id: string; entityId: string; name: string; endpoint: string; events: WebhookEvent[]; isEnabled: boolean; createdAt: string; updatedAt: string }

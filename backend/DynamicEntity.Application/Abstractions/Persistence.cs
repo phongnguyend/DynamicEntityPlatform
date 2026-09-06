@@ -192,3 +192,12 @@ public interface IAlertNotificationStore
     Task CreateAsync(Guid tenantId, AlertNotification notification, EntityStorageLocation storage, CancellationToken token);
     Task<IReadOnlyList<AlertNotification>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
 }
+
+public interface IWebhookSubscriptionStore
+{
+    Task<WebhookSubscription> CreateAsync(Guid tenantId, WebhookSubscription subscription, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<WebhookSubscription>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token);
+    Task<WebhookSubscription?> GetAsync(Guid tenantId, Guid entityId, Guid subscriptionId, EntityStorageLocation storage, CancellationToken token);
+    Task<WebhookSubscription?> UpdateAsync(Guid tenantId, WebhookSubscription subscription, EntityStorageLocation storage, CancellationToken token);
+    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid subscriptionId, EntityStorageLocation storage, CancellationToken token);
+}
