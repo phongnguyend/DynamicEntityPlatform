@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
+import { Pencil, Power, PowerOff, Save, Trash2, X } from 'lucide-react'
 import { EntityTabs } from '../components/EntityTabs'
 import { api } from '../api'
 import type { WebhookEvent, WebhookSubscription } from '../types'
@@ -39,11 +40,11 @@ export function WebhooksPage({ tenantId }: { tenantId: string }) {
       <label className="field">Endpoint URL<input type="url" value={endpoint} onChange={event => setEndpoint(event.target.value)} placeholder="https://example.com/webhooks/records" /></label>
       <fieldset className="event-picker"><legend>Events</legend>{availableEvents.map(item => <label className="check" key={item.value}><input type="checkbox" checked={events.includes(item.value)} onChange={event => selectEvent(item.value, event.target.checked)} />{item.label}</label>)}</fieldset>
       <label className="check"><input type="checkbox" checked={isEnabled} onChange={event => setEnabled(event.target.checked)} />Enabled</label>
-      <div className="actions"><button disabled={!name.trim() || !endpoint.trim() || events.length === 0 || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save webhook'}</button>{editing && <button className="secondary" onClick={reset}>Cancel</button>}</div>
+      <div className="actions"><button disabled={!name.trim() || !endpoint.trim() || events.length === 0 || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save webhook'}</button>{editing && <button className="secondary" onClick={reset}><X />Cancel</button>}</div>
       {save.error && <p className="error">{save.error.message}</p>}<p className="webhook-note">Delivery is not active yet. These settings will be used when webhook firing is implemented.</p>
     </div></div>
     <div className="panel wide"><div className="panel-title"><h3>Webhooks</h3><span>{subscriptions.data?.length ?? 0} {(subscriptions.data?.length ?? 0) === 1 ? 'subscription' : 'subscriptions'}</span></div>
-      {subscriptions.error ? <p className="error">{subscriptions.error.message}</p> : subscriptions.data?.length ? <ul className="definition-list">{subscriptions.data.map(subscription => <li key={subscription.id}><div><strong>{subscription.name}</strong><small className="webhook-endpoint">{subscription.endpoint}</small><small>{subscription.events.map(value => availableEvents.find(item => item.value === value)?.label ?? value).join(' · ')} · {subscription.isEnabled ? 'Enabled' : 'Disabled'}</small></div><div className="actions"><button className="secondary" onClick={() => toggle.mutate(subscription)}>{subscription.isEnabled ? 'Disable' : 'Enable'}</button><button className="link" onClick={() => edit(subscription)}>Edit</button><button className="link danger" onClick={() => remove.mutate(subscription.id)}>Delete</button></div></li>)}</ul> : <p className="empty">No webhook subscriptions yet.</p>}
+      {subscriptions.error ? <p className="error">{subscriptions.error.message}</p> : subscriptions.data?.length ? <ul className="definition-list">{subscriptions.data.map(subscription => <li key={subscription.id}><div><strong>{subscription.name}</strong><small className="webhook-endpoint">{subscription.endpoint}</small><small>{subscription.events.map(value => availableEvents.find(item => item.value === value)?.label ?? value).join(' · ')} · {subscription.isEnabled ? 'Enabled' : 'Disabled'}</small></div><div className="actions"><button className="secondary" onClick={() => toggle.mutate(subscription)}>{subscription.isEnabled ? <PowerOff /> : <Power />}{subscription.isEnabled ? 'Disable' : 'Enable'}</button><button className="link" onClick={() => edit(subscription)}><Pencil />Edit</button><button className="link danger" onClick={() => remove.mutate(subscription.id)}><Trash2 />Delete</button></div></li>)}</ul> : <p className="empty">No webhook subscriptions yet.</p>}
       {(remove.error || toggle.error) && <p className="error">{remove.error?.message ?? toggle.error?.message}</p>}
     </div></div>
   </section>

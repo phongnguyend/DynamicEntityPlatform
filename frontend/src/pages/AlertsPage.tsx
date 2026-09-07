@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { Braces, FlaskConical, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EntityTabs } from '../components/EntityTabs'
@@ -78,10 +78,10 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
         </fieldset>
         <label className="check"><input type="checkbox" checked={notifyOnRecovery} onChange={event => setRecovery(event.target.checked)} />Notify on recovery</label>
         <label className="check"><input type="checkbox" checked={isEnabled} onChange={event => setEnabled(event.target.checked)} />Enabled</label>
-        <div className="actions"><button disabled={!name || !metricId || emailEnabled && !emailRecipients.trim() || webhookEnabled && !webhookUrls.some(value => value.trim())} onClick={() => save.mutate()}>Save alert</button><button className="secondary" onClick={() => setJsonOpen(true)}>Edit JSON</button>{editing && <button className="secondary" onClick={() => setEditing(undefined)}>Cancel</button>}</div>
+        <div className="actions"><button disabled={!name || !metricId || emailEnabled && !emailRecipients.trim() || webhookEnabled && !webhookUrls.some(value => value.trim())} onClick={() => save.mutate()}><Save />Save alert</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button>{editing && <button className="secondary" onClick={() => setEditing(undefined)}><X />Cancel</button>}</div>
         {save.error && <p className="error">{save.error.message}</p>}
       </div></div>
-      <div className="panel wide"><h3>Alerts</h3><ul className="definition-list">{alerts.data?.map(alert => <li key={alert.id}><div><strong>{alert.name}</strong><small><span className={`alert-state ${alert.lastState?.toLowerCase() ?? 'normal'}`}>{alert.lastState ?? 'Not evaluated'}</span> · {alert.interval} · {alert.isEnabled ? 'Enabled' : 'Disabled'} · {alert.actions.length ? alert.actions.map(action => action.type).join(', ') : 'In-app only'}</small></div><div className="actions"><button className="secondary" onClick={() => test(alert)}>Test now</button><button className="link" onClick={() => showHistory(alert)}>History</button><button className="link" onClick={() => edit(alert)}>Edit</button><button className="link danger" onClick={() => remove.mutate(alert.id)}>Delete</button></div></li>)}</ul>
+      <div className="panel wide"><h3>Alerts</h3><ul className="definition-list">{alerts.data?.map(alert => <li key={alert.id}><div><strong>{alert.name}</strong><small><span className={`alert-state ${alert.lastState?.toLowerCase() ?? 'normal'}`}>{alert.lastState ?? 'Not evaluated'}</span> · {alert.interval} · {alert.isEnabled ? 'Enabled' : 'Disabled'} · {alert.actions.length ? alert.actions.map(action => action.type).join(', ') : 'In-app only'}</small></div><div className="actions"><button className="secondary" onClick={() => test(alert)}><FlaskConical />Test now</button><button className="link" onClick={() => showHistory(alert)}><History />History</button><button className="link" onClick={() => edit(alert)}><Pencil />Edit</button><button className="link danger" onClick={() => remove.mutate(alert.id)}><Trash2 />Delete</button></div></li>)}</ul>
         {history && <div className="history"><h3>Evaluation history</h3><table><thead><tr><th>Time</th><th>Value</th><th>Threshold</th><th>State</th><th>Error</th></tr></thead><tbody>{history.evaluations.map(item => <tr key={item.id}><td>{new Date(item.evaluatedAt).toLocaleString()}</td><td>{String(item.value ?? '—')}</td><td>{item.threshold}</td><td>{item.state}</td><td>{item.error ?? ''}</td></tr>)}</tbody></table><p className="record-count">{history.notifications.length} in-app notification(s)</p></div>}
       </div>
     </div>

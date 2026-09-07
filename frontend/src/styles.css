@@ -57,13 +57,15 @@
 
   .eyebrow, .nav-label { @apply text-[.72rem] font-extrabold uppercase tracking-[.14em] text-[#638071]; }
   .nav-heading { @apply flex items-center justify-between pb-[.45rem] pl-4 pr-[.45rem]; }
-  .nav-heading .nav-label { @apply m-0; }
+  .nav-heading .nav-label { @apply m-0 flex items-center gap-2; }
+  .nav-heading .nav-label svg { @apply size-4; }
   .nav-add { @apply size-[1.9rem] rounded-[7px] bg-transparent p-0 text-primary-light hover:bg-sidebar-hover hover:text-white; }
   .shell { @apply grid min-h-screen grid-cols-[230px_1fr]; }
   .brand { @apply mb-10 flex items-center gap-[.7rem]; }
   .admin-nav { @apply mb-7 border-b border-[#345044] pb-4; }
-  .admin-nav a { @apply flex! items-center gap-2; }
-  .admin-nav svg { @apply size-4; }
+  .admin-nav a, .dashboard-nav a { @apply flex! items-center gap-2; }
+  .admin-nav svg, .dashboard-nav svg { @apply size-4; }
+  .dashboard-nav { @apply mb-5; }
   .mark { @apply grid size-8 place-items-center rounded-[9px] bg-primary-light font-black text-sidebar; }
 
   .workspace > header, .page > header { @apply mb-6 flex items-start justify-between; }
@@ -176,6 +178,61 @@
   .metric-card { @apply grid gap-[.45rem] rounded-[11px] border border-border p-4; }
   .metric-card > strong { @apply text-[2rem]; }
   .metric-card > span, .metric-card > small { @apply text-muted; }
+  .metric-card-header { @apply flex min-w-0 items-start justify-between gap-2; }
+  .metric-card-header > small { @apply min-w-0 truncate text-muted; }
+  .metric-card-icons { @apply -mr-1 -mt-1 flex shrink-0; }
+  .metric-card-actions { @apply justify-end; }
+  .page .modal:has(.metric-expanded-card) { @apply w-[min(960px,100%)]; }
+  .metric-expanded-card { @apply grid min-h-[min(520px,68vh)] min-w-0 place-items-center content-center gap-5 overflow-hidden rounded-[12px] bg-[linear-gradient(145deg,#f5faf6,#edf4ef)] px-[clamp(1rem,5vw,4rem)] py-10 text-center; container-type: inline-size; }
+  .metric-expanded-card > strong { @apply max-w-full text-[clamp(3rem,11cqw,7rem)] leading-[1.05] tracking-[-.045em] text-primary; overflow-wrap: anywhere; }
+  .metric-expanded-card > strong.long { @apply text-[clamp(2.25rem,8cqw,5rem)]; }
+  .metric-expanded-card > strong.very-long { @apply text-[clamp(1.6rem,5.5cqw,3.5rem)]; }
+  .metric-expanded-card > span { @apply text-muted; }
+  .dashboard-intro { @apply mb-0 text-muted; }
+  .dashboard-page .modal { @apply w-[min(680px,100%)]; }
+  .dashboard-page .modal:has(.dashboard-card-expanded) { @apply w-[min(1100px,100%)]; }
+  .dashboard-library { @apply min-w-0; }
+  .dashboard-library-summary { @apply flex justify-between rounded-lg bg-primary-soft px-3 py-2 text-sm text-[#365245]; }
+  .dashboard-library-group h4 { @apply m-0; }
+  .dashboard-library-group { @apply mt-5 grid gap-2; }
+  .dashboard-library-group h4 { @apply text-xs uppercase tracking-[.08em] text-muted; }
+  .dashboard-library-item { @apply flex w-full justify-between rounded-[9px] border border-border bg-input px-3 py-[.65rem] text-left text-ink; }
+  .dashboard-library-item:hover { @apply border-[#b9d5c4] bg-primary-soft; }
+  .dashboard-library-item:disabled { @apply cursor-default opacity-45; }
+  .dashboard-library-item span { @apply grid min-w-0 gap-0.5; }
+  .dashboard-library-item small { @apply text-[.65rem] font-bold uppercase tracking-[.08em] text-muted; }
+  .dashboard-library-item strong { @apply truncate text-[.86rem]; }
+  .dashboard-library-action { @apply flex shrink-0 items-center gap-1 text-xs font-bold text-primary; }
+  .dashboard-library-item svg { @apply size-4 shrink-0 text-primary; }
+  .dashboard-grid-container { @apply min-h-[240px] min-w-0; }
+  .dashboard-grid-container .react-grid-placeholder { @apply rounded-[14px] bg-primary-soft opacity-80!; }
+  .dashboard-grid-container .react-grid-item.react-draggable-dragging { @apply z-20 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
+  .dashboard-grid-container .react-resizable-handle::after { @apply size-2.5 border-[#4d7e67]; }
+  .dashboard-empty { @apply col-span-full grid min-h-[360px] place-items-center content-center rounded-[14px] border-2 border-dashed border-[#cad8cf] p-8 text-center text-muted; }
+  .dashboard-empty svg { @apply mb-3 size-10 text-[#7da08c]; }
+  .dashboard-empty h3 { @apply mb-2 text-ink; }
+  .dashboard-empty p { @apply m-0; }
+  .dashboard-card { @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[14px] border border-border bg-white p-5 shadow-[0_8px_25px_rgb(22_42_32/5%)]; }
+  .dashboard-card-header { @apply mb-4 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2; }
+  .dashboard-card-header .drag-handle { @apply cursor-grab touch-none rounded-md p-1 hover:bg-primary-soft active:cursor-grabbing; }
+  .dashboard-card-header h3 { @apply m-0 text-base; }
+  .dashboard-card-header small { @apply block text-[.68rem] font-bold uppercase tracking-[.06em] text-muted; }
+  .dashboard-card-actions { @apply flex; }
+  .dashboard-card-actions button:disabled { @apply cursor-default opacity-25; }
+  .dashboard-card-body { @apply min-h-0 min-w-0 flex-1 overflow-auto; }
+  .dashboard-card-body .grid-wrap { @apply max-h-[300px]; }
+  .dashboard-card-body .simple-chart { @apply h-[240px]; }
+  .dashboard-card-expanded { @apply min-h-[420px] min-w-0; }
+  .dashboard-card-expanded .dashboard-card-body { @apply overflow-visible; }
+  .dashboard-card-expanded .simple-chart { @apply h-[min(520px,55vh)]; }
+  .dashboard-card-expanded .grid-wrap { @apply max-h-[55vh] overflow-auto; }
+  .dashboard-card-expanded .metric-dashboard-card > strong { @apply max-w-full text-[clamp(2.5rem,9vw,6rem)]; overflow-wrap: anywhere; }
+  .dashboard-expanded-context { @apply mb-4 text-xs font-bold uppercase tracking-[.08em] text-muted; }
+  .dashboard-refresh { @apply mt-3; }
+  .metric-dashboard-card { @apply grid gap-1; }
+  .metric-dashboard-card > strong { @apply text-[clamp(2rem,5vw,3.5rem)]; }
+  .metric-dashboard-card > span { @apply text-sm text-muted; }
+  .metric-dashboard-card .dashboard-refresh { @apply justify-self-start; }
   .threshold-row { @apply grid grid-cols-2 gap-[.6rem]; }
   .alert-state { @apply font-[750]; }
   .alert-state.firing, .alert-state.error { @apply text-danger; }

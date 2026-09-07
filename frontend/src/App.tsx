@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, Building2, Database, Plus, Users } from 'lucide-react'
+import { ArrowRight, Building2, Database, LayoutDashboard, Plus, TableProperties, Users } from 'lucide-react'
 import { api } from './api'
 import { EntityDesigner } from './components/EntityDesigner'
 import { Modal } from './components/Modal'
@@ -16,6 +16,7 @@ import { WebhooksPage } from './pages/WebhooksPage'
 import { ViewsPage } from './pages/ViewsPage'
 import { ViewDetailPage } from './pages/ViewDetailPage'
 import { TenantsPage } from './pages/TenantsPage'
+import { DashboardsPage } from './pages/DashboardsPage'
 
 const tenantStorageKey = 'dynamic-data.tenant-id'
 
@@ -74,7 +75,8 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
 
   return <div className="shell"><aside><div className="brand"><span className="mark"><Database size={18} /></span><strong>Dynamic Data</strong></div>
     <nav className="admin-nav"><NavLink to="/tenants" className={({ isActive }) => isActive ? 'active' : ''}><Users />Manage tenants</NavLink></nav>
-    <div className="nav-heading"><p className="nav-label">Entities</p>
+    <nav className="dashboard-nav"><NavLink to="/dashboards" className={({ isActive }) => isActive ? 'active' : ''}><LayoutDashboard />Dashboards</NavLink></nav>
+    <div className="nav-heading"><p className="nav-label"><TableProperties />Entities</p>
       <button type="button" className="nav-add" aria-label="Create a new entity" title="New entity"
         onClick={() => setCreatingEntity(true)}><Plus /></button></div>
     <nav>{entities.data?.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
@@ -98,6 +100,7 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
         <Route path="/entities/:entityId/metrics" element={<MetricsPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/alerts" element={<AlertsPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/webhooks" element={<WebhooksPage tenantId={tenantId} />} />
+        <Route path="/dashboards" element={<DashboardsPage key={tenantId} tenantId={tenantId} entities={entities.data ?? []} />} />
         <Route path="/tenants" element={<TenantsPage activeTenantId={tenantId} onSwitch={next => { onSwitchTenant(next); if (next) navigate('/') }} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>}
