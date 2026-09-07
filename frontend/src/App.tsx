@@ -4,7 +4,10 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNaviga
 import { ArrowRight, Building2, Database, LayoutDashboard, Plus, TableProperties, Users } from 'lucide-react'
 import { api } from './api'
 import { EntityDesigner } from './components/EntityDesigner'
+import { EntityIcon } from './components/EntityIcon'
+import { pinnedEntities } from './pinnedEntities'
 import { Modal } from './components/Modal'
+import { EntitiesListPage } from './pages/EntitiesListPage'
 import { RecordsListPage } from './pages/RecordsListPage'
 import { RecordFormPage } from './pages/RecordFormPage'
 import { FieldsPage } from './pages/FieldsPage'
@@ -73,21 +76,22 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
   const managingTenants = useLocation().pathname === '/tenants'
   const entities = useQuery({ queryKey: ['entities', tenantId], queryFn: () => api.entities(tenantId), enabled: Boolean(tenantId) })
   const [creatingEntity, setCreatingEntity] = useState(false)
+  const pinned = pinnedEntities(entities.data ?? [])
 
   return <div className="shell"><aside><div className="brand"><span className="mark"><Database size={18} /></span><strong>Dynamic Data</strong></div>
     <nav className="admin-nav"><NavLink to="/tenants" className={({ isActive }) => isActive ? 'active' : ''}><Users />Manage tenants</NavLink></nav>
     <nav className="dashboard-nav"><NavLink to="/dashboards" className={({ isActive }) => isActive ? 'active' : ''}><LayoutDashboard />Dashboards</NavLink></nav>
-    <div className="nav-heading"><p className="nav-label"><TableProperties />Entities</p>
-      <button type="button" className="nav-add" aria-label="Create a new entity" title="New entity"
-        onClick={() => setCreatingEntity(true)}><Plus /></button></div>
-    <nav>{entities.data?.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
-      className={({ isActive }) => isActive ? 'active' : ''}>{entity.displayName}</NavLink>)}</nav>
+    <nav className="nav-heading"><NavLink end to="/entities" className={({ isActive }) => isActive ? 'nav-label active' : 'nav-label'}><TableProperties />Entities</NavLink></nav>
+    <nav className="entity-nav">{pinned.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
+      className={({ isActive }) => isActive ? 'active' : ''}><EntityIcon icon={entity.icon} />{entity.displayName}</NavLink>)}
+      {!pinned.length && !entities.isLoading && <p className="nav-empty">Pin an entity to reach it from here.</p>}</nav>
     </aside>
     <main>{!managingTenants && entities.isLoading ? <p>Loading workspace…</p> : !managingTenants && entities.error ? <p className="error">{entities.error.message}</p> :
       <Routes>
         <Route path="/" element={entities.data?.[0] ? <Navigate to={`/entities/${entities.data[0].id}/records`} replace /> :
           <div className="first-entity"><p className="empty">No entities yet.</p>
             <button type="button" onClick={() => setCreatingEntity(true)}><Building2 />Create an entity</button></div>} />
+        <Route path="/entities" element={<EntitiesListPage tenantId={tenantId} entities={entities.data ?? []} onCreateEntity={() => setCreatingEntity(true)} />} />
         <Route path="/entities/:entityId" element={<RedirectToRecords />} />
         <Route path="/entities/:entityId/records" element={<RecordsListPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/views" element={<ViewsPage tenantId={tenantId} />} />

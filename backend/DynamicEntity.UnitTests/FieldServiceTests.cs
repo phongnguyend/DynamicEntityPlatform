@@ -73,6 +73,7 @@ public sealed class FieldServiceTests
         public Task<IReadOnlyList<EntityDefinition>> ListAsync(Guid tenantId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<EntityStorageLocation?> GetStorageAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<EntityDefinition?> UpdateAsync(Guid tenantId, EntityDefinition entity, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<EntityDefinition>> SetPinnedOrderAsync(Guid tenantId, IReadOnlyList<Guid> entityIds, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> ArchiveAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<FieldDefinition> CreateAsync(Guid tenantId, FieldDefinition field, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> DeactivateAsync(Guid tenantId, Guid entityId, Guid fieldId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => throw new NotSupportedException();

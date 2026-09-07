@@ -276,6 +276,14 @@ entities.MapGet("/", async (
     return Results.Ok(result.Select(ToEntityResponse));
 });
 
+entities.MapPut("/pins", async (SetEntityPinsRequest request, ITenantContextAccessor tenantAccessor,
+    EntityService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var result = await service.SetPinsAsync(tenant.TenantId, request.EntityIds ?? [], cancellationToken);
+    return Results.Ok(result.Select(ToEntityResponse));
+});
+
 entities.MapGet("/{entityId:guid}", async (Guid entityId, ITenantContextAccessor tenantAccessor,
     EntityService service, CancellationToken cancellationToken) =>
 {
@@ -288,7 +296,7 @@ entities.MapPatch("/{entityId:guid}", async (Guid entityId, UpdateEntityRequest 
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     return Results.Ok(ToEntityResponse(await service.UpdateAsync(tenant.TenantId, entityId,
-        request.Name, request.DisplayName, request.Description, cancellationToken)));
+        request.Name, request.DisplayName, request.Description, request.Icon, cancellationToken)));
 });
 
 entities.MapDelete("/{entityId:guid}", async (Guid entityId, ITenantContextAccessor tenantAccessor,
@@ -796,8 +804,8 @@ static TenantResponse ToTenantResponse(Tenant tenant, EntityStorageLocation? sto
         storage is not null, storage?.DatabaseName);
 
 static EntityResponse ToEntityResponse(EntityDefinition entity) =>
-    new(entity.Id, entity.Name, entity.DisplayName, entity.Description, entity.SchemaVersion,
-        entity.Status.ToString(), entity.CreatedAt, entity.UpdatedAt);
+    new(entity.Id, entity.Name, entity.DisplayName, entity.Description, entity.Icon, entity.PinnedOrder,
+        entity.SchemaVersion, entity.Status.ToString(), entity.CreatedAt, entity.UpdatedAt);
 
 static FieldResponse ToFieldResponse(FieldDefinition field) =>
     new(field.Id, field.Name, field.DisplayName, field.StorageKey, field.DataType, field.IsRequired,

@@ -56,10 +56,14 @@
   .onboarding-create textarea { @apply min-h-20 resize-y font-mono text-xs; }
 
   .eyebrow, .nav-label { @apply text-[.72rem] font-extrabold uppercase tracking-[.14em] text-[#638071]; }
-  .nav-heading { @apply flex items-center justify-between pb-[.45rem] pl-4 pr-[.45rem]; }
-  .nav-heading .nav-label { @apply m-0 flex items-center gap-2; }
+  .nav-heading { @apply pb-[.45rem]; }
+  /* The label is a link to the entities list, so it carries the sidebar link's own padding. */
+  .nav-heading .nav-label { @apply m-0 flex items-center gap-2 rounded-[9px] px-4 py-[.45rem]; }
   .nav-heading .nav-label svg { @apply size-4; }
-  .nav-add { @apply size-[1.9rem] rounded-[7px] bg-transparent p-0 text-primary-light hover:bg-sidebar-hover hover:text-white; }
+  /* Indented past the Entities heading so the entity links read as its children. */
+  .entity-nav a { @apply flex! items-center gap-2 pl-[1.75rem]; }
+  .entity-nav svg { @apply size-4 shrink-0; }
+  .nav-empty { @apply m-0 py-1 pl-[1.75rem] pr-4 text-[.78rem] leading-[1.4] text-[#8aa397]; }
   .shell { @apply grid min-h-screen grid-cols-[230px_1fr]; }
   .brand { @apply mb-10 flex items-center gap-[.7rem]; }
   .admin-nav { @apply mb-7 border-b border-[#345044] pb-4; }
@@ -112,6 +116,7 @@
   .row-actions { @apply text-right; }
   .row-actions .link { @apply p-[.42rem]; }
   .first-entity { @apply mx-auto my-[10vh] max-w-[430px]; }
+  .list-empty { @apply grid justify-items-start; }
 
   .field-list, .index-list, .definition-list { @apply m-0 list-none p-0; }
   .field-list, .index-list { @apply mt-[.6rem]; }
@@ -138,11 +143,12 @@
   .order-actions { @apply flex; }
   .order-actions .link { @apply min-w-8 text-[1.1rem]; }
   .order-actions .link:disabled { @apply cursor-default; }
-  .field-options, .event-picker, .alert-actions, .view-color-picker { @apply m-0 grid rounded-[9px] border border-border p-[.8rem]; }
+  .field-options, .event-picker, .alert-actions, .view-color-picker, .entity-icon-picker { @apply m-0 grid rounded-[9px] border border-border p-[.8rem]; }
   .field-options { @apply grid-cols-2 gap-[.65rem] rounded-lg; }
   .event-picker { @apply gap-[.6rem]; }
   .alert-actions { @apply gap-[.7rem] p-[.85rem]; }
-  .field-options legend, .event-picker legend, .alert-actions legend, .view-color-picker legend { @apply px-[.3rem] text-[.85rem] font-[650] text-[#405049]; }
+  .field-options legend, .event-picker legend, .alert-actions legend, .view-color-picker legend,
+  .entity-icon-picker legend { @apply px-[.3rem] text-[.85rem] font-[650] text-[#405049]; }
 
   .filter-bar, .saved-views { @apply mb-[.7rem] flex flex-wrap gap-[.45rem]; }
   .filter-bar input, .filter-bar select, .saved-views input, .saved-views select, .mapping select { @apply rounded-[7px] border border-input-border bg-input p-[.48rem]; }
@@ -206,7 +212,6 @@
   .metric-expanded-card > span { @apply text-muted; }
   .dashboard-intro { @apply mb-0 text-muted; }
   .dashboard-delete { @apply text-danger; }
-  .dashboard-list-empty { @apply grid justify-items-start; }
   .dashboard-page .modal { @apply w-[min(680px,100%)]; }
   .dashboard-page .modal:has(.dashboard-card-expanded) { @apply w-[min(1100px,100%)]; }
   .dashboard-library { @apply min-w-0; }
@@ -308,6 +313,23 @@
   /* Sized in em so the dot tracks whatever heading or label it sits in. */
   .view-title { @apply flex items-center gap-[.45em]; }
   .view-color-dot { @apply inline-block size-[.62em] shrink-0 rounded-full; }
+
+  .entity-icon-editor { @apply grid gap-[.9rem]; }
+  .entity-icon-picker { @apply gap-[.6rem]; }
+  /* Tall enough to browse without pushing the modal footer off screen. */
+  .entity-icon-options { @apply grid max-h-[15rem] grid-cols-[repeat(auto-fill,minmax(2.4rem,1fr))] gap-[.4rem] overflow-y-auto; }
+  .entity-icon-option { @apply grid size-[2.4rem] place-items-center rounded-[9px] border border-input-border bg-input p-0 text-[#405049]; }
+  .entity-icon-option.selected { @apply border-primary bg-primary-soft text-primary ring-2 ring-primary; }
+  .entity-icon-option.none { @apply text-muted; }
+  .entity-title { @apply flex min-w-0 items-center gap-3; }
+  .pinned-list li { @apply rounded-[9px] border-transparent px-2; }
+  .pinned-list li.dragging { @apply opacity-50; }
+  /* The row the pointer is over while dragging — where the dragged entity lands on drop. */
+  .pinned-list li.drop-target { @apply bg-primary-soft; }
+  .drag-handle { @apply cursor-grab bg-transparent p-0 text-muted; }
+  .drag-handle:active { @apply cursor-grabbing; }
+  .entity-icon { @apply grid size-8 shrink-0 place-items-center rounded-[9px] bg-primary-soft text-primary; }
+  .entity-icon svg { @apply size-[1.05rem] stroke-2; }
 
   .alert-actions .field-note { @apply mb-[.15rem]; }
   .webhook-url-list { @apply grid gap-[.6rem]; }

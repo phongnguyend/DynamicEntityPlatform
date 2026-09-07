@@ -4,7 +4,8 @@ export type FieldDataType =
 
 export interface Tenant { id: string; name: string; status: string; createdAt: string; connectionConfigured: boolean; databaseName?: string }
 export interface Entity {
-  id: string; name: string; displayName: string; description?: string
+  id: string; name: string; displayName: string; description?: string; icon?: string
+  pinnedOrder?: number | null
   schemaVersion: number; status: string; createdAt: string; updatedAt: string
 }
 export interface Field {

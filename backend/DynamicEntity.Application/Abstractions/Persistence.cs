@@ -58,6 +58,14 @@ public interface IEntityMetadataStore
         EntityStorageLocation tenantStorage, CancellationToken cancellationToken);
     Task<bool> ArchiveAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Replaces the tenant's whole pinned set: the entities in <paramref name="entityIds"/> take that
+    /// order, every other entity is unpinned. Pinning, unpinning and reordering are all the same write,
+    /// so concurrent callers cannot interleave into a set with duplicate or missing positions.
+    /// </summary>
+    Task<IReadOnlyList<EntityDefinition>> SetPinnedOrderAsync(Guid tenantId, IReadOnlyList<Guid> entityIds,
+        EntityStorageLocation tenantStorage, CancellationToken cancellationToken);
 }
 
 public interface IFieldMetadataStore

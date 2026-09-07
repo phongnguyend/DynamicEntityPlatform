@@ -1,3 +1,4 @@
+using System.Text;
 using DynamicEntity.Application.Abstractions;
 using DynamicEntity.Application.Common;
 using DynamicEntity.Domain.Entities;
@@ -8,6 +9,12 @@ namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
 {
+    private const string ListSql = """
+        SELECT Id, TenantId, Name, DisplayName, Description, SchemaVersion, Status, CreatedAt, UpdatedAt, Icon, PinnedOrder
+        FROM dbo.EntityDefinitions WHERE TenantId = @tenantId AND Status = N'Active' ORDER BY DisplayName, Id;
+        """;
+
+
     public async Task<EntityDefinition> CreateAsync(
         EntityDefinition entity,
         EntityStorageLocation tenantStorage,
@@ -17,9 +24,9 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         var quotedTable = PhysicalName.QuoteSqlIdentifier(tableName);
         var sql = $$"""
             INSERT INTO dbo.EntityDefinitions
-                (Id, TenantId, Name, DisplayName, Description, SchemaVersion, Status, CreatedAt, UpdatedAt)
+                (Id, TenantId, Name, DisplayName, Description, Icon, SchemaVersion, Status, CreatedAt, UpdatedAt)
             VALUES
-                (@id, @tenantId, @name, @displayName, @description, @schemaVersion, @status, @createdAt, @updatedAt);
+                (@id, @tenantId, @name, @displayName, @description, @icon, @schemaVersion, @status, @createdAt, @updatedAt);
 
             CREATE TABLE dbo.{{quotedTable}}
             (
@@ -66,7 +73,7 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT Id, TenantId, Name, DisplayName, Description, SchemaVersion, Status, CreatedAt, UpdatedAt
+            SELECT Id, TenantId, Name, DisplayName, Description, SchemaVersion, Status, CreatedAt, UpdatedAt, Icon, PinnedOrder
             FROM dbo.EntityDefinitions WHERE TenantId = @tenantId AND Id = @entityId;
             """;
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
@@ -82,17 +89,8 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         EntityStorageLocation tenantStorage,
         CancellationToken cancellationToken)
     {
-        const string sql = """
-            SELECT Id, TenantId, Name, DisplayName, Description, SchemaVersion, Status, CreatedAt, UpdatedAt
-            FROM dbo.EntityDefinitions WHERE TenantId = @tenantId AND Status = N'Active' ORDER BY DisplayName, Id;
-            """;
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
-        await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@tenantId", tenantId);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var entities = new List<EntityDefinition>();
-        while (await reader.ReadAsync(cancellationToken)) entities.Add(ReadEntity(reader));
-        return entities;
+        return await ListAsync(connection, transaction: null, tenantId, cancellationToken);
     }
 
     public async Task<EntityStorageLocation?> GetStorageAsync(
@@ -125,7 +123,7 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         EntityStorageLocation tenantStorage, CancellationToken cancellationToken)
     {
         const string sql = """
-            UPDATE dbo.EntityDefinitions SET Name=@name,DisplayName=@displayName,Description=@description,UpdatedAt=@updatedAt
+            UPDATE dbo.EntityDefinitions SET Name=@name,DisplayName=@displayName,Description=@description,Icon=@icon,UpdatedAt=@updatedAt
             WHERE Id=@id AND TenantId=@tenantId AND Status=N'Active';
             """;
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
@@ -145,6 +143,61 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
+    public async Task<IReadOnlyList<EntityDefinition>> SetPinnedOrderAsync(Guid tenantId,
+        IReadOnlyList<Guid> entityIds, EntityStorageLocation tenantStorage, CancellationToken cancellationToken)
+    {
+        // Clearing and re-numbering in one transaction keeps the pinned positions contiguous and unique
+        // even when two clients reorder at the same time — the loser simply overwrites the whole set.
+        var sql = new StringBuilder("""
+            UPDATE dbo.EntityDefinitions SET PinnedOrder = NULL
+            WHERE TenantId = @tenantId AND PinnedOrder IS NOT NULL;
+            """);
+        for (var index = 0; index < entityIds.Count; index++)
+        {
+            sql.AppendLine().Append($"""
+                UPDATE dbo.EntityDefinitions SET PinnedOrder = @order{index}
+                WHERE TenantId = @tenantId AND Id = @id{index} AND Status = N'Active';
+                """);
+        }
+
+        await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await using (var command = new SqlCommand(sql.ToString(), connection, transaction))
+            {
+                command.Parameters.AddWithValue("@tenantId", tenantId);
+                for (var index = 0; index < entityIds.Count; index++)
+                {
+                    command.Parameters.AddWithValue($"@order{index}", index);
+                    command.Parameters.AddWithValue($"@id{index}", entityIds[index]);
+                }
+
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            var entities = await ListAsync(connection, transaction, tenantId, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return entities;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    private static async Task<IReadOnlyList<EntityDefinition>> ListAsync(SqlConnection connection,
+        SqlTransaction? transaction, Guid tenantId, CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(ListSql, connection, transaction);
+        command.Parameters.AddWithValue("@tenantId", tenantId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var entities = new List<EntityDefinition>();
+        while (await reader.ReadAsync(cancellationToken)) entities.Add(ReadEntity(reader));
+        return entities;
+    }
+
     private async Task<SqlConnection> OpenTenantAsync(
         EntityStorageLocation storage,
         CancellationToken cancellationToken)
@@ -161,6 +214,7 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         command.Parameters.AddWithValue("@name", entity.Name);
         command.Parameters.AddWithValue("@displayName", entity.DisplayName);
         command.Parameters.AddWithValue("@description", (object?)entity.Description ?? DBNull.Value);
+        command.Parameters.AddWithValue("@icon", (object?)entity.Icon ?? DBNull.Value);
         command.Parameters.AddWithValue("@schemaVersion", entity.SchemaVersion);
         command.Parameters.AddWithValue("@status", entity.Status.ToString());
         command.Parameters.AddWithValue("@createdAt", entity.CreatedAt);
@@ -176,5 +230,9 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         reader.GetInt32(5),
         Enum.Parse<EntityStatus>(reader.GetString(6)),
         reader.GetFieldValue<DateTimeOffset>(7),
-        reader.GetFieldValue<DateTimeOffset>(8));
+        reader.GetFieldValue<DateTimeOffset>(8))
+    {
+        Icon = reader.IsDBNull(9) ? null : reader.GetString(9),
+        PinnedOrder = reader.IsDBNull(10) ? null : reader.GetInt32(10)
+    };
 }

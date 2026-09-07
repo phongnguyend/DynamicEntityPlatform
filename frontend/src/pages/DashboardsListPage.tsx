@@ -28,7 +28,7 @@ export function DashboardsListPage({ tenantId }: { tenantId: string }) {
       <div className="panel-body">{dashboards.data?.length ? <ul className="definition-list">{dashboards.data.map(dashboard => <li key={dashboard.id}>
         <div><strong>{dashboard.name}</strong><small>{dashboard.definition.items.length} card{dashboard.definition.items.length === 1 ? '' : 's'}</small></div>
         <div className="actions"><Link className="link" to={`/dashboards/${dashboard.id}`}><FolderOpen />Open</Link><button type="button" className="link" onClick={() => setEditing(dashboard)}><Pencil />Edit</button><button type="button" className="link danger" onClick={() => remove(dashboard.id, dashboard.name)}><Trash2 />Delete</button></div>
-      </li>)}</ul> : <div className="dashboard-list-empty"><p className="empty">No dashboards yet.</p><button type="button" onClick={() => setEditing(null)}><Plus />Create your first dashboard</button></div>}
+      </li>)}</ul> : <div className="list-empty"><p className="empty">No dashboards yet.</p><button type="button" onClick={() => setEditing(null)}><Plus />Create your first dashboard</button></div>}
       {deleteDashboard.error && <p className="error">{deleteDashboard.error.message}</p>}</div>
     </div>
     {editing !== undefined && <DashboardEditor tenantId={tenantId} dashboard={editing} onClose={() => setEditing(undefined)} onSaved={saved => {

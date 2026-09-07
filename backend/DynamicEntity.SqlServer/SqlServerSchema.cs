@@ -419,4 +419,14 @@ internal static class SqlServerSchema
                     WHERE Status = N''Pending'';';
         END;
         """;
+
+    public const string TenantDatabaseV8 = """
+        IF COL_LENGTH(N'dbo.EntityDefinitions', N'Icon') IS NULL
+            ALTER TABLE dbo.EntityDefinitions ADD Icon NVARCHAR(64) NULL;
+        """;
+
+    public const string TenantDatabaseV9 = """
+        IF COL_LENGTH(N'dbo.EntityDefinitions', N'PinnedOrder') IS NULL
+            ALTER TABLE dbo.EntityDefinitions ADD PinnedOrder INT NULL;
+        """;
 }

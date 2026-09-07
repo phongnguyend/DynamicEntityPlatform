@@ -27,6 +27,13 @@ export const api = {
   entities: (tenantId: string) => request<Entity[]>('/api/entities', {}, tenantId),
   createEntity: (tenantId: string, input: { name: string; displayName: string; description?: string }) =>
     request<Entity>('/api/entities', { method: 'POST', body: JSON.stringify(input) }, tenantId),
+  // An omitted member leaves the stored value alone; an empty icon clears it.
+  updateEntity: (tenantId: string, entityId: string, input: { name?: string; displayName?: string; description?: string; icon?: string }) =>
+    request<Entity>(`/api/entities/${entityId}`, { method: 'PATCH', body: JSON.stringify(input) }, tenantId),
+  // Replaces the whole pinned set in one write — pin, unpin and reorder are all this call. Returns the
+  // tenant's entities so the caller can refresh the shortcuts and the list together.
+  setEntityPins: (tenantId: string, entityIds: string[]) =>
+    request<Entity[]>('/api/entities/pins', { method: 'PUT', body: JSON.stringify({ entityIds }) }, tenantId),
   fields: (tenantId: string, entityId: string) => request<Field[]>(`/api/entities/${entityId}/fields`, {}, tenantId),
   createField: (tenantId: string, entityId: string, input: {
     name: string; displayName: string; dataType: FieldDataType; isRequired: boolean
