@@ -61,7 +61,7 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
     const saved = await api.saveReport(tenantId, entityId, input as unknown as Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, report?.id)
     onSaved(saved)
   }
-  return <div className="report-builder"><div className="builder-controls">
+  return <div className="report-builder"><div className="panel"><div className="panel-header"><h3>Report definition</h3></div><div className="panel-body builder-controls">
     <label className="field">Name<input value={name} onChange={event => setName(event.target.value)} /></label>
     <label className="field">Description<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
     <div className="builder-section"><div className="panel-header"><h3>Dimensions</h3><button className="secondary" disabled={dimensions.length >= 2 || !fields.length} onClick={addDimension}><Plus />Add</button></div>
@@ -89,6 +89,7 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
     <label className="field">Visualization<select value={visualization} onChange={event => setVisualization(event.target.value as VisualizationType)}><option>Table</option><option>Number</option><option>Bar</option><option>Line</option><option>Donut</option></select></label>
     <label className="field">Row limit<input type="number" min="1" max="1000" value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
     {(visiblePreviewError(preview.error) || save.error) && <p className="error">{(visiblePreviewError(preview.error) ?? save.error)?.message}</p>}
+    </div>
     <div className="panel-footer"><button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save report'}</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button><button className="secondary" onClick={() => refreshPreview(query)}><RefreshCw />Refresh preview</button></div>
   </div><div className="panel preview-panel"><div className="panel-header"><h3>Preview</h3></div><div className="panel-body">{previewStale && <p className="warning">Filters changed. Refresh the preview to apply them.</p>}{preview.isPending && <p className="empty">Calculating…</p>}{preview.data && <ReportViewer result={preview.data} visualization={visualization} />}</div></div>
     {jsonOpen && <JsonEditorModal title={`${report ? 'Edit' : 'Create'} report as JSON`} value={{ name, description, query, visualization, visualizationConfiguration: report?.visualizationConfiguration }} onClose={() => setJsonOpen(false)} onSave={saveJson} />}

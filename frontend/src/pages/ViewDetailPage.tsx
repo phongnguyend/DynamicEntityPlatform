@@ -7,6 +7,7 @@ import { DynamicGrid } from '../components/DynamicGrid'
 import { EntityTabs } from '../components/EntityTabs'
 import { FilterPanel } from '../components/FilterPanel'
 import { Modal } from '../components/Modal'
+import { ViewColorDot, ViewColorPicker, getViewColor, withViewColor } from '../components/ViewColorPicker'
 import type { DynamicRecord, Field, SavedView } from '../types'
 import { getAppliedFilterCondition, getAppliedFilterFieldId } from './RecordsListPage'
 import { useEntityContext } from './useEntityContext'
@@ -60,28 +61,35 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
 
   const appliedFilterFieldId = getAppliedFilterFieldId(definition)
   return <section className="page">
-    <header><div><p className="eyebrow">{isNew ? 'New saved view' : 'Saved view'}</p><h2>{isNew ? 'Configure view' : view!.name}</h2><p>{entity.displayName}</p></div></header>
+    <header><div><p className="eyebrow">{isNew ? 'New saved view' : 'Saved view'}</p>
+      <h2 className="view-title"><ViewColorDot color={getViewColor(definition)} />{isNew ? 'Configure view' : view!.name}</h2>
+      <p>{entity.displayName}</p></div></header>
     <EntityTabs entityId={entityId} />
-    <div className="view-detail-actions">
-      <button type="button" className="secondary" onClick={() => setColumnSettingsOpen(true)}><Columns3 />Column Settings</button>
-      <button type="button" disabled={!isNew && (!isDirty || save.isPending)} onClick={() => isNew ? setSaveAsOpen(true) : save.mutate()}><Save />{save.isPending ? 'Saving…' : isNew ? 'Save view' : 'Save'}</button>
-      {!isNew && <button type="button" className="secondary" onClick={() => setSaveAsOpen(true)}><CopyPlus />Save as</button>}
+    <div className="panel">
+      <div className="panel-header"><h3>Records</h3>
+        <div className="page-actions">
+          <button type="button" className="secondary" onClick={() => setColumnSettingsOpen(true)}><Columns3 />Column Settings</button>
+        </div>
+      </div>
+      <div className="panel-body view-records">{records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
+        <DynamicGrid fields={visibleFields} maxColumns={visibleFields.length} records={records.data?.items ?? []}
+          selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
+          onSelectFilter={field => setFilterFieldId(current => current === field.id ? '' : field.id)}
+          renderFilter={field => <FilterPanel key={field.id} tenantId={tenantId} entityId={entityId}
+            field={field} condition={getAppliedFilterCondition(definition, field.id)}
+            onApply={next => {
+              setDraft({ viewId, definition: next ? { ...definition, ...next } : { ...definition, filter: undefined } })
+              setFilterFieldId('')
+            }} onClose={() => setFilterFieldId('')} />}
+          onEdit={record => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
+          onDelete={record => { if (confirm('Delete this record?')) removeRecord.mutate(record) }} />
+        <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
+      </>}{save.error && <p className="error">{save.error.message}</p>}</div>
+      <div className="panel-footer">
+        <button type="button" disabled={!isNew && (!isDirty || save.isPending)} onClick={() => isNew ? setSaveAsOpen(true) : save.mutate()}><Save />{save.isPending ? 'Saving…' : isNew ? 'Save view' : 'Save'}</button>
+        {!isNew && <button type="button" className="secondary" onClick={() => setSaveAsOpen(true)}><CopyPlus />Save as</button>}
+      </div>
     </div>
-    {save.error && <p className="error">{save.error.message}</p>}
-    {records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
-      <DynamicGrid fields={visibleFields} maxColumns={visibleFields.length} records={records.data?.items ?? []}
-        selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
-        onSelectFilter={field => setFilterFieldId(current => current === field.id ? '' : field.id)}
-        renderFilter={field => <FilterPanel key={field.id} tenantId={tenantId} entityId={entityId}
-          field={field} condition={getAppliedFilterCondition(definition, field.id)}
-          onApply={next => {
-            setDraft({ viewId, definition: next ? { ...definition, ...next } : { ...definition, filter: undefined } })
-            setFilterFieldId('')
-          }} onClose={() => setFilterFieldId('')} />}
-        onEdit={record => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
-        onDelete={record => { if (confirm('Delete this record?')) removeRecord.mutate(record) }} />
-      <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
-    </>}
     {saveAsOpen && <SaveViewAsModal tenantId={tenantId} entityId={entityId} definition={definition} creating={isNew}
       onClose={() => setSaveAsOpen(false)} onSaved={savedViewId => {
         setSaveAsOpen(false)
@@ -172,7 +180,7 @@ function getColumnSettings(definition: Record<string, unknown> | null, fields: F
 }
 
 function toRecordQuery(definition: Record<string, unknown>) {
-  const { columnSettings: _columnSettings, ...query } = definition
+  const { columnSettings: _columnSettings, color: _color, ...query } = definition
   return query
 }
 
@@ -190,8 +198,9 @@ function SaveViewAsModal({ tenantId, entityId, definition, creating, onClose, on
 }) {
   const client = useQueryClient()
   const [name, setName] = useState('')
+  const [color, setColor] = useState(getViewColor(definition))
   const save = useMutation({
-    mutationFn: () => api.createView(tenantId, entityId, name, definition),
+    mutationFn: () => api.createView(tenantId, entityId, name, withViewColor(definition, color)),
     onSuccess: view => {
       client.setQueryData<SavedView[]>(['views', tenantId, entityId], current => [
         ...(current ?? []).filter(item => item.id !== view.id), view,
@@ -209,6 +218,7 @@ function SaveViewAsModal({ tenantId, entityId, definition, creating, onClose, on
   return <Modal title={creating ? 'Save new view' : 'Save view as'} onClose={onClose}>
     <form className="view-editor" onSubmit={submit}>
       <label className="field">Name<input required autoFocus maxLength={200} value={name} onChange={event => setName(event.target.value)} /></label>
+      <ViewColorPicker color={color} onChange={setColor} />
       {save.error && <p className="error">{save.error.message}</p>}
       <div className="modal-footer"><button disabled={!name.trim() || save.isPending}>{creating ? <Save /> : <CopyPlus />}{save.isPending ? 'Saving…' : creating ? 'Save view' : 'Save as new view'}</button>
         <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}><X />Cancel</button></div>

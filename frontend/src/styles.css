@@ -138,11 +138,11 @@
   .order-actions { @apply flex; }
   .order-actions .link { @apply min-w-8 text-[1.1rem]; }
   .order-actions .link:disabled { @apply cursor-default; }
-  .field-options, .event-picker, .alert-actions { @apply m-0 grid rounded-[9px] border border-border p-[.8rem]; }
+  .field-options, .event-picker, .alert-actions, .view-color-picker { @apply m-0 grid rounded-[9px] border border-border p-[.8rem]; }
   .field-options { @apply grid-cols-2 gap-[.65rem] rounded-lg; }
   .event-picker { @apply gap-[.6rem]; }
   .alert-actions { @apply gap-[.7rem] p-[.85rem]; }
-  .field-options legend, .event-picker legend, .alert-actions legend { @apply px-[.3rem] text-[.85rem] font-[650] text-[#405049]; }
+  .field-options legend, .event-picker legend, .alert-actions legend, .view-color-picker legend { @apply px-[.3rem] text-[.85rem] font-[650] text-[#405049]; }
 
   .filter-bar, .saved-views { @apply mb-[.7rem] flex flex-wrap gap-[.45rem]; }
   .filter-bar input, .filter-bar select, .saved-views input, .saved-views select, .mapping select { @apply rounded-[7px] border border-input-border bg-input p-[.48rem]; }
@@ -277,7 +277,37 @@
   .json-editor textarea, .view-editor textarea { @apply font-mono text-[.82rem] leading-normal whitespace-pre; tab-size: 2; }
   .json-editor textarea { @apply min-h-[420px]; }
   .view-editor textarea { @apply min-h-[260px]; }
-  .view-detail-actions { @apply mb-4 flex justify-end gap-[.6rem]; }
+  .view-records { @apply grid gap-3; }
+  .view-records .record-count { @apply mt-0; }
+  .view-color-picker { @apply gap-[.6rem]; }
+  .view-color-options { @apply flex flex-wrap gap-[.5rem]; }
+  .view-color-option { @apply relative grid size-8 place-items-center overflow-hidden rounded-full border border-black/10 p-0 text-white; }
+  .view-color-option svg { @apply size-[.95rem]; }
+  .view-color-option.selected { @apply ring-2 ring-ink ring-offset-2; }
+  .view-color-option.none { @apply border-input-border bg-input text-muted; }
+  .view-color-option.custom { @apply text-ink; background: conic-gradient(#a42e2e, #b4761b, #176b4d, #0f7a80, #1d5fa8, #6b3fa0, #a42e2e); }
+  .view-color-panel { @apply grid gap-[.7rem] rounded-lg border border-border bg-input p-[.7rem]; }
+  .view-color-hex input { @apply w-[9rem] font-mono; }
+  .view-color-hex input[aria-invalid='true'] { @apply border-danger; }
+
+  .color-picker { @apply grid gap-[.6rem]; }
+  .color-pad { @apply relative h-[130px] cursor-crosshair touch-none rounded-lg border border-black/10; }
+  .color-pad:focus-visible { @apply outline-2 outline-offset-2 outline-ink; }
+  .color-pad-thumb { @apply pointer-events-none absolute size-[14px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgb(0_0_0/35%)]; }
+  .color-hue { @apply h-3 w-full cursor-pointer touch-none appearance-none rounded-full border border-black/10 p-0;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .color-hue:focus-visible { @apply outline-2 outline-offset-2 outline-ink; }
+  .color-hue::-webkit-slider-thumb {
+    -webkit-appearance: none; height: 1.15rem; width: 1.15rem; border-radius: 9999px;
+    border: 2px solid #fff; background: transparent; box-shadow: 0 0 0 1px rgb(0 0 0 / 35%); cursor: pointer;
+  }
+  .color-hue::-moz-range-thumb {
+    height: 1.15rem; width: 1.15rem; border-radius: 9999px;
+    border: 2px solid #fff; background: transparent; box-shadow: 0 0 0 1px rgb(0 0 0 / 35%); cursor: pointer;
+  }
+  /* Sized in em so the dot tracks whatever heading or label it sits in. */
+  .view-title { @apply flex items-center gap-[.45em]; }
+  .view-color-dot { @apply inline-block size-[.62em] shrink-0 rounded-full; }
 
   .alert-actions .field-note { @apply mb-[.15rem]; }
   .webhook-url-list { @apply grid gap-[.6rem]; }
