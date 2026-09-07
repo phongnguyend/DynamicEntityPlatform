@@ -205,7 +205,8 @@ public sealed class SqlServerProvisioningAndCrudTests
         await using var command = new SqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(6, reader.GetInt32(0));
+        Assert.Equal(DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator.MigrationCount,
+            reader.GetInt32(0));
         for (var ordinal = 1; ordinal <= 8; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 

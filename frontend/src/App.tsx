@@ -18,7 +18,6 @@ import { ViewDetailPage } from './pages/ViewDetailPage'
 import { TenantsPage } from './pages/TenantsPage'
 import { DashboardsPage } from './pages/DashboardsPage'
 import { DashboardsListPage } from './pages/DashboardsListPage'
-import { DashboardFormPage } from './pages/DashboardFormPage'
 
 const tenantStorageKey = 'dynamic-data.tenant-id'
 
@@ -103,9 +102,7 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
         <Route path="/entities/:entityId/alerts" element={<AlertsPage tenantId={tenantId} />} />
         <Route path="/entities/:entityId/webhooks" element={<WebhooksPage tenantId={tenantId} />} />
         <Route path="/dashboards" element={<DashboardsListPage key={tenantId} tenantId={tenantId} />} />
-        <Route path="/dashboards/new" element={<DashboardFormPage key={`${tenantId}-new`} tenantId={tenantId} />} />
         <Route path="/dashboards/:dashboardId" element={<DashboardsPage tenantId={tenantId} entities={entities.data ?? []} />} />
-        <Route path="/dashboards/:dashboardId/edit" element={<DashboardFormPage tenantId={tenantId} />} />
         <Route path="/tenants" element={<TenantsPage activeTenantId={tenantId} onSwitch={next => { onSwitchTenant(next); if (next) navigate('/') }} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>}

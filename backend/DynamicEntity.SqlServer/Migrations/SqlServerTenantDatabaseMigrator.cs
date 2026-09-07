@@ -17,6 +17,8 @@ public sealed class SqlServerTenantDatabaseMigrator : ITenantDatabaseMigrator
         (7, "Alert notification delivery queue", SqlServerSchema.TenantDatabaseV7)
     ];
 
+    public static int MigrationCount => Migrations.Length;
+
     public async Task MigrateAsync(EntityStorageLocation storage, CancellationToken cancellationToken)
     {
         await using var connection = SqlServerTenantConnection.Create(storage);

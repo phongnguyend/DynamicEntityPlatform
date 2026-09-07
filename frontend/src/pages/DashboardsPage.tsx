@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { api } from '../api'
+import { DashboardEditor } from '../components/DashboardEditor'
 import { Modal } from '../components/Modal'
 import { ReportViewer } from '../components/ReportViewer'
 import type { Dashboard, DashboardDefinition, DashboardGridBreakpoint as GridBreakpoint, DashboardItem, Entity, Metric, Report } from '../types'
@@ -45,6 +46,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   const dashboardQuery = useQuery({ queryKey: ['dashboard', tenantId, dashboardId], queryFn: () => api.dashboard(tenantId, dashboardId) })
   const [draft, setDraft] = useState<{ dashboardId: string; definition: DashboardDefinition }>()
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [renaming, setRenaming] = useState(false)
   const [jsonOpen, setJsonOpen] = useState(false)
   const [jsonCopied, setJsonCopied] = useState(false)
   const [expandedKey, setExpandedKey] = useState<string>()
@@ -123,7 +125,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   if (!dashboard) return <section className="page"><p className="error">Dashboard not found.</p><Link className="button" to="/dashboards"><ArrowLeft />Back to dashboards</Link></section>
 
   return <section className="page dashboard-page"><header><div><p className="eyebrow">Dashboard</p><h2>{dashboard.name}</h2><p className="dashboard-intro">Drag cards by their handles and resize them from the lower-right corner. Cards automatically pack upward.</p></div>
-    <div className="page-actions"><Link className="button secondary" to="/dashboards"><ArrowLeft />All dashboards</Link><button type="button" className="secondary" onClick={() => { setJsonCopied(false); setJsonOpen(true) }}><Braces />View JSON</button><Link className="button secondary" to={`/dashboards/${dashboard.id}/edit`}><Pencil />Edit</Link><button type="button" className="secondary dashboard-delete" onClick={removeDashboard}><Trash2 />Delete</button><button type="button" onClick={() => setLibraryOpen(true)}><Plus />Add cards</button></div></header>
+    <div className="page-actions"><Link className="button secondary" to="/dashboards"><ArrowLeft />All dashboards</Link><button type="button" className="secondary" onClick={() => { setJsonCopied(false); setJsonOpen(true) }}><Braces />View JSON</button><button type="button" className="secondary" onClick={() => setRenaming(true)}><Pencil />Edit</button><button type="button" className="secondary dashboard-delete" onClick={removeDashboard}><Trash2 />Delete</button><button type="button" onClick={() => setLibraryOpen(true)}><Plus />Add cards</button></div></header>
     {(error || save.error || deleteDashboard.error) && <p className="error">{(error ?? save.error ?? deleteDashboard.error)?.message}</p>}
     <div ref={containerRef} className="dashboard-grid-container" aria-label="Dashboard cards">
         {!definition.items.length && <div className="dashboard-empty"><BarChart3 /><h3>Your dashboard is empty</h3><p>Add cards from the library, then position and resize them however you like.</p></div>}
@@ -167,6 +169,11 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
         {expandedReport ? <ReportCard tenantId={tenantId} report={expandedReport} /> : expandedMetric ? <MetricCard tenantId={tenantId} metric={expandedMetric} /> : <p className="empty">This saved item is no longer available.</p>}
       </div>
     </Modal>}
+    {renaming && <DashboardEditor tenantId={tenantId} dashboard={{ ...dashboard, definition }} onClose={() => setRenaming(false)} onSaved={saved => {
+      setRenaming(false)
+      client.setQueryData<Dashboard>(['dashboard', tenantId, dashboardId], saved)
+      void client.invalidateQueries({ queryKey: ['dashboards', tenantId] })
+    }} />}
   </section>
 }
 
