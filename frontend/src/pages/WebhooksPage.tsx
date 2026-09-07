@@ -35,17 +35,20 @@ export function WebhooksPage({ tenantId }: { tenantId: string }) {
 
   if (context.isLoading) return <p>Loading…</p>
   return <section className="page"><header><div><p className="eyebrow">Event subscriptions</p><h2>{context.entity?.displayName}</h2></div></header><EntityTabs entityId={entityId} />
-    <div className="workspace-grid"><div className="panel"><h3>{editing ? 'Edit webhook' : 'New webhook'}</h3><div className="designer">
+    <div className="workspace-grid"><div className="panel"><div className="panel-header"><h3>{editing ? 'Edit webhook' : 'New webhook'}</h3></div><div className="panel-body designer">
       <label className="field">Name<input value={name} maxLength={200} onChange={event => setName(event.target.value)} placeholder="CRM record changes" /></label>
       <label className="field">Endpoint URL<input type="url" value={endpoint} onChange={event => setEndpoint(event.target.value)} placeholder="https://example.com/webhooks/records" /></label>
       <fieldset className="event-picker"><legend>Events</legend>{availableEvents.map(item => <label className="check" key={item.value}><input type="checkbox" checked={events.includes(item.value)} onChange={event => selectEvent(item.value, event.target.checked)} />{item.label}</label>)}</fieldset>
       <label className="check"><input type="checkbox" checked={isEnabled} onChange={event => setEnabled(event.target.checked)} />Enabled</label>
-      <div className="actions"><button disabled={!name.trim() || !endpoint.trim() || events.length === 0 || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save webhook'}</button>{editing && <button className="secondary" onClick={reset}><X />Cancel</button>}</div>
-      {save.error && <p className="error">{save.error.message}</p>}<p className="webhook-note">Delivery is not active yet. These settings will be used when webhook firing is implemented.</p>
-    </div></div>
-    <div className="panel wide"><div className="panel-title"><h3>Webhooks</h3><span>{subscriptions.data?.length ?? 0} {(subscriptions.data?.length ?? 0) === 1 ? 'subscription' : 'subscriptions'}</span></div>
-      {subscriptions.error ? <p className="error">{subscriptions.error.message}</p> : subscriptions.data?.length ? <ul className="definition-list">{subscriptions.data.map(subscription => <li key={subscription.id}><div><strong>{subscription.name}</strong><small className="webhook-endpoint">{subscription.endpoint}</small><small>{subscription.events.map(value => availableEvents.find(item => item.value === value)?.label ?? value).join(' · ')} · {subscription.isEnabled ? 'Enabled' : 'Disabled'}</small></div><div className="actions"><button className="secondary" onClick={() => toggle.mutate(subscription)}>{subscription.isEnabled ? <PowerOff /> : <Power />}{subscription.isEnabled ? 'Disable' : 'Enable'}</button><button className="link" onClick={() => edit(subscription)}><Pencil />Edit</button><button className="link danger" onClick={() => remove.mutate(subscription.id)}><Trash2 />Delete</button></div></li>)}</ul> : <p className="empty">No webhook subscriptions yet.</p>}
+      <p className="webhook-note">Delivery is not active yet. These settings will be used when webhook firing is implemented.</p>
+      {save.error && <p className="error">{save.error.message}</p>}
+    </div>
+      <div className="panel-footer"><button disabled={!name.trim() || !endpoint.trim() || events.length === 0 || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save webhook'}</button>{editing && <button className="secondary" onClick={reset}><X />Cancel</button>}</div>
+    </div>
+    <div className="panel wide"><div className="panel-header"><h3>Webhooks</h3><span>{subscriptions.data?.length ?? 0} {(subscriptions.data?.length ?? 0) === 1 ? 'subscription' : 'subscriptions'}</span></div>
+      <div className="panel-body">{subscriptions.error ? <p className="error">{subscriptions.error.message}</p> : subscriptions.data?.length ? <ul className="definition-list">{subscriptions.data.map(subscription => <li key={subscription.id}><div><strong>{subscription.name}</strong><small className="webhook-endpoint">{subscription.endpoint}</small><small>{subscription.events.map(value => availableEvents.find(item => item.value === value)?.label ?? value).join(' · ')} · {subscription.isEnabled ? 'Enabled' : 'Disabled'}</small></div><div className="actions"><button className="secondary" onClick={() => toggle.mutate(subscription)}>{subscription.isEnabled ? <PowerOff /> : <Power />}{subscription.isEnabled ? 'Disable' : 'Enable'}</button><button className="link" onClick={() => edit(subscription)}><Pencil />Edit</button><button className="link danger" onClick={() => remove.mutate(subscription.id)}><Trash2 />Delete</button></div></li>)}</ul> : <p className="empty">No webhook subscriptions yet.</p>}
       {(remove.error || toggle.error) && <p className="error">{remove.error?.message ?? toggle.error?.message}</p>}
+      </div>
     </div></div>
   </section>
 }

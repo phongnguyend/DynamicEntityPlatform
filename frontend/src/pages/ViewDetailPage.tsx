@@ -149,7 +149,7 @@ function ColumnSettingsModal({ fields, settings, onClose, onApply }: {
           <span className={hidden.has(fieldId) ? 'column-hidden' : 'index-status'}>{hidden.has(fieldId) ? 'Hidden' : 'Visible'}</span>
         </li>
       })}</ol>
-      <div className="actions"><button type="button" onClick={() => onApply({ order, hidden: [...hidden] })}><Columns3 />Apply settings</button>
+      <div className="modal-footer"><button type="button" onClick={() => onApply({ order, hidden: [...hidden] })}><Columns3 />Apply settings</button>
         <button type="button" className="secondary" onClick={onClose}><X />Cancel</button></div>
     </div>
   </Modal>
@@ -210,7 +210,7 @@ function SaveViewAsModal({ tenantId, entityId, definition, creating, onClose, on
     <form className="view-editor" onSubmit={submit}>
       <label className="field">Name<input required autoFocus maxLength={200} value={name} onChange={event => setName(event.target.value)} /></label>
       {save.error && <p className="error">{save.error.message}</p>}
-      <div className="actions"><button disabled={!name.trim() || save.isPending}>{creating ? <Save /> : <CopyPlus />}{save.isPending ? 'Saving…' : creating ? 'Save view' : 'Save as new view'}</button>
+      <div className="modal-footer"><button disabled={!name.trim() || save.isPending}>{creating ? <Save /> : <CopyPlus />}{save.isPending ? 'Saving…' : creating ? 'Save view' : 'Save as new view'}</button>
         <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}><X />Cancel</button></div>
     </form>
   </Modal>

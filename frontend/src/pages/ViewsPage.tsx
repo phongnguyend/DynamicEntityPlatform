@@ -27,7 +27,8 @@ export function ViewsPage({ tenantId }: { tenantId: string }) {
     <header><div><p className="eyebrow">Saved views</p><h2>{context.entity?.displayName}</h2></div></header>
     <EntityTabs entityId={entityId} />
     <div className="panel">
-      <div className="panel-title"><h3>Views</h3><Link className="button" to={`/entities/${entityId}/views/new`}><Plus />New view</Link></div>
+      <div className="panel-header"><h3>Views</h3><Link className="button" to={`/entities/${entityId}/views/new`}><Plus />New view</Link></div>
+      <div className="panel-body">
       {views.data?.length ? <ul className="definition-list">{views.data.map(view => <li key={view.id}>
         <div><strong>{view.name}</strong><small>{describeView(view)}</small></div>
         <div className="actions">
@@ -39,6 +40,7 @@ export function ViewsPage({ tenantId }: { tenantId: string }) {
         </div>
       </li>)}</ul> : <p className="empty">No saved views yet.</p>}
       {remove.error && <p className="error">{remove.error.message}</p>}
+      </div>
     </div>
     {renaming && <RenameViewModal tenantId={tenantId} entityId={entityId} view={renaming} onClose={() => setRenaming(undefined)} />}
     {viewingJson && <ViewJsonModal view={viewingJson} onClose={() => setViewingJson(undefined)} />}
@@ -70,7 +72,7 @@ function RenameViewModal({ tenantId, entityId, view, onClose }: {
     <form className="view-editor" onSubmit={submit}>
       <label className="field">Name<input autoFocus required maxLength={200} value={name} onChange={event => setName(event.target.value)} /></label>
       {save.error && <p className="error">{save.error.message}</p>}
-      <div className="actions"><button disabled={!name.trim() || name.trim() === view.name || save.isPending}><Save />{save.isPending ? 'Saving…' : 'Save name'}</button>
+      <div className="modal-footer"><button disabled={!name.trim() || name.trim() === view.name || save.isPending}><Save />{save.isPending ? 'Saving…' : 'Save name'}</button>
         <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}><X />Cancel</button></div>
     </form>
   </Modal>
@@ -80,7 +82,7 @@ function ViewJsonModal({ view, onClose }: { view: SavedView; onClose: () => void
   return <Modal title={`${view.name} JSON`} onClose={onClose}>
     <div className="json-editor">
       <label className="field">Definition<textarea readOnly value={JSON.stringify(view.definition, null, 2)} spellCheck={false} /></label>
-      <div className="actions"><button type="button" className="secondary" onClick={onClose}><X />Close</button></div>
+      <div className="modal-footer"><button type="button" className="secondary" onClick={onClose}><X />Close</button></div>
     </div>
   </Modal>
 }

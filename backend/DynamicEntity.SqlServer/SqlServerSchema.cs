@@ -391,4 +391,32 @@ internal static class SqlServerSchema
             CREATE INDEX IX_DashboardDefinitions_TenantId ON dbo.DashboardDefinitions(TenantId);
         END;
         """;
+
+    public const string TenantDatabaseV7 = """
+        IF OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH(N'dbo.AlertNotifications', N'PayloadJson') IS NULL
+                ALTER TABLE dbo.AlertNotifications ADD PayloadJson NVARCHAR(MAX) NULL;
+
+            IF COL_LENGTH(N'dbo.AlertNotifications', N'NextAttemptAt') IS NULL
+                ALTER TABLE dbo.AlertNotifications ADD NextAttemptAt DATETIMEOFFSET(7) NULL;
+
+            IF COL_LENGTH(N'dbo.AlertNotifications', N'LeaseOwner') IS NULL
+                ALTER TABLE dbo.AlertNotifications ADD LeaseOwner NVARCHAR(200) NULL;
+
+            IF COL_LENGTH(N'dbo.AlertNotifications', N'LeaseExpiresAt') IS NULL
+                ALTER TABLE dbo.AlertNotifications ADD LeaseExpiresAt DATETIMEOFFSET(7) NULL;
+
+            IF OBJECT_ID(N'dbo.CK_AlertNotifications_PayloadJson', N'C') IS NULL
+                EXEC sys.sp_executesql N'
+                    ALTER TABLE dbo.AlertNotifications ADD CONSTRAINT CK_AlertNotifications_PayloadJson
+                    CHECK (PayloadJson IS NULL OR ISJSON(PayloadJson) = 1);';
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AlertNotifications_Due'
+                AND object_id = OBJECT_ID(N'dbo.AlertNotifications'))
+                EXEC sys.sp_executesql N'
+                    CREATE INDEX IX_AlertNotifications_Due ON dbo.AlertNotifications(NextAttemptAt)
+                    WHERE Status = N''Pending'';';
+        END;
+        """;
 }

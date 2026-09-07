@@ -48,8 +48,8 @@ export function EntityDesigner({ tenantId, entity, fields = [], onEntityCreated 
   }
   const mutation = entity ? createField : createEntity
 
-  return <form className="designer" onSubmit={submit}>
-    {entity && <h3>Add a field to {entity.displayName}</h3>}
+  return <form className="panel-body designer" onSubmit={submit}>
+    {entity && <div className="panel-header"><h3>Add a field to {entity.displayName}</h3></div>}
     <label className="field"><span>{entity ? 'Field name' : 'Entity name'}</span><input required pattern="[A-Za-z][A-Za-z0-9_]*" value={name} onChange={e => setName(e.target.value)} /></label>
     <label className="field"><span>Display name</span><input required value={displayName} onChange={e => setDisplayName(e.target.value)} /></label>
     {entity && <>
@@ -67,6 +67,6 @@ export function EntityDesigner({ tenantId, entity, fields = [], onEntityCreated 
         <textarea value={choices} onChange={e => setChoices(e.target.value)} /></label>}
     </>}
     {mutation.error && <p className="error">{mutation.error.message}</p>}
-    <button disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</button>
+    <div className="panel-footer"><button disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</button></div>
   </form>
 }

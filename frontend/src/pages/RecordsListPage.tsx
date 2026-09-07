@@ -39,7 +39,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
       <span className="pill">Schema v{entity.schemaVersion}</span></header>
     <EntityTabs entityId={entityId} />
     <div className="panel">
-    <div className="panel-title"><h3>Records</h3>
+    <div className="panel-header"><h3>Records</h3>
       <div className="page-actions">
         <button className="link" onClick={async () => {
           const blob = await api.exportRecords(tenantId, entityId); const url = URL.createObjectURL(blob)
@@ -49,7 +49,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
         <button type="button" disabled={fields.length === 0} onClick={() => navigate(`/entities/${entityId}/records/new`)}><Plus />New record</button>
       </div>
     </div>
-    {records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
+    <div className="panel-body">{records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
       <DynamicGrid fields={fields} records={records.data?.items ?? []}
         selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
         onSelectFilter={field => setFilterFieldId(current => current === field.id ? '' : field.id)}
@@ -59,7 +59,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
         onEdit={record => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
         onDelete={record => { if (confirm('Delete this record?')) remove.mutate(record) }} />
       <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
-    </>}
+    </>}</div>
     </div>
     {importOpen && <Modal title="Import CSV / Excel" onClose={() => setImportOpen(false)}>
       <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} />

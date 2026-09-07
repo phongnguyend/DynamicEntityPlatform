@@ -76,9 +76,26 @@
   .workspace-grid:has(.metric-cards) { grid-template-columns: minmax(420px, 1.1fr) minmax(480px, 1.4fr); }
   .panel { @apply rounded-[14px] border border-border bg-white p-5 shadow-[0_8px_25px_rgb(22_42_32/5%)]; }
   .panel.wide { @apply row-span-2; }
-  .panel-title { @apply flex items-center justify-between gap-4; }
-  .panel-title > .actions { @apply items-center; }
-  .panel-title span { @apply text-muted; }
+
+  /* Every surface that hosts a header/body/footer declares its own padding here. The regions below
+     read it to bleed their divider to the surface edge, so a shared component such as EntityDesigner
+     lands correctly whether it renders inside a panel, a modal, or a nested card. */
+  .panel { --surface-pad: 1.25rem; }
+  .modal { --surface-pad: 1.5rem; }
+  .builder-section, .history { --surface-pad: 1rem; }
+
+  .panel-header, .modal-header { @apply mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3; }
+  .panel-footer, .modal-footer { @apply flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4; }
+  .panel-header, .modal-header, .panel-footer, .modal-footer {
+    margin-inline: calc(var(--surface-pad, 0rem) * -1); padding-inline: var(--surface-pad, 0rem);
+  }
+  .panel-header h3, .modal-header h3, .panel-header h4 { @apply m-0; }
+  .panel-header span { @apply text-muted; }
+  .panel-header > .actions { @apply items-center; }
+  .panel-body, .modal-body { @apply min-w-0; }
+  /* Grid bodies already space their children; plain containers need room above the footer rule. */
+  .panel > .panel-footer, .index-creator > .modal-footer { @apply mt-4; }
+  .designer > .panel-header { @apply mb-0; }
   .dynamic-form, .designer { @apply grid gap-[.9rem]; }
 
   .field { @apply grid gap-[.38rem] text-[.85rem] font-[650] text-[#405049]; }
@@ -107,9 +124,8 @@
   .index-status { @apply text-primary; }
   .index-status.muted, .column-hidden { @apply text-[#8a7568]; }
   .field-editor { @apply grid gap-[.8rem]; }
-  .field-editor-title, .field-manager-header, .index-manager-header { @apply flex items-center justify-between gap-3; }
-  .field-manager-header, .index-manager-header { @apply mb-[.3rem]; }
-  .field-editor-title h4, .field-manager-header h3, .index-column-order h4 { @apply m-0; }
+  .field-editor-title { @apply flex items-center justify-between gap-3; }
+  .field-editor-title h4, .index-column-order h4 { @apply m-0; }
   .field-note, .webhook-note { @apply m-0 text-[.82rem] leading-[1.45] text-muted; }
 
   .field-order-editor { @apply grid gap-4; }
@@ -147,21 +163,20 @@
 
   .tabs { @apply mb-5 flex gap-[.4rem]; }
   .tabs a, .tabs .tab { @apply rounded-lg px-[.85rem] py-2 text-[.9rem] font-[650] text-[#405049] no-underline; }
-  .tabs a.active { @apply bg-primary-soft text-primary; }
+  .tabs .tab { @apply bg-transparent; }
+  .tabs a.active, .tabs .tab.active { @apply bg-primary-soft text-primary; }
   .form-page { @apply max-w-[560px]; }
   .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center bg-sidebar/45 p-6; }
   .modal { @apply max-h-[85vh] w-[min(560px,100%)] overflow-auto rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
-  .modal-header { @apply mb-4 flex items-start justify-between; }
-  .modal-header h3 { @apply m-0; }
   .modal .actions { @apply justify-end; }
   .index-column-order { @apply mt-4 grid gap-[.6rem]; }
   .index-column-controls { @apply flex items-center gap-[.35rem]; }
   .index-column-controls select { @apply rounded-[7px] border border-input-border bg-white p-[.48rem] text-ink; }
-  .index-creator > .actions { @apply pt-4; }
 
   .report-builder { @apply grid grid-cols-[minmax(300px,.8fr)_minmax(420px,1.4fr)] items-start gap-4; }
   .builder-controls, .json-editor, .view-editor, .column-settings { @apply grid gap-4; }
   .builder-section { @apply rounded-[10px] border border-border bg-white p-4; }
+  .builder-section > .panel-header { @apply mb-3 pb-[.7rem]; }
   .builder-row { @apply mt-[.55rem] grid grid-cols-[1fr_1fr_auto] gap-2; }
   .builder-row select { @apply min-w-0 rounded-[7px] border border-input-border p-[.48rem]; }
   .preview-panel { @apply sticky top-4; }
@@ -240,7 +255,23 @@
   .alert-state { @apply font-[750]; }
   .alert-state.firing, .alert-state.error { @apply text-danger; }
   .alert-state.normal, .alert-state.recovered { @apply text-primary; }
-  .history { @apply mt-6; }
+  .history { @apply mt-6 rounded-xl border border-border bg-canvas/70 p-4; }
+  .history > .panel-header { @apply mb-3; }
+  .history > .panel-header h3 { @apply text-[.95rem]; }
+  .history .tabs { @apply m-0 gap-1 rounded-[10px] border border-border bg-white p-1; }
+  .history .tabs .tab { @apply px-3 py-[.35rem] text-[.82rem] font-[600]; }
+  .history .tabs .tab small { @apply text-[.72rem] font-[650] text-muted; }
+  .history .tabs .tab.active small { @apply text-primary; }
+  .history .grid-wrap { @apply max-h-[340px] overflow-auto rounded-[10px] border border-border bg-white; }
+  .history table { @apply text-[.82rem]; }
+  .history th { @apply sticky top-0 z-10 bg-[#f7f9f6] px-3 py-[.5rem] shadow-[inset_0_-1px_0_var(--color-border)]; }
+  .history td { @apply border-b border-[#f1f4f0] px-3 py-[.55rem]; }
+  .history tbody tr:last-child td { @apply border-b-0; }
+  .history tbody tr:hover td { @apply bg-[#f8faf8]; }
+  .history td:last-child { @apply max-w-[280px] whitespace-normal break-words text-muted; }
+  .history .alert-state { @apply inline-flex rounded-full bg-primary-soft px-[.5rem] py-[.12rem] text-[.72rem] uppercase tracking-[.04em]; }
+  .history .alert-state.firing, .history .alert-state.error { @apply bg-[#fbeae8]; }
+  .history .empty { @apply m-0 rounded-[10px] border border-dashed border-border bg-white px-3 py-7 text-center; }
   .sort-row { @apply items-center; }
   .sort-row .order-actions { @apply justify-end; }
   .json-editor textarea, .view-editor textarea { @apply font-mono text-[.82rem] leading-normal whitespace-pre; tab-size: 2; }
@@ -266,8 +297,7 @@
 
   .analytics-filters, .flat-filter-tree, .flat-filter-item { @apply grid min-w-0 max-w-full gap-[.65rem]; }
   .analytics-filters { container-type: inline-size; }
-  .analytics-filters .panel-title { @apply flex-wrap items-center gap-2; }
-  .analytics-filters .panel-title h3 { @apply m-0; }
+  .analytics-filters > .panel-header { @apply gap-2; }
   .flat-filter-item { @apply border-l-2 border-[#c7d9ce] pl-[.65rem]; }
   .flat-filter-group { @apply grid min-w-0 gap-[.65rem] rounded-[9px] border border-[#dce4de] bg-input p-[.7rem]; }
   .flat-filter-group.nested { @apply border-l-4 border-l-[#59a77f] bg-[#f7faf7]; }

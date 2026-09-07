@@ -36,10 +36,11 @@ export function IndexManager({ tenantId, entityId, fields }: Props) {
   }
 
   return <div className="index-manager">
-    <div className="index-manager-header">
+    <div className="panel-header">
       <h3>Indexes</h3>
       <button type="button" onClick={() => setCreating(true)}><Plus />Create index</button>
     </div>
+    <div className="panel-body">
     <p className="field-note">Composite SQL indexes can speed up filtering and sorting across multiple columns.</p>
     {indexes.isLoading && <p>Loading…</p>}
     {indexes.error && <p className="error">{indexes.error.message}</p>}
@@ -60,6 +61,7 @@ export function IndexManager({ tenantId, entityId, fields }: Props) {
           </button>
         </div>
       </li>)}</ul>}
+    </div>
     {creating && <Modal title="Create index" onClose={() => setCreating(false)}>
       <IndexCreator tenantId={tenantId} entityId={entityId} fields={fields} onClose={() => setCreating(false)} />
     </Modal>}
@@ -167,7 +169,7 @@ function IndexCreator({ tenantId, entityId, fields, onClose }: {
       })}</ol>
     </div>}
     {create.error && <p className="error">{create.error.message}</p>}
-    <div className="actions">
+    <div className="modal-footer">
       <button disabled={selection.length === 0 || create.isPending}><Plus />
         {create.isPending ? 'Creating…' : 'Create index'}
       </button>

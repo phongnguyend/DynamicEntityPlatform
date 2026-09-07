@@ -1,6 +1,6 @@
 # Reporting, Metrics, and Alerts Implementation Plan
 
-> Implementation status: the in-app MVP described in phases 1–5 is complete. Phase 6 external email/webhook adapters remain deferred as designed, pending production validation of in-app alerts.
+> Implementation status: phases 1–5 are complete. Phase 6 external notifications are implemented for email (SMTP) and webhook: evaluation enqueues one pending `AlertNotifications` row per configured action and `AlertNotificationDeliveryHostedService` delivers it. Secrets are read from configuration rather than an encrypted store, which is the one requirement below still outstanding.
 
 ## Purpose
 
@@ -514,20 +514,38 @@ Add an Alerts section containing:
 
 ## Phase 6: External notifications
 
-After in-app alerting is stable, add notifier adapters behind `IAlertNotifier`:
+Notifier adapters sit behind `IAlertChannelSender`, one per channel, and `QueuedAlertNotifier` enqueues work for
+them instead of delivering inline, so a slow SMTP host or webhook never delays evaluation:
 
-- email
-- webhook
+- `EmailAlertChannelSender` (SMTP)
+- `WebhookAlertChannelSender` (HTTPS POST)
 
-Requirements:
+### 6.1 Delivery flow
 
-- encrypted secrets
-- delivery timeout
-- retry with bounded exponential backoff
-- idempotency key per alert evaluation and channel
-- delivery audit history
-- SSRF protection and destination restrictions for webhooks
-- no sensitive record values in logs
+1. Evaluation decides a notification is due (`AlertNotificationPolicy`).
+2. `QueuedAlertNotifier` writes the `InApp` row as delivered, plus one `Pending` row per configured action,
+   each carrying a `PayloadJson` snapshot of the alert, threshold, observed value, and channel targets.
+3. `AlertNotificationDeliveryHostedService` runs every 30 seconds, and for each active tenant
+   `AlertNotificationDeliveryWorker` leases due pending rows (`LeaseOwner`, `LeaseExpiresAt`).
+4. The sender for the row's channel delivers the payload.
+5. The outcome is written back: `Delivered`, `Pending` with `NextAttemptAt` from
+   `AlertDeliveryRetryPolicy`, or `Failed` once the attempt budget is spent or the rejection is permanent.
+
+Requirements status:
+
+- encrypted secrets — **outstanding**: SMTP credentials and the webhook signing secret are read from
+  configuration (`AlertNotifications:Email`, `AlertNotifications:Webhook`); use user secrets, environment
+  variables, or a key vault provider, and move to an encrypted store before production.
+- delivery timeout — done: per-request timeouts on both channels.
+- retry with bounded exponential backoff — done: `AlertDeliveryRetryPolicy`, 5 attempts, 30s to 30m.
+- idempotency key per alert evaluation and channel — done: `UQ_AlertNotifications_Evaluation_Channel` gives one
+  row per (evaluation, channel), and its id is sent as `X-DynamicEntity-Idempotency-Key`.
+- delivery audit history — done: status, attempts, last error, and next attempt are on the row and surfaced by
+  `GET /api/entities/{entityId}/alerts/{alertId}/history`.
+- SSRF protection and destination restrictions for webhooks — done: HTTPS only, no credentials in the URL,
+  no redirects, and `PublicNetworkGuard` rejects non-public addresses at connect time.
+- no sensitive record values in logs — done: payloads carry only the aggregate metric value, and webhook
+  errors name the host and path without the query string.
 
 Do not store channel credentials inside `AlertDefinition.DefinitionJson`.
 

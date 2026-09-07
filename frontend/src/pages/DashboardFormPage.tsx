@@ -40,11 +40,11 @@ function DashboardForm({ tenantId, dashboard, dashboards }: { tenantId: string; 
   }
 
   return <section className="page form-page"><header><div><p className="eyebrow">{dashboard ? 'Edit dashboard' : 'New dashboard'}</p><h2>{dashboard?.name ?? 'Create dashboard'}</h2></div></header>
-    <div className="panel"><form className="dynamic-form" onSubmit={submit}>
+    <div className="panel"><form className="panel-body dynamic-form" onSubmit={submit}>
       <label className="field">Name<input autoFocus required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Executive overview" /></label>
       {duplicate && <p className="error">A dashboard with this name already exists.</p>}
       {save.error && <p className="error">{save.error.message}</p>}
-      <div className="actions"><button type="submit" disabled={!trimmedName || duplicate || save.isPending}><Save />{save.isPending ? 'Saving…' : dashboard ? 'Save changes' : 'Create dashboard'}</button><Link className="button secondary" to={dashboard ? `/dashboards/${dashboard.id}` : '/dashboards'}><X />Cancel</Link></div>
+      <div className="panel-footer"><button type="submit" disabled={!trimmedName || duplicate || save.isPending}><Save />{save.isPending ? 'Saving…' : dashboard ? 'Save changes' : 'Create dashboard'}</button><Link className="button secondary" to={dashboard ? `/dashboards/${dashboard.id}` : '/dashboards'}><X />Cancel</Link></div>
     </form></div>
   </section>
 }

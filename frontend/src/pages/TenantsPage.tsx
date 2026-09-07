@@ -55,7 +55,7 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant | null; onC
     {!tenant && <><label className="field">SQL Server connection string<textarea required value={connectionString} onChange={event => setConnectionString(event.target.value)}
       placeholder="Server=…;Database=ExistingTenantDb;User Id=…;Password=…;TrustServerCertificate=true" /></label>
       <p className="field-note">Enter plain text without JSON escaping. The database must already exist.</p></>}
-    {save.error && <p className="error">{save.error.message}</p>}<div className="actions"><button disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save tenant'}</button><button type="button" className="secondary" onClick={onClose}>Cancel</button></div>
+    {save.error && <p className="error">{save.error.message}</p>}<div className="modal-footer"><button disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save tenant'}</button><button type="button" className="secondary" onClick={onClose}>Cancel</button></div>
   </form></Modal>
 }
 
@@ -67,6 +67,6 @@ function TenantConnectionEditor({ tenant, onClose, onSaved }: { tenant: Tenant; 
     <label className="field">SQL Server connection string<textarea required value={connectionString} onChange={event => setConnectionString(event.target.value)}
       placeholder="Server=…;Database=ExistingTenantDb;User Id=…;Password=…;TrustServerCertificate=true" /></label>
     <p className="field-note">Enter plain text without JSON escaping. The database must already exist; saving validates the connection and applies pending schema migrations.</p>
-    {save.error && <p className="error">{save.error.message}</p>}<div className="actions"><button disabled={save.isPending}>{save.isPending ? 'Configuring…' : 'Save connection'}</button><button type="button" className="secondary" onClick={onClose}>Cancel</button></div>
+    {save.error && <p className="error">{save.error.message}</p>}<div className="modal-footer"><button disabled={save.isPending}>{save.isPending ? 'Configuring…' : 'Save connection'}</button><button type="button" className="secondary" onClick={onClose}>Cancel</button></div>
   </form></Modal>
 }

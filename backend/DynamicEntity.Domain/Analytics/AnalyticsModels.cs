@@ -68,7 +68,14 @@ public sealed record AlertEvaluation(
 
 public sealed record AlertNotification(
     Guid Id, Guid AlertId, Guid EvaluationId, string Channel, NotificationStatus Status,
-    int Attempts, string? LastError, DateTimeOffset CreatedAt, DateTimeOffset? DeliveredAt);
+    int Attempts, string? LastError, DateTimeOffset CreatedAt, DateTimeOffset? DeliveredAt,
+    string? PayloadJson = null, DateTimeOffset? NextAttemptAt = null,
+    string? LeaseOwner = null, DateTimeOffset? LeaseExpiresAt = null);
+
+public sealed record AlertNotificationPayload(
+    Guid AlertId, Guid EntityId, Guid MetricId, string AlertName,
+    AlertComparisonOperator ComparisonOperator, string ThresholdJson, string? ValueJson,
+    AlertState State, DateTimeOffset EvaluatedAt, IReadOnlyList<string> Targets);
 
 public sealed record WebhookSubscription(
     Guid Id, Guid EntityId, string Name, Uri Endpoint, IReadOnlyList<WebhookEvent> Events,

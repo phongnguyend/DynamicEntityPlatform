@@ -16,20 +16,22 @@ export function FieldManager({ tenantId, entityId, fields }: Props) {
   const [reordering, setReordering] = useState(false)
 
   return <div className="field-manager">
-    <div className="field-manager-header">
+    <div className="panel-header">
       <h3>Manage fields</h3>
       <button type="button" className="secondary" disabled={fields.length < 2}
         onClick={() => setReordering(true)}><GripVertical />Change order</button>
     </div>
-    <p className="field-note">Indexes can improve filtering and sorting. Manage them from the Indexes section.</p>
-    {fields.length === 0 ? <p className="empty">No fields have been added.</p> :
-      <ul className="field-list">{fields.map(field => <li key={field.id}>
-        <div><strong>{field.displayName}</strong><small>{field.name} · {field.dataType}</small></div>
-        <div className="field-actions">
-          {field.indexColumnName && <span className="index-status">Indexed</span>}
-          <button type="button" className="link" onClick={() => setEditing(field)}><Pencil />Edit</button>
-        </div>
-      </li>)}</ul>}
+    <div className="panel-body">
+      <p className="field-note">Indexes can improve filtering and sorting. Manage them from the Indexes section.</p>
+      {fields.length === 0 ? <p className="empty">No fields have been added.</p> :
+        <ul className="field-list">{fields.map(field => <li key={field.id}>
+          <div><strong>{field.displayName}</strong><small>{field.name} · {field.dataType}</small></div>
+          <div className="field-actions">
+            {field.indexColumnName && <span className="index-status">Indexed</span>}
+            <button type="button" className="link" onClick={() => setEditing(field)}><Pencil />Edit</button>
+          </div>
+        </li>)}</ul>}
+    </div>
     {editing && <Modal title={`Edit ${editing.displayName}`} onClose={() => setEditing(undefined)}>
       <FieldEditor key={editing.id} tenantId={tenantId} entityId={entityId}
         field={editing} onClose={() => setEditing(undefined)} />
@@ -97,7 +99,7 @@ function FieldOrderEditor({ tenantId, entityId, fields, onClose }: Props & { onC
       </li>)}
     </ol>
     {save.error && <p className="error">{save.error.message}</p>}
-    <div className="actions">
+    <div className="modal-footer">
       <button type="button" disabled={save.isPending} onClick={() => save.mutate()}><Save />
         {save.isPending ? 'Saving…' : 'Save order'}
       </button>
@@ -169,7 +171,7 @@ function FieldEditor({ tenantId, entityId, field, onClose }: {
       placeholder="{}" onChange={event => setConfiguration(event.target.value)} /></label>
     {configurationError && <p className="error">{configurationError}</p>}
     {save.error && <p className="error">{save.error.message}</p>}
-    <div className="actions"><button disabled={save.isPending}><Save />{save.isPending ? 'Saving…' : 'Save field'}</button>
+    <div className="modal-footer"><button disabled={save.isPending}><Save />{save.isPending ? 'Saving…' : 'Save field'}</button>
       <button type="button" className="secondary" onClick={onClose}><X />Cancel</button></div>
   </form>
 }

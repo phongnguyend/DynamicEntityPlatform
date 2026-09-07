@@ -159,7 +159,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
     </div></Modal>}
     {jsonOpen && <Modal title={`${dashboard.name} JSON`} onClose={() => setJsonOpen(false)}>
       <div className="json-editor"><label className="field">Definition<textarea readOnly value={JSON.stringify(definition, null, 2)} spellCheck={false} /></label>
-        <div className="actions"><button type="button" onClick={async () => { await navigator.clipboard.writeText(JSON.stringify(definition, null, 2)); setJsonCopied(true) }}>{jsonCopied ? <><Check />Copied</> : <><Copy />Copy JSON</>}</button><button type="button" className="secondary" onClick={() => setJsonOpen(false)}><X />Close</button></div>
+        <div className="modal-footer"><button type="button" onClick={async () => { await navigator.clipboard.writeText(JSON.stringify(definition, null, 2)); setJsonCopied(true) }}>{jsonCopied ? <><Check />Copied</> : <><Copy />Copy JSON</>}</button><button type="button" className="secondary" onClick={() => setJsonOpen(false)}><X />Close</button></div>
       </div>
     </Modal>}
     {expandedItem && <Modal title={expandedReport?.name ?? expandedMetric?.name ?? 'Dashboard card'} onClose={() => setExpandedKey(undefined)}>

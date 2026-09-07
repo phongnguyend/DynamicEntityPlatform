@@ -33,7 +33,7 @@ export function AnalyticsFilterEditor({ fields, value, onChange }: { fields: Fie
   }
 
   return <div className="builder-section analytics-filters">
-    <div className="panel-title"><h3>Filters</h3><div className="actions">
+    <div className="panel-header"><h3>Filters</h3><div className="actions">
       {group && <button type="button" className="link danger" onClick={() => changeGroup(undefined)}><Trash2 />Clear all</button>}
       {!group && <><button type="button" className="secondary" disabled={!filterableFields.length} onClick={startFilter}><Funnel />Add filter</button>
         <button type="button" className="secondary" disabled={!filterableFields.length} onClick={startGroup}><FolderPlus />Add group</button></>}

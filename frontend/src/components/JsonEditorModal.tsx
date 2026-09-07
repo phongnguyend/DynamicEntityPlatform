@@ -43,7 +43,7 @@ export function JsonEditorModal({ title, value, onClose, onSave }: {
         <textarea value={json} onChange={event => setJson(event.target.value)} spellCheck={false} />
       </label>
       {error && <p className="error">{error}</p>}
-      <div className="actions">
+      <div className="modal-footer">
         <button type="button" disabled={saving} onClick={save}><Save />{saving ? 'Saving…' : 'Save JSON'}</button>
         <button type="button" className="secondary" disabled={saving} onClick={onClose}><X />Cancel</button>
       </div>

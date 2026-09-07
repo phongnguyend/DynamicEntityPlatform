@@ -19,7 +19,7 @@ A metadata-driven, multi-tenant data platform.
 - saved views and streaming CSV export
 - tenant-scoped reports with grouped analytics, date buckets, live preview, five visualization modes, and aggregated CSV export
 - reusable scalar metrics with presentation-only number, percentage, currency, and duration formatting
-- leased scheduled alerts with thresholds, cooldowns, recovery behavior, in-app notifications, evaluation history, and saved email/webhook action configuration
+- leased scheduled alerts with thresholds, cooldowns, recovery behavior, evaluation history, and queued in-app, email, and webhook notifications
 - versioned tenant schema migrations applied to both new and existing active tenants
 - tenant-scoped authorization seam, Problem Details errors, structured logging, and OpenTelemetry ASP.NET/SQL instrumentation
 - unit tests and an opt-in real-SQL integration test
@@ -29,9 +29,22 @@ and all filter values are SQL parameters.
 
 Reports, metrics, and alerts use the same metadata-validated aggregation engine. Analytics
 queries are parameterized, cancellable, row-limited, and use the configurable
-`SqlServer:AnalyticsCommandTimeoutSeconds` timeout. Alerts can capture validated email
-recipient and multiple HTTPS webhook action settings, but external delivery is intentionally not
-implemented yet; evaluations continue to create only in-app notifications.
+`SqlServer:AnalyticsCommandTimeoutSeconds` timeout.
+
+When an alert fires or recovers, evaluation records the in-app notification and enqueues one pending
+row per configured action. A separate background service delivers those rows so a slow SMTP host or
+webhook never delays evaluation, retrying with bounded exponential backoff (five attempts, 30s to
+30m) and recording status, attempts, and the last error in the alert history. Each delivery carries
+the notification id as `X-DynamicEntity-Idempotency-Key`, because a retry re-sends to endpoints that
+already accepted the payload. Webhooks are HTTPS-only, never follow redirects, and are refused when
+the host resolves to a non-public address.
+
+Configure the channels under `AlertNotifications:Email` (SMTP `Host`, `Port`, `EnableSsl`,
+`FromAddress`, and optional `UserName`/`Password`) and `AlertNotifications:Webhook`
+(`TimeoutSeconds`, optional `SigningSecret` for the `X-DynamicEntity-Signature` HMAC-SHA256 header,
+and `AllowPrivateNetworks` for trusted internal endpoints only). Keep `Password` and `SigningSecret`
+in user secrets, environment variables, or a key vault — never in `appsettings.json`. An email action
+on an alert with no SMTP host configured is marked failed with that reason in the alert history.
 
 ## Prerequisites
 

@@ -44,6 +44,7 @@ using DynamicEntity.Domain.Analytics;
 using DynamicEntity.Domain.Queries;
 using DynamicEntity.Infrastructure.Imports;
 using DynamicEntity.Infrastructure.Authorization;
+using DynamicEntity.Infrastructure.Notifications;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -89,8 +90,17 @@ builder.Services.AddSingleton<IRecordValidator, RecordValidator>();
 builder.Services.AddSingleton(new AnalyticsValidationOptions());
 builder.Services.AddSingleton<AnalyticsQueryValidator>();
 builder.Services.AddSingleton<AlertThresholdEvaluator>();
-builder.Services.AddSingleton<IAlertNotifier, InAppAlertNotifier>();
 builder.Services.AddSingleton(TimeProvider.System);
+
+var emailAlertOptions = builder.Configuration.GetSection(EmailAlertOptions.SectionName).Get<EmailAlertOptions>() ?? new EmailAlertOptions();
+var webhookAlertOptions = builder.Configuration.GetSection(WebhookAlertOptions.SectionName).Get<WebhookAlertOptions>() ?? new WebhookAlertOptions();
+builder.Services.AddSingleton(emailAlertOptions);
+builder.Services.AddSingleton(webhookAlertOptions);
+builder.Services.AddSingleton<IAlertNotifier, QueuedAlertNotifier>();
+builder.Services.AddSingleton<IAlertChannelSender, EmailAlertChannelSender>();
+builder.Services.AddHttpClient<WebhookAlertChannelSender>()
+    .ConfigurePrimaryHttpMessageHandler(() => WebhookAlertChannelSender.CreateHandler(webhookAlertOptions));
+builder.Services.AddTransient<IAlertChannelSender>(services => services.GetRequiredService<WebhookAlertChannelSender>());
 builder.Services.AddScoped<TenantService>();
 builder.Services.AddScoped<EntityService>();
 builder.Services.AddScoped<FieldService>();
@@ -108,8 +118,10 @@ builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<MetricService>();
 builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<AlertEvaluationWorker>();
+builder.Services.AddScoped<AlertNotificationDeliveryWorker>();
 builder.Services.AddScoped<WebhookSubscriptionService>();
 builder.Services.AddHostedService<AlertSchedulerHostedService>();
+builder.Services.AddHostedService<AlertNotificationDeliveryHostedService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContextAccessor, HttpTenantContextAccessor>();
 builder.Services.AddProblemDetails();
@@ -883,7 +895,7 @@ static AlertEvaluationResponse ToAlertEvaluationResponse(AlertEvaluation evaluat
 static AlertNotificationResponse ToAlertNotificationResponse(AlertNotification notification) => new(
     notification.Id, notification.AlertId, notification.EvaluationId, notification.Channel,
     notification.Status, notification.Attempts, notification.LastError, notification.CreatedAt,
-    notification.DeliveredAt);
+    notification.DeliveredAt, notification.NextAttemptAt);
 
 static WebhookSubscriptionResponse ToWebhookResponse(WebhookSubscription subscription) => new(
     subscription.Id, subscription.EntityId, subscription.Name, subscription.Endpoint,

@@ -203,6 +203,15 @@ public interface IAlertNotificationStore
 {
     Task CreateAsync(Guid tenantId, AlertNotification notification, EntityStorageLocation storage, CancellationToken token);
     Task<IReadOnlyList<AlertNotification>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+
+    /// <summary>Leases the oldest pending notification that is due for a delivery attempt.</summary>
+    Task<AlertNotification?> ClaimPendingAsync(Guid tenantId, string owner, DateTimeOffset now,
+        DateTimeOffset leaseExpiresAt, EntityStorageLocation storage, CancellationToken token) =>
+        Task.FromResult<AlertNotification?>(null);
+
+    /// <summary>Records the outcome of a delivery attempt and releases the lease.</summary>
+    Task CompleteAsync(Guid tenantId, AlertNotification notification, EntityStorageLocation storage, CancellationToken token) =>
+        Task.CompletedTask;
 }
 
 public interface IWebhookSubscriptionStore
