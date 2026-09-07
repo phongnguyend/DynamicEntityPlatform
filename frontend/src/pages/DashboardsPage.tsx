@@ -1,37 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { BarChart3, GripVertical, Maximize2, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, GripVertical, Maximize2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { Responsive, useContainerWidth, verticalCompactor, type ResponsiveLayouts } from 'react-grid-layout'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { api } from '../api'
 import { Modal } from '../components/Modal'
 import { ReportViewer } from '../components/ReportViewer'
 import type { Entity, Metric, Report } from '../types'
-
-type DashboardItem = { kind: 'report' | 'metric'; entityId: string; id: string }
-type GridBreakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
-type DashboardState = { items: DashboardItem[]; layouts: ResponsiveLayouts<GridBreakpoint> }
+import { deleteDashboard, itemKey, loadDashboards, saveDashboards, type DashboardItem, type GridBreakpoint, type SavedDashboard } from './dashboardStorage'
 
 const breakpoints: Record<GridBreakpoint, number> = { lg: 1200, md: 900, sm: 640, xs: 420, xxs: 0 }
 const columns: Record<GridBreakpoint, number> = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }
 const gridBreakpoints = Object.keys(breakpoints) as GridBreakpoint[]
-const storageKey = (tenantId: string) => `dynamic-data.dashboard.${tenantId}`
-const itemKey = (item: DashboardItem) => `${item.kind}:${item.entityId}:${item.id}`
-
-const isDashboardItem = (item: unknown): item is DashboardItem => Boolean(item && typeof item === 'object' &&
-  ((item as DashboardItem).kind === 'report' || (item as DashboardItem).kind === 'metric') &&
-  typeof (item as DashboardItem).entityId === 'string' && typeof (item as DashboardItem).id === 'string')
-
-function loadDashboard(tenantId: string): DashboardState {
-  try {
-    const value = JSON.parse(localStorage.getItem(storageKey(tenantId)) ?? '[]') as unknown
-    if (Array.isArray(value)) return { items: value.filter(isDashboardItem), layouts: {} }
-    if (!value || typeof value !== 'object') return { items: [], layouts: {} }
-    const saved = value as Partial<DashboardState>
-    return { items: Array.isArray(saved.items) ? saved.items.filter(isDashboardItem) : [], layouts: saved.layouts ?? {} }
-  } catch { return { items: [], layouts: {} } }
-}
 
 function fitLayouts(items: DashboardItem[], layouts: ResponsiveLayouts<GridBreakpoint>): ResponsiveLayouts<GridBreakpoint> {
   const keys = new Set(items.map(itemKey)); const next: ResponsiveLayouts<GridBreakpoint> = {}
@@ -57,9 +39,13 @@ function fitLayouts(items: DashboardItem[], layouts: ResponsiveLayouts<GridBreak
 }
 
 export function DashboardsPage({ tenantId, entities }: { tenantId: string; entities: Entity[] }) {
-  const [dashboard, setDashboard] = useState<DashboardState>(() => loadDashboard(tenantId))
+  const { dashboardId = '' } = useParams()
+  const navigate = useNavigate()
+  const [collection, setCollection] = useState(() => loadDashboards(tenantId))
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [expandedKey, setExpandedKey] = useState<string>()
+  const requestedDashboard = collection.dashboards.find(value => value.id === dashboardId)
+  const dashboard: SavedDashboard = requestedDashboard ?? { id: dashboardId, name: 'Dashboard', items: [], layouts: {} }
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1000 })
   const reportQueries = useQueries({ queries: entities.map(entity => ({
     queryKey: ['reports', tenantId, entity.id], queryFn: () => api.reports(tenantId, entity.id),
@@ -77,31 +63,44 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   const loading = reportQueries.some(query => query.isLoading) || metricQueries.some(query => query.isLoading)
   const error = reportQueries.find(query => query.error)?.error ?? metricQueries.find(query => query.error)?.error
 
-  useEffect(() => { localStorage.setItem(storageKey(tenantId), JSON.stringify(dashboard)) }, [dashboard, tenantId])
+  useEffect(() => {
+    if (requestedDashboard) saveDashboards(tenantId, { ...collection, activeDashboardId: dashboardId })
+  }, [collection, dashboardId, requestedDashboard, tenantId])
+
+  function updateDashboard(update: (current: SavedDashboard) => SavedDashboard) {
+    setCollection(current => ({ ...current, activeDashboardId: dashboardId, dashboards: current.dashboards.map(value => value.id === dashboardId ? update(value) : value) }))
+  }
 
   function add(item: DashboardItem) {
-    setDashboard(current => {
+    updateDashboard(current => {
       if (current.items.some(existing => itemKey(existing) === itemKey(item))) return current
       const items = [...current.items, item]
-      return { items, layouts: fitLayouts(items, current.layouts) }
+      return { ...current, items, layouts: fitLayouts(items, current.layouts) }
     })
   }
   function remove(key: string) {
-    setDashboard(current => {
+    updateDashboard(current => {
       const items = current.items.filter(item => itemKey(item) !== key)
-      return { items, layouts: fitLayouts(items, current.layouts) }
+      return { ...current, items, layouts: fitLayouts(items, current.layouts) }
     })
   }
   function saveLayouts(next: ResponsiveLayouts<GridBreakpoint>) {
-    setDashboard(current => ({ ...current, layouts: fitLayouts(current.items, next) }))
+    updateDashboard(current => ({ ...current, layouts: fitLayouts(current.items, next) }))
+  }
+  function removeDashboard() {
+    if (!confirm(`Delete the dashboard "${dashboard.name}"?`)) return
+    deleteDashboard(tenantId, dashboard.id)
+    navigate('/dashboards')
   }
 
   const entityName = (entityId: string) => entities.find(entity => entity.id === entityId)?.displayName ?? 'Unknown entity'
   const expandedItem = dashboard.items.find(item => itemKey(item) === expandedKey)
   const expandedReport = expandedItem?.kind === 'report' ? reports.find(report => report.id === expandedItem.id && report.entityId === expandedItem.entityId) : undefined
   const expandedMetric = expandedItem?.kind === 'metric' ? metrics.find(metric => metric.id === expandedItem.id && metric.entityId === expandedItem.entityId) : undefined
-  return <section className="page dashboard-page"><header><div><p className="eyebrow">Workspace overview</p><h2>Dashboards</h2><p className="dashboard-intro">Drag cards by their handles and resize them from the lower-right corner. Cards automatically pack upward.</p></div>
-    <button type="button" onClick={() => setLibraryOpen(true)}><Plus />Add cards</button></header>
+  if (!requestedDashboard) return <section className="page"><p className="error">Dashboard not found.</p><Link className="button" to="/dashboards"><ArrowLeft />Back to dashboards</Link></section>
+
+  return <section className="page dashboard-page"><header><div><p className="eyebrow">Dashboard</p><h2>{dashboard.name}</h2><p className="dashboard-intro">Drag cards by their handles and resize them from the lower-right corner. Cards automatically pack upward.</p></div>
+    <div className="page-actions"><Link className="button secondary" to="/dashboards"><ArrowLeft />All dashboards</Link><Link className="button secondary" to={`/dashboards/${dashboard.id}/edit`}><Pencil />Edit</Link><button type="button" className="secondary dashboard-delete" onClick={removeDashboard}><Trash2 />Delete</button><button type="button" onClick={() => setLibraryOpen(true)}><Plus />Add cards</button></div></header>
     {error && <p className="error">{error.message}</p>}
     <div ref={containerRef} className="dashboard-grid-container" aria-label="Dashboard cards">
         {!dashboard.items.length && <div className="dashboard-empty"><BarChart3 /><h3>Your dashboard is empty</h3><p>Add cards from the library, then position and resize them however you like.</p></div>}

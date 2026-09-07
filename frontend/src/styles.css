@@ -189,6 +189,8 @@
   .metric-expanded-card > strong.very-long { @apply text-[clamp(1.6rem,5.5cqw,3.5rem)]; }
   .metric-expanded-card > span { @apply text-muted; }
   .dashboard-intro { @apply mb-0 text-muted; }
+  .dashboard-delete { @apply text-danger; }
+  .dashboard-list-empty { @apply grid justify-items-start; }
   .dashboard-page .modal { @apply w-[min(680px,100%)]; }
   .dashboard-page .modal:has(.dashboard-card-expanded) { @apply w-[min(1100px,100%)]; }
   .dashboard-library { @apply min-w-0; }
