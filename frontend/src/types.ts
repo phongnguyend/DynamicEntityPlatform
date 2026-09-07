@@ -22,6 +22,10 @@ export interface DynamicRecord {
 }
 export interface RecordPage { items: DynamicRecord[]; nextCursor?: string }
 export interface SavedView { id: string; entityId: string; name: string; definition: Record<string, unknown> }
+export type DashboardItem = { kind: 'report' | 'metric'; entityId: string; id: string }
+export type DashboardGridBreakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
+export interface DashboardDefinition { items: DashboardItem[]; layouts: ResponsiveLayouts<DashboardGridBreakpoint> }
+export interface Dashboard { id: string; name: string; definition: DashboardDefinition; createdAt: string; updatedAt: string }
 export interface ImportJob { id: string; entityId: string; fileName: string; status: string; columns: string[]; totalRows: number; validRows: number; invalidRows: number }
 export interface ImportPreview { totalRows: number; validRows: number; invalidRows: number; errors: Array<{ row: number; fieldId?: string; message: string }> }
 
@@ -48,3 +52,4 @@ export interface AlertNotification { id: string; alertId: string; evaluationId: 
 export interface AlertHistory { evaluations: AlertEvaluation[]; notifications: AlertNotification[] }
 export type WebhookEvent = 'RecordCreated' | 'RecordUpdated' | 'RecordDeleted'
 export interface WebhookSubscription { id: string; entityId: string; name: string; endpoint: string; events: WebhookEvent[]; isEnabled: boolean; createdAt: string; updatedAt: string }
+import type { ResponsiveLayouts } from 'react-grid-layout'

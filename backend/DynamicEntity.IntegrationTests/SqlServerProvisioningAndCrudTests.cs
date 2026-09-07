@@ -9,6 +9,7 @@ using DynamicEntity.Application.Tenants;
 using DynamicEntity.Domain.Entities;
 using DynamicEntity.Domain.Storage;
 using DynamicEntity.Domain.Analytics;
+using DynamicEntity.Domain.Dashboards;
 using DynamicEntity.Domain.Queries;
 using DynamicEntity.SqlServer;
 using DynamicEntity.SqlServer.Analytics;
@@ -118,6 +119,15 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.Single(grouped.Rows);
 
         var now = DateTimeOffset.UtcNow;
+        var dashboardStore = new SqlServerDashboardStore();
+        var dashboard = await dashboardStore.CreateAsync(
+            new DashboardDefinition(Guid.NewGuid(), tenantId, "Operations", "{\"items\":[],\"layouts\":{}}", null, now, now),
+            storage, CancellationToken.None);
+        Assert.Single(await dashboardStore.ListAsync(tenantId, storage, CancellationToken.None));
+        Assert.NotNull(await dashboardStore.GetAsync(tenantId, dashboard.Id, storage, CancellationToken.None));
+        Assert.True(await dashboardStore.NameExistsAsync(tenantId, dashboard.Name, null, storage, CancellationToken.None));
+        Assert.NotNull(await dashboardStore.UpdateAsync(dashboard with { Name = "Executive" }, storage, CancellationToken.None));
+
         var reportStore = new SqlReportStore();
         var report = await reportStore.CreateAsync(tenantId,
             new ReportDefinition(Guid.NewGuid(), entity.Id, "Count report", null, "{\"query\":{}}", null, now, now),
@@ -159,6 +169,7 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await alertStore.DeleteAsync(tenantId, entity.Id, alert.Id, storage, CancellationToken.None));
         Assert.True(await metricStore.DeleteAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
         Assert.True(await reportStore.DeleteAsync(tenantId, entity.Id, report.Id, storage, CancellationToken.None));
+        Assert.True(await dashboardStore.DeleteAsync(tenantId, dashboard.Id, storage, CancellationToken.None));
 
         var webhookStore = new SqlWebhookSubscriptionStore();
         var webhook = await webhookStore.CreateAsync(tenantId,
@@ -188,13 +199,14 @@ public sealed class SqlServerProvisioningAndCrudTests
                 CASE WHEN OBJECT_ID(N'dbo.AlertEvaluations', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.AlertNotifications', N'U') IS NULL THEN 0 ELSE 1 END,
                 CASE WHEN OBJECT_ID(N'dbo.WebhookSubscriptions', N'U') IS NULL THEN 0 ELSE 1 END,
-                CASE WHEN OBJECT_ID(N'dbo.AlertActions', N'U') IS NULL THEN 0 ELSE 1 END;
+                CASE WHEN OBJECT_ID(N'dbo.AlertActions', N'U') IS NULL THEN 0 ELSE 1 END,
+                CASE WHEN OBJECT_ID(N'dbo.DashboardDefinitions', N'U') IS NULL THEN 0 ELSE 1 END;
             """;
         await using var command = new SqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(5, reader.GetInt32(0));
-        for (var ordinal = 1; ordinal <= 7; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
+        Assert.Equal(6, reader.GetInt32(0));
+        for (var ordinal = 1; ordinal <= 8; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
     }
 
     private static async Task CreateDatabaseAsync(string serverConnection, string databaseName)

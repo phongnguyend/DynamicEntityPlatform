@@ -1,4 +1,4 @@
-import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant, WebhookSubscription } from './types'
+import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, Dashboard, DashboardDefinition, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant, WebhookSubscription } from './types'
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ''
 
@@ -65,6 +65,14 @@ export const api = {
     request<SavedView>(`/api/views/${viewId}`, { method: 'PATCH', body: JSON.stringify({ entityId, name, definition }) }, tenantId),
   deleteView: (tenantId: string, viewId: string) =>
     request<void>(`/api/views/${viewId}`, { method: 'DELETE' }, tenantId),
+  dashboards: (tenantId: string) => request<Dashboard[]>('/api/dashboards', {}, tenantId),
+  dashboard: (tenantId: string, dashboardId: string) => request<Dashboard>(`/api/dashboards/${dashboardId}`, {}, tenantId),
+  createDashboard: (tenantId: string, name: string, definition: DashboardDefinition) =>
+    request<Dashboard>('/api/dashboards', { method: 'POST', body: JSON.stringify({ name, definition }) }, tenantId),
+  updateDashboard: (tenantId: string, dashboardId: string, name: string, definition: DashboardDefinition) =>
+    request<Dashboard>(`/api/dashboards/${dashboardId}`, { method: 'PUT', body: JSON.stringify({ name, definition }) }, tenantId),
+  deleteDashboard: (tenantId: string, dashboardId: string) =>
+    request<void>(`/api/dashboards/${dashboardId}`, { method: 'DELETE' }, tenantId),
   uploadImport: async (tenantId: string, entityId: string, file: File) => {
     const body = new FormData(); body.append('file', file)
     return request<ImportJob>(`/api/entities/${entityId}/imports`, { method: 'POST', body }, tenantId)

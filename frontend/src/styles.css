@@ -153,6 +153,7 @@
   .modal { @apply max-h-[85vh] w-[min(560px,100%)] overflow-auto rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
   .modal-header { @apply mb-4 flex items-start justify-between; }
   .modal-header h3 { @apply m-0; }
+  .modal .actions { @apply justify-end; }
   .index-column-order { @apply mt-4 grid gap-[.6rem]; }
   .index-column-controls { @apply flex items-center gap-[.35rem]; }
   .index-column-controls select { @apply rounded-[7px] border border-input-border bg-white p-[.48rem] text-ink; }

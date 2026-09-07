@@ -5,6 +5,7 @@ using DynamicEntity.Domain.Tenants;
 using DynamicEntity.Domain.Validation;
 using DynamicEntity.Domain.Views;
 using DynamicEntity.Domain.Imports;
+using DynamicEntity.Domain.Dashboards;
 
 namespace DynamicEntity.Application.Abstractions;
 
@@ -121,6 +122,16 @@ public interface IViewStore
     Task<IReadOnlyList<ViewDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<ViewDefinition?> UpdateAsync(Guid tenantId, ViewDefinition view, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<bool> DeleteAsync(Guid tenantId, Guid viewId, EntityStorageLocation storage, CancellationToken cancellationToken);
+}
+
+public interface IDashboardStore
+{
+    Task<DashboardDefinition> CreateAsync(DashboardDefinition dashboard, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DashboardDefinition>> ListAsync(Guid tenantId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<DashboardDefinition?> GetAsync(Guid tenantId, Guid dashboardId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<DashboardDefinition?> UpdateAsync(DashboardDefinition dashboard, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid dashboardId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> NameExistsAsync(Guid tenantId, string name, Guid? excludedDashboardId, EntityStorageLocation storage, CancellationToken cancellationToken);
 }
 
 public interface ITabularFileParser

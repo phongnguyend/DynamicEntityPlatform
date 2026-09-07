@@ -372,4 +372,23 @@ internal static class SqlServerSchema
                     );';
         END;
         """;
+
+    public const string TenantDatabaseV6 = """
+        IF OBJECT_ID(N'dbo.DashboardDefinitions', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.DashboardDefinitions
+            (
+                Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_DashboardDefinitions PRIMARY KEY,
+                TenantId UNIQUEIDENTIFIER NOT NULL,
+                Name NVARCHAR(80) NOT NULL,
+                DefinitionJson NVARCHAR(MAX) NOT NULL,
+                CreatedBy UNIQUEIDENTIFIER NULL,
+                CreatedAt DATETIMEOFFSET(7) NOT NULL,
+                UpdatedAt DATETIMEOFFSET(7) NOT NULL,
+                CONSTRAINT UQ_DashboardDefinitions_Tenant_Name UNIQUE (TenantId, Name),
+                CONSTRAINT CK_DashboardDefinitions_DefinitionJson CHECK (ISJSON(DefinitionJson) = 1)
+            );
+            CREATE INDEX IX_DashboardDefinitions_TenantId ON dbo.DashboardDefinitions(TenantId);
+        END;
+        """;
 }

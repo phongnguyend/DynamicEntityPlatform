@@ -17,6 +17,7 @@ using DynamicEntity.Application.Reports;
 using DynamicEntity.Application.Metrics;
 using DynamicEntity.Application.Alerts;
 using DynamicEntity.Application.Webhooks;
+using DynamicEntity.Application.Dashboards;
 using DynamicEntity.Contracts.Analytics;
 using DynamicEntity.Contracts.Reports;
 using DynamicEntity.Contracts.Metrics;
@@ -28,12 +29,14 @@ using DynamicEntity.Contracts.Records;
 using DynamicEntity.Contracts.Imports;
 using DynamicEntity.Contracts.Tenants;
 using DynamicEntity.Contracts.Views;
+using DynamicEntity.Contracts.Dashboards;
 using DynamicEntity.Domain.Entities;
 using DynamicEntity.Domain.Imports;
 using DynamicEntity.Domain.Storage;
 using DynamicEntity.Domain.Tenants;
 using DynamicEntity.Domain.Validation;
 using DynamicEntity.Domain.Views;
+using DynamicEntity.Domain.Dashboards;
 using DynamicEntity.SqlServer;
 using DynamicEntity.SqlServer.Migrations;
 using DynamicEntity.SqlServer.Analytics;
@@ -68,6 +71,7 @@ builder.Services.AddSingleton<IRecordConstraintValidator, SqlServerRecordConstra
 builder.Services.AddSingleton<IFacetStore, SqlServerFacetStore>();
 builder.Services.AddSingleton<IEntityIndexManager, SqlServerEntityIndexManager>();
 builder.Services.AddSingleton<IViewStore, SqlServerViewStore>();
+builder.Services.AddSingleton<IDashboardStore, SqlServerDashboardStore>();
 builder.Services.AddSingleton<IAnalyticsStore, SqlAnalyticsStore>();
 builder.Services.AddSingleton<IReportStore, SqlReportStore>();
 builder.Services.AddSingleton<IMetricStore, SqlMetricStore>();
@@ -94,6 +98,7 @@ builder.Services.AddScoped<RecordService>();
 builder.Services.AddScoped<FacetService>();
 builder.Services.AddScoped<EntityIndexService>();
 builder.Services.AddScoped<ViewService>();
+builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ImportService>();
 builder.Services.AddScoped<BulkRecordService>();
 builder.Services.AddScoped<MergeService>();
@@ -161,6 +166,45 @@ app.MapPost("/api/tenants/{tenantId:guid}/disable", async (
     Guid tenantId, TenantService service, CancellationToken cancellationToken) =>
 {
     await service.DisableAsync(tenantId, cancellationToken);
+    return Results.NoContent();
+});
+
+var dashboards = app.MapGroup("/api/dashboards");
+
+dashboards.MapGet("/", async (ITenantContextAccessor tenantAccessor, DashboardService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok((await service.ListAsync(tenant.TenantId, cancellationToken)).Select(ToDashboardResponse));
+});
+
+dashboards.MapGet("/{dashboardId:guid}", async (Guid dashboardId, ITenantContextAccessor tenantAccessor,
+    DashboardService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToDashboardResponse(await service.GetAsync(tenant.TenantId, dashboardId, cancellationToken)));
+});
+
+dashboards.MapPost("/", async (CreateDashboardRequest request, ITenantContextAccessor tenantAccessor,
+    DashboardService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var dashboard = await service.CreateAsync(tenant.TenantId, request.Name, request.Definition, null, cancellationToken);
+    return Results.Created($"/api/dashboards/{dashboard.Id}", ToDashboardResponse(dashboard));
+});
+
+dashboards.MapPut("/{dashboardId:guid}", async (Guid dashboardId, UpdateDashboardRequest request,
+    ITenantContextAccessor tenantAccessor, DashboardService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(ToDashboardResponse(await service.UpdateAsync(
+        tenant.TenantId, dashboardId, request.Name, request.Definition, cancellationToken)));
+});
+
+dashboards.MapDelete("/{dashboardId:guid}", async (Guid dashboardId, ITenantContextAccessor tenantAccessor,
+    DashboardService service, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    await service.DeleteAsync(tenant.TenantId, dashboardId, cancellationToken);
     return Results.NoContent();
 });
 
@@ -780,6 +824,10 @@ static byte[] ParseVersion(string? value)
 static ViewResponse ToViewResponse(ViewDefinition view) =>
     new(view.Id, view.EntityId, view.Name, JsonSerializer.Deserialize<JsonElement>(view.DefinitionJson),
         view.CreatedBy, view.CreatedAt, view.UpdatedAt);
+
+static DashboardResponse ToDashboardResponse(DashboardDefinition dashboard) =>
+    new(dashboard.Id, dashboard.Name, JsonSerializer.Deserialize<JsonElement>(dashboard.DefinitionJson),
+        dashboard.CreatedBy, dashboard.CreatedAt, dashboard.UpdatedAt);
 
 static ImportJobResponse ToImportResponse(ImportJob job) =>
     new(job.Id, job.EntityId, job.FileName, job.Status, job.Columns, job.TotalRows,
