@@ -19,10 +19,10 @@ export function DynamicForm({ fields, record, busy, onSubmit, onCancel }: Props)
     if (!record) setValues(initial)
   }
 
-  return <form className="dynamic-form" onSubmit={submit}>
+  return <form className="dynamic-form panel-body" onSubmit={submit}>
     {fields.map(field => <DynamicField key={field.id} field={field} value={values[field.name]}
       onChange={value => setValues(current => ({ ...current, [field.name]: value }))} />)}
-    <div className="actions"><button disabled={busy} type="submit"><Save />{busy ? 'Saving…' : 'Save'}</button>
+    <div className="panel-footer"><button disabled={busy} type="submit"><Save />{busy ? 'Saving…' : 'Save'}</button>
       {onCancel && <button type="button" className="secondary" onClick={onCancel}><X />Cancel</button>}</div>
   </form>
 }

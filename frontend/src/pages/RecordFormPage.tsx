@@ -34,11 +34,14 @@ export function RecordFormPage({ tenantId }: { tenantId: string }) {
   if (recordId && !editing) return <p className="error">Record not found.</p>
 
   return <section className="page form-page">
-    <header><div><p className="eyebrow">{entity.displayName}</p><h2>{editing ? 'Edit record' : 'New record'}</h2></div></header>
-    {fields.length === 0 ? <p className="empty">Add a field before creating records.</p> :
-      <DynamicForm fields={fields} record={editing} busy={save.isPending}
-        onSubmit={async data => { await save.mutateAsync(data) }}
-        onCancel={() => navigate(`/entities/${entityId}/records`)} />}
-    {save.error && <p className="error">{save.error.message}</p>}
+    <header><div><p className="eyebrow">Entity</p><h2>{entity.displayName}</h2></div></header>
+    <div className="panel">
+      <div className="panel-header"><h3>{editing ? 'Edit record' : 'New record'}</h3></div>
+      {fields.length === 0 ? <div className="panel-body"><p className="empty">Add a field before creating records.</p></div> :
+        <DynamicForm fields={fields} record={editing} busy={save.isPending}
+          onSubmit={async data => { await save.mutateAsync(data) }}
+          onCancel={() => navigate(`/entities/${entityId}/records`)} />}
+      {save.error && <p className="error">{save.error.message}</p>}
+    </div>
   </section>
 }

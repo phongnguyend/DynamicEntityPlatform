@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, Building2, Database, LayoutDashboard, Plus, TableProperties, Users } from 'lucide-react'
 import { api } from './api'
 import { EntityDesigner } from './components/EntityDesigner'
@@ -77,13 +77,16 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
   const entities = useQuery({ queryKey: ['entities', tenantId], queryFn: () => api.entities(tenantId), enabled: Boolean(tenantId) })
   const [creatingEntity, setCreatingEntity] = useState(false)
   const pinned = pinnedEntities(entities.data ?? [])
+  // The sidebar link targets the records tab, so NavLink's own matching would drop the highlight on
+  // every other entity tab. Highlighting is keyed on the entity segment instead, whatever tab is open.
+  const openEntityId = useMatch('/entities/:entityId/*')?.params.entityId
 
   return <div className="shell"><aside><div className="brand"><span className="mark"><Database size={18} /></span><strong>Dynamic Data</strong></div>
     <nav className="admin-nav"><NavLink to="/tenants" className={({ isActive }) => isActive ? 'active' : ''}><Users />Manage tenants</NavLink></nav>
     <nav className="dashboard-nav"><NavLink to="/dashboards" className={({ isActive }) => isActive ? 'active' : ''}><LayoutDashboard />Dashboards</NavLink></nav>
     <nav className="nav-heading"><NavLink end to="/entities" className={({ isActive }) => isActive ? 'nav-label active' : 'nav-label'}><TableProperties />Entities</NavLink></nav>
     <nav className="entity-nav">{pinned.map(entity => <NavLink key={entity.id} to={`/entities/${entity.id}/records`}
-      className={({ isActive }) => isActive ? 'active' : ''}><EntityIcon icon={entity.icon} />{entity.displayName}</NavLink>)}
+      className={entity.id === openEntityId ? 'active' : ''}><EntityIcon icon={entity.icon} />{entity.displayName}</NavLink>)}
       {!pinned.length && !entities.isLoading && <p className="nav-empty">Pin an entity to reach it from here.</p>}</nav>
     </aside>
     <main>{!managingTenants && entities.isLoading ? <p>Loading workspace…</p> : !managingTenants && entities.error ? <p className="error">{entities.error.message}</p> :

@@ -153,9 +153,62 @@
   .filter-bar, .saved-views { @apply mb-[.7rem] flex flex-wrap gap-[.45rem]; }
   .filter-bar input, .filter-bar select, .saved-views input, .saved-views select, .mapping select { @apply rounded-[7px] border border-input-border bg-input p-[.48rem]; }
   .filter-bar button, .saved-views button { @apply px-[.7rem] py-2; }
-  .mapping { @apply my-2 grid grid-cols-[1fr_1.4fr] items-center gap-[.6rem] text-[.84rem]; }
-  .import-panel input[type=file] { @apply max-w-full; }
-  .preview { @apply mt-4; }
+  .import-panel { @apply grid gap-4; }
+  .import-steps { @apply m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-2 p-0 text-[.82rem] font-[650] text-muted; }
+  .import-steps li { @apply flex items-center gap-2; }
+  .import-steps li.active { @apply text-ink; }
+  .import-steps li.done { @apply text-primary; }
+  .import-step-mark { @apply grid size-[1.4rem] shrink-0 place-items-center rounded-full bg-[#eef1ed] text-[.72rem] font-extrabold text-muted; }
+  .import-steps li.active .import-step-mark { @apply bg-primary text-white; }
+  .import-steps li.done .import-step-mark { @apply bg-primary-soft text-primary; }
+  .import-step-mark svg { @apply size-[.85rem]; }
+
+  .dropzone { @apply grid cursor-pointer justify-items-center gap-[.35rem] rounded-xl border-2 border-dashed border-input-border bg-input px-4 py-9 text-center; }
+  .dropzone:hover, .dropzone.dragging, .dropzone:focus-within { @apply border-primary bg-primary-soft/50; }
+  .dropzone.busy { @apply cursor-wait; }
+  .dropzone input[type=file] { @apply sr-only; }
+  .dropzone svg { @apply size-7 text-primary; }
+  .dropzone strong { @apply text-[.95rem]; }
+  .dropzone small { @apply text-[.8rem] text-muted; }
+
+  .import-file { @apply flex items-center gap-3 rounded-[10px] border border-border bg-input p-3; }
+  .import-file svg { @apply size-5 shrink-0 text-primary; }
+  .import-file > div { @apply min-w-0 flex-1; }
+  .import-file strong { @apply block truncate text-[.9rem]; }
+  .import-file small { @apply text-[.78rem] text-muted; }
+  .import-file button { @apply shrink-0 px-3 py-[.45rem] text-[.82rem]; }
+
+  .mapping-toolbar { @apply -mb-2 flex items-center justify-between gap-3 text-[.82rem] text-muted; }
+  .mapping-list { @apply max-h-[300px] overflow-y-auto rounded-[10px] border border-border px-3 py-1; }
+  .mapping { @apply my-2 grid grid-cols-[1fr_auto_1.3fr] items-center gap-[.6rem] text-[.84rem]; }
+  .mapping select { @apply min-w-0; }
+  .mapping-source { @apply truncate font-[650]; }
+  .mapping-arrow { @apply size-[.9rem] shrink-0 text-muted; }
+  .mapping-labels { @apply sticky top-0 z-10 -mx-3 bg-white px-3 pb-1 pt-2 text-[.7rem] font-extrabold uppercase tracking-[.06em] text-[#738078]; }
+
+  .import-stats { @apply grid grid-cols-3 gap-[.6rem]; }
+  .import-stat { @apply grid gap-[.2rem] rounded-[10px] border border-border bg-input p-3 text-center; }
+  .import-stat strong { @apply text-[1.5rem] leading-none; }
+  .import-stat span { @apply text-[.72rem] font-[650] uppercase tracking-[.05em] text-muted; }
+  .import-stat.ok strong { @apply text-primary; }
+  .import-stat.bad strong { @apply text-danger; }
+
+  .import-errors { @apply rounded-[10px] border border-border; }
+  .import-errors h4 { @apply m-0 border-b border-border px-3 py-[.6rem] text-[.82rem]; }
+  .import-errors ul { @apply m-0 max-h-[200px] list-none overflow-y-auto p-0; }
+  .import-errors li { @apply grid grid-cols-[auto_1fr] items-baseline gap-3 border-b border-[#f1f4f0] px-3 py-[.5rem] text-[.82rem]; }
+  .import-errors li:last-child { @apply border-b-0; }
+  .import-error-row { @apply font-[750] text-muted; }
+  .import-errors .empty { @apply m-0 px-3 py-[.5rem] text-[.8rem]; }
+
+  .import-warning { @apply flex items-start gap-[.55rem]; }
+  .import-warning svg { @apply mt-[.1rem] size-4 shrink-0; }
+  .import-done { @apply grid justify-items-center gap-[.3rem] rounded-xl border border-border bg-input px-4 py-8 text-center; }
+  .import-done svg { @apply size-8 text-primary; }
+  .import-done strong { @apply text-[1.05rem]; }
+  .import-done small { @apply text-[.82rem] text-muted; }
+  .footer-note { @apply mr-auto text-[.8rem] text-muted; }
+  .spinner { @apply animate-spin; }
   .filter-field { @apply inline-flex items-center rounded-[7px] bg-primary-soft px-[.65rem] py-[.48rem] text-[.86rem] font-[750] text-primary; }
   .column-filter-anchor { @apply inline-block; }
   .column-filter { @apply -mx-[.4rem] -my-[.3rem] inline-flex items-center gap-[.35rem] rounded-md bg-transparent px-[.4rem] py-[.3rem] text-inherit tracking-[inherit] text-[#738078] normal-case; }
@@ -174,6 +227,7 @@
   .form-page { @apply max-w-[560px]; }
   .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center bg-sidebar/45 p-6; }
   .modal { @apply max-h-[85vh] w-[min(560px,100%)] overflow-auto rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
+  .modal.wide { @apply w-[min(720px,100%)]; }
   .modal .actions { @apply justify-end; }
   .index-column-order { @apply mt-4 grid gap-[.6rem]; }
   .index-column-controls { @apply flex items-center gap-[.35rem]; }

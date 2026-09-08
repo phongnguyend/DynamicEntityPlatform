@@ -61,8 +61,8 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
       <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
     </>}</div>
     </div>
-    {importOpen && <Modal title="Import CSV / Excel" onClose={() => setImportOpen(false)}>
-      <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} />
+    {importOpen && <Modal title={`Import records into ${entity.displayName}`} wide onClose={() => setImportOpen(false)}>
+      <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} onClose={() => setImportOpen(false)} />
     </Modal>}
   </section>
 }
