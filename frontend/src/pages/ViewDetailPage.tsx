@@ -7,6 +7,7 @@ import { DynamicGrid } from '../components/DynamicGrid'
 import { EntityTabs } from '../components/EntityTabs'
 import { FilterPanel } from '../components/FilterPanel'
 import { Modal } from '../components/Modal'
+import { ViewSqlButton, toRecordQuery } from '../components/ViewSqlButton'
 import { ViewColorDot, ViewColorPicker, getViewColor, withViewColor } from '../components/ViewColorPicker'
 import type { DynamicRecord, Field, SavedView } from '../types'
 import { getAppliedFilterCondition, getAppliedFilterFieldId } from './RecordsListPage'
@@ -68,6 +69,7 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
     <div className="panel">
       <div className="panel-header"><h3>Records</h3>
         <div className="page-actions">
+          <ViewSqlButton tenantId={tenantId} entityId={entityId} name={view?.name ?? 'New view'} definition={definition} />
           <button type="button" className="secondary" onClick={() => setColumnSettingsOpen(true)}><Columns3 />Column Settings</button>
         </div>
       </div>
@@ -177,11 +179,6 @@ function getColumnSettings(definition: Record<string, unknown> | null, fields: F
     ? [...new Set(settings.hidden.filter((fieldId): fieldId is string => typeof fieldId === 'string' && validIds.has(fieldId)))]
     : []
   return { order, hidden }
-}
-
-function toRecordQuery(definition: Record<string, unknown>) {
-  const { columnSettings: _columnSettings, color: _color, ...query } = definition
-  return query
 }
 
 function definitionsEqual(left: Record<string, unknown>, right: Record<string, unknown>) {

@@ -61,6 +61,8 @@ export const api = {
   deleteRecord: (tenantId: string, entityId: string, record: DynamicRecord) =>
     request<void>(`/api/entities/${entityId}/records/${record.id}`,
       { method: 'DELETE', headers: { 'If-Match': record.version } }, tenantId),
+  viewSql: (tenantId: string, entityId: string, query: Record<string, unknown>) =>
+    request<{ sql: string; parameters: { name: string; value: unknown }[] }>(`/api/entities/${entityId}/query/sql`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
   query: (tenantId: string, entityId: string, query: Record<string, unknown>) =>
     request<RecordPage>(`/api/entities/${entityId}/query`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
   facets: (tenantId: string, entityId: string, fieldId: string) =>

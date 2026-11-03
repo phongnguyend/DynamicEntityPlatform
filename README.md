@@ -129,6 +129,14 @@ Use **Remove index** beside an indexed field to drop its SQL index and computed 
 - Delete archives entity metadata; it does not immediately drop physical tables.
 - Import files may be `.csv` or `.xlsx`; multi-choice cells use semicolon-delimited values.
 
+## View SQL preview
+
+Use **View SQL** in the views list to inspect a saved view's record query, or in view
+details to inspect the current definition, including unsaved filter and sort changes.
+The popup shows SQL and bound parameters without executing the query. Column visibility
+and color are display settings and do not affect SQL. The preview uses
+`POST /api/entities/{entityId}/query/sql` with the same body as the record query endpoint.
+
 ## Report and metric runtime parameters
 
 Report and metric filter values support fixed literals, named runtime inputs, and server-generated

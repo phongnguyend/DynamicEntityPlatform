@@ -5,21 +5,22 @@ import { Code } from 'lucide-react'
 import { Modal } from './Modal'
 import { MetricParametersForm, metricParameterNames } from './MetricParametersForm'
 
-export function SqlPreviewButton({ name, filter, disabled, load }: {
+export function SqlPreviewButton({ name, filter, disabled, load, className = 'secondary', description = 'Preview the generated query without executing it. Automatic dates and times resolve when this preview is generated.' }: {
   name: string; filter: unknown; disabled?: boolean;
+  className?: string; description?: string;
   load: (parameters?: Record<string, unknown>) => Promise<{ sql: string; parameters: { name: string; value: unknown }[] }>
 }) {
   const [open, setOpen] = useState(false)
   const names = metricParameterNames(filter)
   const preview = useMutation({ mutationFn: load })
   return <>
-    <button type="button" className="secondary" disabled={disabled} title="View SQL for the current definition" onClick={() => {
+    <button type="button" className={className} disabled={disabled} title={`View SQL for ${name.trim() || 'the current definition'}`} onClick={() => {
       preview.reset()
       setOpen(true)
       preview.mutate(undefined)
     }}><Code />View SQL</button>
     {open && createPortal(<Modal wide title={`SQL · ${name.trim() || 'New definition'}`} onClose={() => setOpen(false)}>
-      <p className="field-note">Preview the generated query without executing it. Automatic dates and times resolve when this preview is generated.</p>
+      <p className="field-note">{description}</p>
       {names.length > 0 && <details><summary>Parameter values (optional)</summary>
         <MetricParametersForm names={names} busy={preview.isPending} optional
           submitLabel="Update SQL preview" onEvaluate={parameters => preview.mutate(parameters)} />

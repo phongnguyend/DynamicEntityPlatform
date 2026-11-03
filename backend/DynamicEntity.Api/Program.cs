@@ -651,6 +651,20 @@ entities.MapGet("/{entityId:guid}/records", async (
     return Results.Ok(new RecordPageResponse(page.Items.Select(ToRecordResponse).ToArray(), page.NextCursor));
 });
 
+entities.MapPost("/{entityId:guid}/query/sql", async (
+    Guid entityId, RecordQueryRequest request, ITenantContextAccessor tenantAccessor,
+    EntityService entityService, FieldService fieldService, IEntityStorageResolver storageResolver,
+    CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var entity = await entityService.GetAsync(tenant.TenantId, entityId, cancellationToken);
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, cancellationToken);
+    var query = RecordQueryFactory.Create(request, fields);
+    var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, cancellationToken);
+    var plan = DynamicEntity.SqlServer.Queries.SqlRecordQueryBuilder.Build(entity with { Fields = fields }, storage, query);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+});
+
 entities.MapPost("/{entityId:guid}/query", async (
     Guid entityId,
     RecordQueryRequest request,

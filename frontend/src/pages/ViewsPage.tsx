@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EntityTabs } from '../components/EntityTabs'
 import { Modal } from '../components/Modal'
+import { ViewSqlButton } from '../components/ViewSqlButton'
 import { ViewColorDot, ViewColorPicker, getViewColor, withViewColor } from '../components/ViewColorPicker'
 import type { SavedView } from '../types'
 import { useEntityContext } from './useEntityContext'
@@ -36,6 +37,7 @@ export function ViewsPage({ tenantId }: { tenantId: string }) {
           <Link className="link" to={`/entities/${entityId}/views/${view.id}`}><FolderOpen />Open</Link>
           <button type="button" className="link" onClick={() => setEditing(view)}><Pencil />Edit</button>
           <button type="button" className="link" onClick={() => setViewingJson(view)}><Braces />View JSON</button>
+          <ViewSqlButton tenantId={tenantId} entityId={entityId} name={view.name} definition={view.definition} className="link" />
           <button type="button" className="link danger" disabled={remove.isPending}
             onClick={() => { if (confirm(`Delete the saved view "${view.name}"?`)) remove.mutate(view.id) }}><Trash2 />Delete</button>
         </div>
