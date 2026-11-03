@@ -10,6 +10,51 @@ namespace DynamicEntity.UnitTests;
 public sealed class SqlAnalyticsQueryBuilderTests
 {
     [Theory]
+    [InlineData(FieldDataType.Integer, FilterOperator.Equal)]
+    [InlineData(FieldDataType.Integer, FilterOperator.Between)]
+    [InlineData(FieldDataType.Integer, FilterOperator.In)]
+    [InlineData(FieldDataType.Text, FilterOperator.Contains)]
+    [InlineData(FieldDataType.Text, FilterOperator.StartsWith)]
+    [InlineData(FieldDataType.Text, FilterOperator.EndsWith)]
+    [InlineData(FieldDataType.MultiChoice, FilterOperator.Contains)]
+    public void SqlPreviewAllowsMissingInputsWithoutChangingQueryShape(FieldDataType type, FilterOperator operation)
+    {
+        var (entity, field, storage) = Fixture(type);
+        var reference = JsonSerializer.SerializeToElement(new { parameter = "input" });
+        var value = operation is FilterOperator.Between or FilterOperator.In
+            ? JsonSerializer.SerializeToElement(new[] { reference, reference }) : reference;
+        var filter = new FilterGroup(FilterLogic.And, [new FilterCondition(field.Id, operation, value)]);
+        var now = DateTimeOffset.UtcNow;
+        var unresolved = DynamicEntity.Application.Metrics.MetricFilterParameters.Resolve(filter, entity.Fields, null, now, allowUnbound: true);
+        var resolved = DynamicEntity.Application.Metrics.MetricFilterParameters.Resolve(filter, entity.Fields,
+            new Dictionary<string, JsonElement> { ["input"] = JsonSerializer.SerializeToElement("42") }, now);
+        var preview = SqlAnalyticsQueryBuilder.Build(entity, storage,
+            new(unresolved, [], [new(AggregateFunction.Count, null, "value")], [], 1), allowUnbound: true);
+        var execution = SqlAnalyticsQueryBuilder.Build(entity, storage,
+            new(resolved, [], [new(AggregateFunction.Count, null, "value")], [], 1));
+        Assert.Equal(execution.Sql, preview.Sql);
+        Assert.Contains(preview.Parameters, parameter => JsonSerializer.Serialize(parameter.Value).Contains("\"unbound\":true"));
+        Assert.Throws<DynamicEntity.Application.Common.ValidationException>(() =>
+            DynamicEntity.Application.Metrics.MetricFilterParameters.Resolve(filter, entity.Fields, null, now));
+    }
+
+    [Fact]
+    public void Build_MetricRuntimeInputRemainsABoundParameter()
+    {
+        var (entity, field, storage) = Fixture(FieldDataType.Text);
+        var input = "O'Brien'; DROP TABLE records; --";
+        var filter = new FilterGroup(FilterLogic.And, [new FilterCondition(field.Id, FilterOperator.Equal,
+            JsonSerializer.SerializeToElement(new { parameter = "name" }))]);
+        var resolved = DynamicEntity.Application.Metrics.MetricFilterParameters.Resolve(filter, entity.Fields,
+            new Dictionary<string, JsonElement> { ["name"] = JsonSerializer.SerializeToElement(input) }, DateTimeOffset.UtcNow);
+        var plan = SqlAnalyticsQueryBuilder.Build(entity, storage,
+            new(resolved, [], [new(AggregateFunction.Count, null, "value")], [], 1));
+        Assert.DoesNotContain(input, plan.Sql);
+        Assert.Contains(plan.Parameters, parameter => Equals(parameter.Value, input));
+        Assert.Contains("COUNT_BIG(*)", plan.Sql);
+    }
+
+    [Theory]
     [InlineData(DateBucket.Day,"CONVERT(DATE")]
     [InlineData(DateBucket.Week,"DATEDIFF(DAY")]
     [InlineData(DateBucket.Month,"DATEFROMPARTS")]

@@ -11,15 +11,57 @@ public sealed class MetricService(IControlPlaneStore controlPlane,IEntityMetadat
 {
     private static readonly JsonSerializerOptions JsonOptions=new(){Converters={new JsonStringEnumConverter()}};
     public async Task<MetricDefinition> CreateAsync(Guid tenantId,Guid entityId,string name,string? description,AggregateFunction aggregate,Guid? fieldId,Domain.Queries.FilterGroup? filter,string? formatJson,Guid? userId,CancellationToken token)
-    {ValidateName(name);var s=await RequireEntityAsync(tenantId,entityId,token);ValidateFormat(formatJson);var q=Query(aggregate,fieldId,filter);validator.Validate(entityId,q,await fields.ListAsync(tenantId,entityId,s,token));var now=timeProvider.GetUtcNow();var m=new MetricDefinition(Guid.NewGuid(),entityId,name.Trim(),description?.Trim(),aggregate,fieldId,filter is null?null:JsonSerializer.Serialize(filter,JsonOptions),formatJson,userId,now,now);return await metrics.CreateAsync(tenantId,m,s,token);}
+    {ValidateName(name);var s=await RequireEntityAsync(tenantId,entityId,token);ValidateFormat(formatJson);var q=Query(aggregate,fieldId,filter);ValidateQuery(entityId,q,await fields.ListAsync(tenantId,entityId,s,token));var now=timeProvider.GetUtcNow();var m=new MetricDefinition(Guid.NewGuid(),entityId,name.Trim(),description?.Trim(),aggregate,fieldId,filter is null?null:JsonSerializer.Serialize(filter,JsonOptions),formatJson,userId,now,now);return await metrics.CreateAsync(tenantId,m,s,token);}
     public async Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId,Guid entityId,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);return await metrics.ListAsync(tenantId,entityId,s,token);}
     public async Task<MetricDefinition> GetAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);return await metrics.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Metric '{id}' was not found.");}
     public async Task<MetricDefinition> UpdateAsync(Guid tenantId,Guid entityId,Guid id,string name,string? description,AggregateFunction aggregate,Guid? fieldId,Domain.Queries.FilterGroup? filter,string? formatJson,CancellationToken token)
-    {ValidateName(name);ValidateFormat(formatJson);var s=await RequireEntityAsync(tenantId,entityId,token);validator.Validate(entityId,Query(aggregate,fieldId,filter),await fields.ListAsync(tenantId,entityId,s,token));var current=await metrics.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Metric '{id}' was not found.");var updated=current with{Name=name.Trim(),Description=description?.Trim(),Aggregate=aggregate,FieldId=fieldId,FilterJson=filter is null?null:JsonSerializer.Serialize(filter,JsonOptions),FormatJson=formatJson,UpdatedAt=timeProvider.GetUtcNow()};return await metrics.UpdateAsync(tenantId,updated,s,token)??throw new NotFoundException($"Metric '{id}' was not found.");}
+    {ValidateName(name);ValidateFormat(formatJson);var s=await RequireEntityAsync(tenantId,entityId,token);ValidateQuery(entityId,Query(aggregate,fieldId,filter),await fields.ListAsync(tenantId,entityId,s,token));var current=await metrics.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Metric '{id}' was not found.");var updated=current with{Name=name.Trim(),Description=description?.Trim(),Aggregate=aggregate,FieldId=fieldId,FilterJson=filter is null?null:JsonSerializer.Serialize(filter,JsonOptions),FormatJson=formatJson,UpdatedAt=timeProvider.GetUtcNow()};return await metrics.UpdateAsync(tenantId,updated,s,token)??throw new NotFoundException($"Metric '{id}' was not found.");}
     public async Task DeleteAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);if(!await metrics.DeleteAsync(tenantId,entityId,id,s,token))throw new ConflictException($"Metric '{id}' was not found or is referenced by an alert.");}
-    public async Task<(object? Value,DateTimeOffset EvaluatedAt)> EvaluateAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){using var activity=AnalyticsTelemetry.Source.StartActivity("metric.evaluate");activity?.SetTag("tenant.id",tenantId);activity?.SetTag("entity.id",entityId);activity?.SetTag("metric.id",id);var m=await GetAsync(tenantId,entityId,id,token);var result=await analytics.ExecuteAsync(tenantId,entityId,Query(m.Aggregate,m.FieldId,DeserializeFilter(m.FilterJson)),token);return(result.Rows.SingleOrDefault()?.GetValueOrDefault("value"),result.GeneratedAt);}
-    public Task<AnalyticsResult> PreviewAsync(Guid tenantId,Guid entityId,AggregateFunction aggregate,Guid? fieldId,Domain.Queries.FilterGroup? filter,CancellationToken token)=>analytics.ExecuteAsync(tenantId,entityId,Query(aggregate,fieldId,filter),token);
+    public async Task<(object? Value, DateTimeOffset EvaluatedAt)> EvaluateAsync(Guid tenantId, Guid entityId, Guid id,
+        CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        using var activity = AnalyticsTelemetry.Source.StartActivity("metric.evaluate");
+        activity?.SetTag("tenant.id", tenantId); activity?.SetTag("entity.id", entityId); activity?.SetTag("metric.id", id);
+        var metric = await GetAsync(tenantId, entityId, id, token);
+        var result = await PreviewAsync(tenantId, entityId, metric.Aggregate, metric.FieldId, DeserializeFilter(metric.FilterJson), token, parameters);
+        return (result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt);
+    }
+    public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid entityId, AggregateFunction aggregate, Guid? fieldId,
+        Domain.Queries.FilterGroup? filter, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        var storage = await RequireEntityAsync(tenantId, entityId, token);
+        var definitions = await fields.ListAsync(tenantId, entityId, storage, token);
+        var resolved = MetricFilterParameters.Resolve(filter, definitions, parameters, timeProvider.GetUtcNow());
+        return await analytics.ExecuteAsync(tenantId, entityId, Query(aggregate, fieldId, resolved), token);
+    }
+    public async Task<(Domain.Entities.EntityDefinition Entity, AnalyticsQuery Query)> PrepareQueryAsync(
+        Guid tenantId, Guid entityId, Guid id, CancellationToken token,
+        IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        var metric = await GetAsync(tenantId, entityId, id, token);
+        return await PrepareQueryAsync(tenantId, entityId, metric.Aggregate, metric.FieldId,
+            DeserializeFilter(metric.FilterJson), token, parameters);
+    }
+    public async Task<(Domain.Entities.EntityDefinition Entity, AnalyticsQuery Query)> PrepareQueryAsync(
+        Guid tenantId, Guid entityId, AggregateFunction aggregate, Guid? fieldId,
+        Domain.Queries.FilterGroup? filter, CancellationToken token,
+        IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        var storage = await RequireEntityAsync(tenantId, entityId, token);
+        var entity = await entities.GetAsync(tenantId, entityId, storage, token)
+            ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        var definitions = await fields.ListAsync(tenantId, entityId, storage, token);
+        var resolved = MetricFilterParameters.Resolve(filter, definitions, parameters, timeProvider.GetUtcNow(), allowUnbound: true);
+        var query = Query(aggregate, fieldId, resolved);
+        validator.Validate(entityId, query, definitions);
+        return (entity with { Fields = definitions }, query);
+    }
     public static Domain.Queries.FilterGroup? DeserializeFilter(string? json)=>json is null?null:JsonSerializer.Deserialize<Domain.Queries.FilterGroup>(json,JsonOptions);
+    private void ValidateQuery(Guid entityId, AnalyticsQuery query, IReadOnlyList<Domain.Entities.FieldDefinition> definitions)
+    {
+        validator.Validate(entityId, query, definitions);
+        MetricFilterParameters.Resolve(query.Filter, definitions, null, timeProvider.GetUtcNow(), validateOnly: true);
+    }
     private static AnalyticsQuery Query(AggregateFunction aggregate,Guid? fieldId,Domain.Queries.FilterGroup? filter)=>new(filter,[],[new AnalyticsMeasure(aggregate,fieldId,"value")],[],1);
     private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId,Guid entityId,CancellationToken token){var s=await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId,token);_=await entities.GetAsync(tenantId,entityId,s,token)??throw new NotFoundException($"Entity '{entityId}' was not found.");return s;}
     private static void ValidateName(string n){if(n.Trim().Length is <1 or >200)throw new ValidationException("Metric name must contain between 1 and 200 characters.");}

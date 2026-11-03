@@ -27,13 +27,13 @@ public static class RecordQueryFactory
         return new RecordQuery(request.PageSize, request.Cursor, filter, sort);
     }
 
-    public static FilterGroup? CreateFilter(FilterNodeRequest? request, IReadOnlyList<FieldDefinition> fields)
+    public static FilterGroup? CreateFilter(FilterNodeRequest? request, IReadOnlyList<FieldDefinition> fields, bool allowMetricParameters = false)
     {
         if (request is null) return null;
-        return ParseGroup(request, fields.Where(static field => field.IsActive).ToDictionary(field => field.Id), 0);
+        return ParseGroup(request, fields.Where(static field => field.IsActive).ToDictionary(field => field.Id), 0, allowMetricParameters);
     }
 
-    private static FilterGroup ParseGroup(FilterNodeRequest request, IReadOnlyDictionary<Guid, FieldDefinition> fields, int depth)
+    private static FilterGroup ParseGroup(FilterNodeRequest request, IReadOnlyDictionary<Guid, FieldDefinition> fields, int depth, bool allowMetricParameters = false)
     {
         if (depth > 10) throw new ValidationException("Filter nesting cannot exceed 10 levels.");
         if (request.Logic is null || request.Conditions is null)
@@ -42,11 +42,11 @@ public static class RecordQueryFactory
             throw new ValidationException("A filter group cannot contain more than 50 conditions.");
         return new FilterGroup(request.Logic.Value, request.Conditions.Select(condition => (FilterNode)(
             condition.Conditions is not null || condition.Logic is not null
-                ? ParseGroup(condition, fields, depth + 1)
-                : ParseCondition(condition, fields))).ToArray());
+                ? ParseGroup(condition, fields, depth + 1, allowMetricParameters)
+                : ParseCondition(condition, fields, allowMetricParameters))).ToArray());
     }
 
-    private static FilterCondition ParseCondition(FilterNodeRequest request, IReadOnlyDictionary<Guid, FieldDefinition> fields)
+    private static FilterCondition ParseCondition(FilterNodeRequest request, IReadOnlyDictionary<Guid, FieldDefinition> fields, bool allowMetricParameters)
     {
         if (request.FieldId is null || request.Operator is null)
             throw new ValidationException("A filter condition requires fieldId and operator.");
@@ -67,7 +67,9 @@ public static class RecordQueryFactory
         {
             var values = request.Operator is FilterOperator.In or FilterOperator.NotIn or FilterOperator.Between
                 ? value.EnumerateArray().ToArray() : [value];
-            if (values.Any(item => !IsValidValue(field.DataType, item)))
+            if (allowMetricParameters)
+                foreach (var item in values) DynamicEntity.Application.Metrics.MetricFilterParameters.ValidateValue(item, field.DataType, true);
+            else if (values.Any(item => !IsValidValue(field.DataType, item)))
                 throw new ValidationException($"Filter value is invalid for field '{field.DisplayName}'.");
         }
         return new FilterCondition(field.Id, request.Operator.Value, value.Clone());

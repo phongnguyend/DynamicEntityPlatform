@@ -1,4 +1,4 @@
-import { memo, startTransition, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, memo, startTransition, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { Field } from '../types'
 import { FolderPlus, Funnel, Trash2 } from 'lucide-react'
 
@@ -6,8 +6,9 @@ type FilterLogic = 'And' | 'Or'
 type FilterCondition = { fieldId: string; operator: string; value?: unknown }
 type FilterNode = FilterCondition | FilterGroup
 type FilterGroup = { logic: FilterLogic; conditions: FilterNode[] }
+const RuntimeParametersContext = createContext(false)
 
-export function AnalyticsFilterEditor({ fields, value, onChange }: { fields: Field[]; value?: unknown; onChange: (value?: FilterGroup) => void }) {
+export function AnalyticsFilterEditor({ fields, value, onChange, allowRuntimeParameters = false }: { fields: Field[]; value?: unknown; onChange: (value?: FilterGroup) => void; allowRuntimeParameters?: boolean }) {
   const filterableFields = useMemo(() => fields.filter(field => field.isFilterable), [fields])
   const [group, setGroup] = useState<FilterGroup | undefined>(() => isGroup(value) ? value : undefined)
   const previousValue = useRef(value)
@@ -39,7 +40,9 @@ export function AnalyticsFilterEditor({ fields, value, onChange }: { fields: Fie
         <button type="button" className="secondary" disabled={!filterableFields.length} onClick={startGroup}><FolderPlus />Add group</button></>}
     </div></div>
     {!group && <p className="empty">No filters. All records are included.</p>}
-    {group && <FlatFilterTree fields={filterableFields} root={group} onChange={changeGroup} />}
+    <RuntimeParametersContext.Provider value={allowRuntimeParameters}>
+      {group && <FlatFilterTree fields={filterableFields} root={group} onChange={changeGroup} />}
+    </RuntimeParametersContext.Provider>
   </div>
 }
 
@@ -144,6 +147,7 @@ function FilterConditionEditor({ fields, condition, label, onChange, onRemove }:
   const field = fields.find(item => item.id === condition.fieldId)
   const operators = operatorsFor(field)
   const hasValue = condition.operator !== 'IsNull' && condition.operator !== 'IsNotNull'
+  const runtimeEnabled = useContext(RuntimeParametersContext)
 
   function changeField(fieldId: string) {
     const nextField = fields.find(item => item.id === fieldId)
@@ -154,15 +158,39 @@ function FilterConditionEditor({ fields, condition, label, onChange, onRemove }:
     onChange({ ...condition, operator, value: operator === 'IsNull' || operator === 'IsNotNull' ? undefined : condition.value ?? defaultValue(field) })
   }
 
-  return <div className="analytics-filter-row">
-    <select aria-label={`${label} field`} value={condition.fieldId} onChange={event => changeField(event.target.value)}><FieldOptions fields={fields} /></select>
-    <select aria-label={`${label} operator`} value={condition.operator} onChange={event => changeOperator(event.target.value)}>{operators.map(operator => <option key={operator}>{operator}</option>)}</select>
-    {hasValue ? <FilterValue field={field} value={condition.value} onChange={value => onChange({ ...condition, value })} /> : <span className="filter-no-value">No value</span>}
+  return <div className={`analytics-filter-row${runtimeEnabled ? ' metric-filter-condition' : ''}`}>
+    <label className="filter-control">{runtimeEnabled && <span>Field</span>}<select aria-label={`${label} field`} value={condition.fieldId} onChange={event => changeField(event.target.value)}><FieldOptions fields={fields} /></select></label>
+    <label className="filter-control">{runtimeEnabled && <span>Comparison</span>}<select aria-label={`${label} operator`} value={condition.operator} onChange={event => changeOperator(event.target.value)}>{operators.map(operator => <option key={operator} value={operator}>{operator.replace(/([a-z])([A-Z])/g, '$1 $2')}</option>)}</select></label>
+    <div className="filter-comparison-value">{hasValue ? <FilterValue field={field} value={condition.value} onChange={value => onChange({ ...condition, value })} /> : <span className="filter-no-value">No comparison value needed</span>}</div>
     <button type="button" className="link danger icon-only" aria-label={`Remove ${label}`} title="Remove filter" onClick={onRemove}><Trash2 /></button>
   </div>
 }
 
 function FilterValue({ field, value, onChange }: { field?: Field; value: unknown; onChange: (value: unknown) => void }) {
+  const allowRuntimeParameters = useContext(RuntimeParametersContext)
+  const hintId = useId()
+  if (!allowRuntimeParameters) return <LiteralFilterValue field={field} value={value} onChange={onChange} />
+  const reference = value && typeof value === 'object' && !Array.isArray(value) ? value as { parameter?: string; system?: string } : undefined
+  const source = reference?.parameter !== undefined ? 'parameter' : reference?.system ?? 'fixed'
+  const invalidName = source === 'parameter' && Boolean(reference?.parameter) && !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(reference!.parameter!)
+  return <div className="metric-filter-value">
+    <label className="filter-control"><span>Compare with</span><select aria-label={`${field?.displayName ?? 'Filter'} value source`} value={source} onChange={event => {
+      const source = event.target.value
+      onChange(source === 'fixed' ? defaultValue(field) : source === 'parameter' ? { parameter: '' } : { system: source })
+    }}><option value="fixed">Fixed value</option><option value="parameter">Parameter</option>
+      {(field?.dataType === 'Date' || field?.dataType === 'DateTime') && <option value="today">Today (UTC)</option>}
+      {field?.dataType === 'DateTime' && <option value="now">Current time (UTC)</option>}
+    </select></label>
+    {source === 'fixed' ? <label className="filter-control"><span>Value</span><LiteralFilterValue field={field} value={value} onChange={onChange} /></label> : source === 'parameter' ?
+      <label className="filter-control"><span>Parameter name</span><input aria-label={`${field?.displayName ?? 'Filter'} parameter name`} aria-describedby={hintId} aria-invalid={invalidName} placeholder="e.g. customerId" autoComplete="off" spellCheck={false} maxLength={64} value={reference?.parameter ?? ''} onChange={event => onChange({ ...reference, parameter: event.target.value })} /></label> : null}
+    {source !== 'fixed' && <p id={hintId} className={`metric-filter-hint${invalidName ? ' invalid' : ''}`}>
+      {source === 'parameter' ? invalidName ? 'Start with a letter. Use only letters, numbers, and underscores.' : 'You’ll supply this value when evaluating the metric.'
+        : source === 'today' ? 'Uses today’s date at midnight UTC on each evaluation.' : 'Uses the current UTC time on each evaluation.'}
+    </p>}
+  </div>
+}
+
+function LiteralFilterValue({ field, value, onChange }: { field?: Field; value: unknown; onChange: (value: unknown) => void }) {
   if (field?.dataType === 'Boolean') return <select aria-label={`${field.displayName} value`} value={String(value ?? false)} onChange={event => onChange(event.target.value === 'true')}><option value="true">True</option><option value="false">False</option></select>
   const inputType = field?.dataType === 'Date' ? 'date' : field?.dataType === 'DateTime' ? 'datetime-local' : field?.dataType === 'Integer' || field?.dataType === 'Decimal' ? 'number' : 'text'
   return <input aria-label={`${field?.displayName ?? 'Filter'} value`} type={inputType} step={field?.dataType === 'Integer' ? '1' : field?.dataType === 'Decimal' ? 'any' : undefined} value={String(value ?? '')} onChange={event => onChange(field?.dataType === 'Integer' || field?.dataType === 'Decimal' ? Number(event.target.value) : event.target.value)} />

@@ -129,6 +129,42 @@ Use **Remove index** beside an indexed field to drop its SQL index and computed 
 - Delete archives entity metadata; it does not immediately drop physical tables.
 - Import files may be `.csv` or `.xlsx`; multi-choice cells use semicolon-delimited values.
 
+## Metric runtime parameters
+
+Metric filter values support fixed literals, named runtime inputs, and server-generated
+`today`/`now` values. Choose the value source in the metric filter editor. Refreshing a
+metric with named parameters opens a popup asking for values, including on dashboard
+cards. Text is preserved exactly as entered; numeric and boolean inputs are converted
+according to the filtered field's type. No JSON quoting is needed. Values are resolved
+on every evaluation without changing the saved filter.
+
+Use **View SQL** in the add/edit metric form to inspect generated SQL and bound
+parameters for the current form, including unsaved changes, without saving or executing
+the metric. Runtime parameter values are optional: the query appears immediately,
+with missing values marked as unbound (or their defaults applied). Expand **Parameter
+values (optional)** and select **Update SQL preview** to supply values. Automatic `today`/`now` values resolve when
+the preview is generated.
+
+In a filter condition, use `"value": { "parameter": "minimum" }` for a required input,
+or `"value": { "parameter": "minimum", "defaultValue": 0 }` for an optional input.
+Defaults can be configured through **Edit JSON**. Names are case-sensitive and must
+start with a letter, followed by letters, numbers or underscores (up to 64 characters).
+Supply inputs to `POST /api/entities/{entityId}/metrics/{metricId}/evaluate`:
+
+```json
+{ "parameters": { "minimum": 100 } }
+```
+
+The preview endpoint accepts the same `parameters` object alongside the metric definition.
+Values must match the filtered field type; missing required or invalid values return HTTP 400.
+Existing evaluation calls without a request body remain supported.
+
+Use `"value": { "system": "today" }` for the UTC date (or UTC midnight for a date-time
+field), or `"value": { "system": "now" }` for the current UTC timestamp on a date-time
+field. Nested filters and individual bounds of `Between`/`In` arrays support references.
+Scheduled alerts resolve automatic values and saved defaults; they cannot supply interactive
+inputs, so required parameters without defaults cause an evaluation error.
+
 ## Production integration points
 
 `AllowAllEntityAuthorizationService` is deliberately a development policy. Replace

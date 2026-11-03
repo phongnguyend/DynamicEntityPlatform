@@ -8,12 +8,12 @@ namespace DynamicEntity.SqlServer.Queries;
 public static class SqlFilterExpression
 {
     public static string Build(FilterGroup group, IReadOnlyDictionary<Guid, FieldDefinition> fields,
-        List<SqlQueryParameter> parameters)
+        List<SqlQueryParameter> parameters, bool allowUnbound = false)
     {
         var parts = group.Conditions.Select(node => node switch
         {
-            FilterGroup nested => Build(nested, fields, parameters),
-            FilterCondition condition => BuildCondition(condition, fields[condition.FieldId], parameters),
+            FilterGroup nested => Build(nested, fields, parameters, allowUnbound),
+            FilterCondition condition => BuildCondition(condition, fields[condition.FieldId], parameters, allowUnbound),
             _ => throw new InvalidOperationException("Unknown filter node.")
         }).ToArray();
         if (parts.Length == 0) return group.Logic == FilterLogic.And ? "1 = 1" : "1 = 0";
@@ -21,14 +21,20 @@ public static class SqlFilterExpression
     }
 
     private static string BuildCondition(FilterCondition condition, FieldDefinition field,
-        List<SqlQueryParameter> parameters)
+        List<SqlQueryParameter> parameters, bool allowUnbound)
     {
         var expression = SqlFieldExpression.ForValue(field);
+        bool IsUnbound(JsonElement value) => allowUnbound && value.ValueKind == JsonValueKind.Object && value.TryGetProperty("parameter", out _);
+        object Value(JsonElement value) => IsUnbound(value)
+            ? new { parameter = value.GetProperty("parameter").GetString(), dataType = field.DataType.ToString(), unbound = true, @operator = condition.Operator.ToString() }
+            : Scalar(value, field.DataType);
         if (field.DataType == FieldDataType.MultiChoice && condition.Operator == FilterOperator.Contains)
         {
-            var parameter = Add(parameters, Scalar(condition.Value, field.DataType));
+            var parameter = Add(parameters, Value(condition.Value));
             return $"EXISTS (SELECT 1 FROM OPENJSON(Data, '$.{field.StorageKey}') AS j WHERE j.[value] = {parameter})";
         }
+        if (IsUnbound(condition.Value) && condition.Operator is FilterOperator.Contains or FilterOperator.StartsWith or FilterOperator.EndsWith)
+            return $"{expression} LIKE {Add(parameters, Value(condition.Value))} ESCAPE '\\'";
         return condition.Operator switch
         {
             FilterOperator.IsNull => $"{expression} IS NULL",
@@ -48,18 +54,18 @@ public static class SqlFilterExpression
             _ => throw new InvalidOperationException($"Unsupported operator '{condition.Operator}'.")
         };
 
-        string Binary(string operation, JsonElement value) => $"{expression} {operation} {Add(parameters, Scalar(value, field.DataType))}";
+        string Binary(string operation, JsonElement value) => $"{expression} {operation} {Add(parameters, Value(value))}";
         string Like(string pattern) => $"{expression} LIKE {Add(parameters, pattern)} ESCAPE '\\'";
         string In(bool negate)
         {
-            var items = condition.Value.EnumerateArray().Select(value => Add(parameters, Scalar(value, field.DataType))).ToArray();
+            var items = condition.Value.EnumerateArray().Select(value => Add(parameters, Value(value))).ToArray();
             if (items.Length == 0) return negate ? "1 = 1" : "1 = 0";
             return $"{expression} {(negate ? "NOT IN" : "IN")} ({string.Join(", ", items)})";
         }
         string Between()
         {
             var values = condition.Value.EnumerateArray().ToArray();
-            return $"{expression} BETWEEN {Add(parameters, Scalar(values[0], field.DataType))} AND {Add(parameters, Scalar(values[1], field.DataType))}";
+            return $"{expression} BETWEEN {Add(parameters, Value(values[0]))} AND {Add(parameters, Value(values[1]))}";
         }
     }
 

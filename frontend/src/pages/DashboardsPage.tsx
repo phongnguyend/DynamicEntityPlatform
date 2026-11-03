@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, BarChart3, Braces, Check, Copy, GripVertical, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { Responsive, useContainerWidth, verticalCompactor, type ResponsiveLayouts } from 'react-grid-layout'
@@ -9,6 +10,7 @@ import { api } from '../api'
 import { DashboardEditor } from '../components/DashboardEditor'
 import { Modal } from '../components/Modal'
 import { ReportViewer } from '../components/ReportViewer'
+import { MetricParametersForm, metricParameterNames } from '../components/MetricParametersForm'
 import type { Dashboard, DashboardDefinition, DashboardGridBreakpoint as GridBreakpoint, DashboardItem, Entity, Metric, Report } from '../types'
 
 const breakpoints: Record<GridBreakpoint, number> = { lg: 1200, md: 900, sm: 640, xs: 420, xxs: 0 }
@@ -184,9 +186,31 @@ function ReportCard({ tenantId, report }: { tenantId: string; report: Report }) 
 }
 
 function MetricCard({ tenantId, metric }: { tenantId: string; metric: Metric }) {
-  const result = useQuery({ queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id], queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id) })
-  return <div className="dashboard-card-body metric-dashboard-card">{result.error ? <p className="error">{result.error.message}</p> : <><strong>{result.isLoading ? '—' : formatMetric(result.data?.value, metric)}</strong><span>{result.data ? `Updated ${new Date(result.data.evaluatedAt).toLocaleTimeString()}` : `${metric.aggregate} metric`}</span></>}
-    <button className="link dashboard-refresh" onClick={() => result.refetch()} disabled={result.isFetching}><RefreshCw />Refresh</button></div>
+  const names = metricParameterNames(metric.filter)
+  const [parametersOpen, setParametersOpen] = useState(false)
+  const automatic = useQuery({ queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id, metric.updatedAt],
+    queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id), enabled: !names.length })
+  const evaluation = useMutation({
+    mutationFn: (parameters: Record<string, unknown>) => api.evaluateMetric(tenantId, metric.entityId, metric.id, parameters),
+    onSuccess: () => setParametersOpen(false),
+  })
+  const data = names.length ? evaluation.data : automatic.data
+  const error = names.length ? evaluation.error : automatic.error
+  const busy = names.length ? evaluation.isPending : automatic.isFetching
+  return <div className="dashboard-card-body metric-dashboard-card">
+    <strong>{data ? formatMetric(data.value, metric) : '—'}</strong>
+    <span>{data ? `Updated ${new Date(data.evaluatedAt).toLocaleTimeString()}` : names.length ? 'Run this metric to enter parameter values.' : `${metric.aggregate} metric`}</span>
+    {error && !parametersOpen && <p className="error">{error.message}</p>}
+    <button className="link dashboard-refresh" disabled={busy} onClick={() => {
+      if (names.length) setParametersOpen(true)
+      else void automatic.refetch()
+    }}><RefreshCw />{data ? 'Refresh' : 'Run metric'}</button>
+    {parametersOpen && createPortal(<Modal title={`Run ${metric.name}`} onClose={() => setParametersOpen(false)}>
+      <MetricParametersForm names={names} busy={busy} onCancel={() => setParametersOpen(false)}
+        onEvaluate={parameters => evaluation.mutate(parameters)} />
+      {evaluation.error && <p className="error" role="alert">{evaluation.error.message}</p>}
+    </Modal>, document.body)}
+  </div>
 }
 
 function formatMetric(value: unknown, metric: Metric) {

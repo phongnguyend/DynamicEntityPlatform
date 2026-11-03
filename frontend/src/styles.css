@@ -416,6 +416,17 @@
   .analytics-filter-row { @apply grid min-w-0 max-w-full grid-cols-[repeat(3,minmax(0,1fr))_auto] items-center gap-2; }
   .analytics-filter-row select, .analytics-filter-row input { @apply w-full min-w-0 rounded-[7px] border border-input-border bg-input p-[.48rem] text-ink; }
   .filter-no-value { @apply min-w-0 text-[.82rem] italic text-muted; }
+  .filter-control { @apply grid min-w-0 gap-1.5; }
+  .filter-control > span { @apply text-xs font-semibold text-muted; }
+  .filter-comparison-value { @apply min-w-0; }
+  .analytics-filter-row.metric-filter-condition { @apply grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto] items-start gap-2; }
+  .metric-filter-condition > .link { @apply mt-6; }
+  .metric-filter-condition > .filter-comparison-value:has(.filter-no-value) { @apply pt-7; }
+  .metric-filter-value { @apply grid min-w-0 grid-cols-2 items-start gap-2; }
+  .metric-filter-value > .filter-control:only-child { @apply col-span-full; }
+  .metric-filter-hint { @apply sr-only; }
+  .metric-filter-hint.invalid { @apply not-sr-only col-span-full m-0 text-xs leading-relaxed text-danger; }
+  .metric-filter-value input[aria-invalid=true] { @apply border-danger; }
 }
 
 @media (max-width: 900px) {
@@ -436,4 +447,10 @@
   .flat-filter-group.nested, .flat-filter-item { @apply ml-1!; }
   .analytics-filter-row { @apply grid-cols-1; }
   .analytics-filter-row .link { @apply justify-self-start; }
+}
+
+@container (max-width: 400px) {
+  .analytics-filter-row.metric-filter-condition { @apply grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]; }
+  .metric-filter-condition > .filter-comparison-value { @apply col-span-2 row-start-2; }
+  .metric-filter-condition > .link { @apply col-start-3 row-start-1; }
 }
