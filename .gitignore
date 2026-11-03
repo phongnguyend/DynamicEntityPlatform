@@ -2,6 +2,7 @@
 **/obj/
 .vs/
 .vscode/
+.playwright-mcp/
 *.user
 *.suo
 appsettings.Local.json

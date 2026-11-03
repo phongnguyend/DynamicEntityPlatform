@@ -94,7 +94,7 @@ CI runs the same integration test against a disposable SQL Server service.
 Terminal 1:
 
 ```powershell
-dotnet run --project backend/DynamicEntity.Api --urls http://localhost:5000
+dotnet run --project backend/DynamicEntity.Api --urls http://localhost:5261
 ```
 
 Terminal 2:
