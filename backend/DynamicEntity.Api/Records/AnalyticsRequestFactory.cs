@@ -6,7 +6,7 @@ namespace DynamicEntity.Api.Records;
 
 public static class AnalyticsRequestFactory
 {
-    public static AnalyticsQuery Create(AnalyticsPreviewRequest request, IReadOnlyList<FieldDefinition> fields) => new(
-        RecordQueryFactory.CreateFilter(request.Filter, fields),
+    public static AnalyticsQuery Create(AnalyticsPreviewRequest request, IReadOnlyList<FieldDefinition> fields, bool allowRuntimeParameters = false) => new(
+        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: allowRuntimeParameters),
         request.Dimensions ?? [], request.Measures ?? [], request.Sort ?? [], request.Limit);
 }

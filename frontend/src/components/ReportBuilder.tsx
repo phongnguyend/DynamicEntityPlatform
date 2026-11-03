@@ -4,6 +4,9 @@ import { ArrowDown, ArrowUp, Braces, Plus, RefreshCw, Save, Trash2 } from 'lucid
 import { api } from '../api'
 import type { AggregateFunction, AnalyticsDimension, AnalyticsMeasure, AnalyticsQuery, AnalyticsSort, Field, Report, VisualizationType } from '../types'
 import { ReportViewer } from './ReportViewer'
+import { Modal } from './Modal'
+import { MetricParametersForm, metricParameterNames } from './MetricParametersForm'
+import { SqlPreviewButton } from './SqlPreviewButton'
 import { AnalyticsFilterEditor } from './AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from './JsonEditorModal'
 
@@ -17,17 +20,19 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
   const [visualization, setVisualization] = useState<VisualizationType>(report?.visualization ?? 'Table')
   const [limit, setLimit] = useState(report?.query.limit ?? 100)
   const [jsonOpen, setJsonOpen] = useState(false)
+  const [parametersOpen, setParametersOpen] = useState(false)
   const [previewStale, setPreviewStale] = useState(false)
   const previewAbort = useRef<AbortController>(undefined)
+  useEffect(() => () => previewAbort.current?.abort(), [])
   const query = useMemo<AnalyticsQuery>(() => ({ filter, dimensions, measures, sort, limit }), [filter, dimensions, measures, sort, limit])
-  const preview = useMutation({ mutationFn: ({ nextQuery, signal }: { nextQuery: AnalyticsQuery; signal: AbortSignal }) =>
-    api.previewAnalytics(tenantId, entityId, nextQuery, signal), onSuccess: () => setPreviewStale(false) })
+  const preview = useMutation({ mutationFn: ({ nextQuery, signal, parameters }: { nextQuery: AnalyticsQuery; signal: AbortSignal; parameters?: Record<string, unknown> }) =>
+    api.previewReport(tenantId, entityId, nextQuery, parameters, signal), onSuccess: () => { setPreviewStale(false); setParametersOpen(false) } })
   const save = useMutation({ mutationFn: () => api.saveReport(tenantId, entityId, { name, description, query, visualization }, report?.id), onSuccess: onSaved })
-  function refreshPreview(nextQuery: AnalyticsQuery) {
+  function refreshPreview(nextQuery: AnalyticsQuery, parameters?: Record<string, unknown>) {
     previewAbort.current?.abort()
     const controller = new AbortController()
     previewAbort.current = controller
-    preview.mutate({ nextQuery, signal: controller.signal })
+    preview.mutate({ nextQuery, signal: controller.signal, parameters })
   }
   function changeFilter(nextFilter?: unknown) {
     previewAbort.current?.abort()
@@ -35,9 +40,10 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
     setPreviewStale(true)
   }
   useEffect(() => {
+    if (metricParameterNames(query.filter).length) { setPreviewStale(true); return }
     const handle = window.setTimeout(() => refreshPreview(query), 600)
     return () => { window.clearTimeout(handle); previewAbort.current?.abort() }
-  }, [dimensions, measures, sort, limit]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dimensions, measures, sort, limit, filter]) // eslint-disable-line react-hooks/exhaustive-deps
   const numeric = fields.filter(field => field.dataType === 'Integer' || field.dataType === 'Decimal')
   const outputAliases = useMemo(() => [...dimensions, ...measures].map(item => item.alias), [dimensions, measures])
   useEffect(() => setSort(current => {
@@ -72,7 +78,7 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
       {measures.map((measure, index) => <div className="builder-row" draggable key={index} onDragStart={event => event.dataTransfer.setData('measure-index',String(index))} onDragOver={event => event.preventDefault()} onDrop={event => setMeasures(reorder(measures,Number(event.dataTransfer.getData('measure-index')),index))}><select value={measure.aggregate} onChange={event => { const aggregate = event.target.value as AggregateFunction; setMeasures(measures.map((item, i) => i === index ? { ...item, aggregate, fieldId: aggregate === 'Count' ? undefined : item.fieldId ?? numeric[0]?.id } : item)) }}><option>Count</option><option>CountDistinct</option><option>Sum</option><option>Average</option><option>Min</option><option>Max</option></select>
         <select disabled={measure.aggregate === 'Count'} value={measure.fieldId ?? ''} onChange={event => setMeasures(measures.map((item, i) => i === index ? { ...item, fieldId: event.target.value || undefined } : item))}><option value="">No field</option>{fields.map(field => <option value={field.id} key={field.id}>{field.displayName}</option>)}</select>
         <button className="link danger icon-only" aria-label="Remove measure" title="Remove" disabled={measures.length === 1} onClick={() => setMeasures(measures.filter((_, i) => i !== index))}><Trash2 /></button></div>)}</div>
-    <AnalyticsFilterEditor fields={fields} value={filter} onChange={changeFilter} />
+    <AnalyticsFilterEditor allowRuntimeParameters fields={fields} value={filter} onChange={changeFilter} />
     <div className="builder-section"><div className="panel-header"><h3>Sorting</h3><button type="button" className="secondary" disabled={!outputAliases.some(alias => !sort.some(item => item.alias === alias))} onClick={addSort}><Plus />Add sort</button></div>
       {sort.length === 0 && <p className="empty">Default order</p>}
       {sort.map((sortItem, index) => <div className="builder-row sort-row" key={`${sortItem.alias}-${index}`}>
@@ -90,8 +96,13 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
     <label className="field">Row limit<input type="number" min="1" max="1000" value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
     {(visiblePreviewError(preview.error) || save.error) && <p className="error">{(visiblePreviewError(preview.error) ?? save.error)?.message}</p>}
     </div>
-    <div className="panel-footer"><button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save report'}</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button><button className="secondary" onClick={() => refreshPreview(query)}><RefreshCw />Refresh preview</button></div>
+    <div className="panel-footer report-actions"><button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}><Save />{save.isPending ? 'Saving…' : 'Save report'}</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button><SqlPreviewButton name={name} filter={filter} load={parameters => api.reportSql(tenantId, entityId, query, parameters)} /><button className="secondary" title="Refresh report preview" onClick={() => { preview.reset(); if (metricParameterNames(filter).length) setParametersOpen(true); else refreshPreview(query) }}><RefreshCw />Preview</button></div>
   </div><div className="panel preview-panel"><div className="panel-header"><h3>Preview</h3></div><div className="panel-body">{previewStale && <p className="warning">Filters changed. Refresh the preview to apply them.</p>}{preview.isPending && <p className="empty">Calculating…</p>}{preview.data && <ReportViewer result={preview.data} visualization={visualization} />}</div></div>
+    {parametersOpen && <Modal title="Run report" onClose={() => setParametersOpen(false)}>
+      <MetricParametersForm names={metricParameterNames(filter)} busy={preview.isPending} submitLabel="Run report"
+        onCancel={() => setParametersOpen(false)} onEvaluate={parameters => refreshPreview(query, parameters)} />
+      {visiblePreviewError(preview.error) && <p className="error" role="alert">{preview.error?.message}</p>}
+    </Modal>}
     {jsonOpen && <JsonEditorModal title={`${report ? 'Edit' : 'Create'} report as JSON`} value={{ name, description, query, visualization, visualizationConfiguration: report?.visualizationConfiguration }} onClose={() => setJsonOpen(false)} onSave={saveJson} />}
   </div>
 }

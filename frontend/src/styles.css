@@ -234,6 +234,12 @@
   .index-column-controls select { @apply rounded-[7px] border border-input-border bg-white p-[.48rem] text-ink; }
 
   .report-builder { @apply grid grid-cols-[minmax(300px,.8fr)_minmax(420px,1.4fr)] items-start gap-4; }
+  .report-builder > .panel:first-child { container: report-editor / inline-size; }
+  .report-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-actions > button { min-width: 0; justify-content: center; padding-inline: .65rem; white-space: nowrap; }
+  @container report-editor (min-width: 520px) {
+    .report-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
   .builder-controls, .json-editor, .view-editor, .column-settings { @apply grid gap-4; }
   .builder-section { @apply rounded-[10px] border border-border bg-white p-4; }
   .builder-section > .panel-header { @apply mb-3 pb-[.7rem]; }

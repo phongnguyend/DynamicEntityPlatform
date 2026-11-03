@@ -129,18 +129,18 @@ Use **Remove index** beside an indexed field to drop its SQL index and computed 
 - Delete archives entity metadata; it does not immediately drop physical tables.
 - Import files may be `.csv` or `.xlsx`; multi-choice cells use semicolon-delimited values.
 
-## Metric runtime parameters
+## Report and metric runtime parameters
 
-Metric filter values support fixed literals, named runtime inputs, and server-generated
-`today`/`now` values. Choose the value source in the metric filter editor. Refreshing a
-metric with named parameters opens a popup asking for values, including on dashboard
+Report and metric filter values support fixed literals, named runtime inputs, and server-generated
+`today`/`now` values. Choose the value source in the report or metric filter editor. Running a
+report or metric with named parameters opens a popup asking for values, including on dashboard
 cards. Text is preserved exactly as entered; numeric and boolean inputs are converted
 according to the filtered field's type. No JSON quoting is needed. Values are resolved
 on every evaluation without changing the saved filter.
 
-Use **View SQL** in the add/edit metric form to inspect generated SQL and bound
+Use **View SQL** in the report builder or add/edit metric form to inspect generated SQL and bound
 parameters for the current form, including unsaved changes, without saving or executing
-the metric. Runtime parameter values are optional: the query appears immediately,
+the report or metric. Runtime parameter values are optional: the query appears immediately,
 with missing values marked as unbound (or their defaults applied). Expand **Parameter
 values (optional)** and select **Update SQL preview** to supply values. Automatic `today`/`now` values resolve when
 the preview is generated.
@@ -158,6 +158,12 @@ Supply inputs to `POST /api/entities/{entityId}/metrics/{metricId}/evaluate`:
 The preview endpoint accepts the same `parameters` object alongside the metric definition.
 Values must match the filtered field type; missing required or invalid values return HTTP 400.
 Existing evaluation calls without a request body remain supported.
+
+Reports accept the same body at `POST /api/entities/{entityId}/reports/{reportId}/run`
+and `POST /api/entities/{entityId}/reports/{reportId}/export`. The report list prompts
+for values before CSV export. Report preview and SQL preview accept `parameters`
+alongside the analytics query at `POST /api/entities/{entityId}/reports/preview`
+and `POST /api/entities/{entityId}/reports/sql`, respectively.
 
 Use `"value": { "system": "today" }` for the UTC date (or UTC midnight for a date-time
 field), or `"value": { "system": "now" }` for the current UTC timestamp on a date-time

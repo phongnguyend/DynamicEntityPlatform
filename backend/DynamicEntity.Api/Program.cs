@@ -390,14 +390,36 @@ entities.MapPost("/{entityId:guid}/reports/preview", async (Guid entityId, Analy
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
     return Results.Ok(ToAnalyticsResponse(await service.PreviewAsync(
-        tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields), token)));
+        tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields, allowRuntimeParameters: true), token, request.Parameters)));
+});
+entities.MapPost("/{entityId:guid}/reports/sql", async (Guid entityId, AnalyticsPreviewRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service,
+    IEntityStorageResolver storageResolver, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    var prepared = await service.PrepareQueryAsync(tenant.TenantId, entityId,
+        AnalyticsRequestFactory.Create(request, fields, allowRuntimeParameters: true), token, request.Parameters, allowUnbound: true);
+    var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
+    var plan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+});
+entities.MapPost("/{entityId:guid}/reports/{reportId:guid}/export", async (Guid entityId, Guid reportId,
+    RunReportRequest? request, ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    var result = await service.RunAsync(tenant.TenantId, entityId, reportId, token, request?.Parameters);
+    var csv = new StringBuilder(); csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(column.Label))));
+    foreach (var row in result.Rows) csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(
+        row.TryGetValue(column.Key, out var value) ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) : null))));
+    return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"report-{reportId:D}.csv");
 });
 entities.MapPost("/{entityId:guid}/reports", async (Guid entityId, SaveReportRequest request,
     ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service, CancellationToken token) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
-    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields),
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields, allowRuntimeParameters: true),
         request.Visualization, request.VisualizationConfiguration?.GetRawText());
     var report = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
         specification, null, token);
@@ -409,7 +431,7 @@ entities.MapPatch("/{entityId:guid}/reports/{reportId:guid}", async (Guid entity
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
-    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields),
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields, allowRuntimeParameters: true),
         request.Visualization, request.VisualizationConfiguration?.GetRawText());
     return Results.Ok(ToReportResponse(await service.UpdateAsync(tenant.TenantId, entityId, reportId,
         request.Name, request.Description, specification, token)));
@@ -422,10 +444,10 @@ entities.MapDelete("/{entityId:guid}/reports/{reportId:guid}", async (Guid entit
     return Results.NoContent();
 });
 entities.MapPost("/{entityId:guid}/reports/{reportId:guid}/run", async (Guid entityId, Guid reportId,
-    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+    RunReportRequest? request, ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
-    return Results.Ok(ToAnalyticsResponse(await service.RunAsync(tenant.TenantId, entityId, reportId, token)));
+    return Results.Ok(ToAnalyticsResponse(await service.RunAsync(tenant.TenantId, entityId, reportId, token, request?.Parameters)));
 });
 entities.MapGet("/{entityId:guid}/reports/{reportId:guid}/export", async (Guid entityId, Guid reportId,
     ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>

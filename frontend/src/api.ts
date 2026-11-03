@@ -95,14 +95,18 @@ export const api = {
   },
   previewAnalytics: (tenantId: string, entityId: string, query: AnalyticsQuery, signal?: AbortSignal) =>
     request<AnalyticsResult>(`/api/entities/${entityId}/analytics/preview`, { method: 'POST', body: JSON.stringify(query), signal }, tenantId),
+  previewReport: (tenantId: string, entityId: string, query: AnalyticsQuery, parameters?: Record<string, unknown>, signal?: AbortSignal) =>
+    request<AnalyticsResult>(`/api/entities/${entityId}/reports/preview`, { method: 'POST', body: JSON.stringify({ ...query, parameters }), signal }, tenantId),
+  reportSql: (tenantId: string, entityId: string, query: AnalyticsQuery, parameters?: Record<string, unknown>) =>
+    request<{ sql: string; parameters: { name: string; value: unknown }[] }>(`/api/entities/${entityId}/reports/sql`, { method: 'POST', body: JSON.stringify({ ...query, parameters }) }, tenantId),
   reports: (tenantId: string, entityId: string) => request<Report[]>(`/api/entities/${entityId}/reports`, {}, tenantId),
   report: (tenantId: string, entityId: string, reportId: string) => request<Report>(`/api/entities/${entityId}/reports/${reportId}`, {}, tenantId),
   saveReport: (tenantId: string, entityId: string, input: Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, reportId?: string) =>
     request<Report>(`/api/entities/${entityId}/reports${reportId ? `/${reportId}` : ''}`, { method: reportId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
   deleteReport: (tenantId: string, entityId: string, reportId: string) => request<void>(`/api/entities/${entityId}/reports/${reportId}`, { method: 'DELETE' }, tenantId),
-  runReport: (tenantId: string, entityId: string, reportId: string) => request<AnalyticsResult>(`/api/entities/${entityId}/reports/${reportId}/run`, { method: 'POST' }, tenantId),
-  exportReport: async (tenantId: string, entityId: string, reportId: string) => {
-    const response = await fetch(`${baseUrl}/api/entities/${entityId}/reports/${reportId}/export`, { headers: { 'X-Tenant-Id': tenantId } })
+  runReport: (tenantId: string, entityId: string, reportId: string, parameters?: Record<string, unknown>) => request<AnalyticsResult>(`/api/entities/${entityId}/reports/${reportId}/run`, { method: 'POST', body: JSON.stringify({ parameters }) }, tenantId),
+  exportReport: async (tenantId: string, entityId: string, reportId: string, parameters?: Record<string, unknown>) => {
+    const response = await fetch(`${baseUrl}/api/entities/${entityId}/reports/${reportId}/export`, { method: 'POST', headers: { 'X-Tenant-Id': tenantId, 'Content-Type': 'application/json' }, body: JSON.stringify({ parameters }) })
     if (!response.ok) throw new Error('Report export failed.'); return response.blob()
   },
   metrics: (tenantId: string, entityId: string) => request<Metric[]>(`/api/entities/${entityId}/metrics`, {}, tenantId),

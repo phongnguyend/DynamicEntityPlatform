@@ -11,6 +11,8 @@ public sealed record SaveReportRequest(
     VisualizationType Visualization = VisualizationType.Table,
     JsonElement? VisualizationConfiguration = null);
 
+public sealed record RunReportRequest(IReadOnlyDictionary<string, JsonElement>? Parameters = null);
+
 public sealed record ReportResponse(
     Guid Id, Guid EntityId, string Name, string? Description,
     AnalyticsPreviewRequest Query, VisualizationType Visualization,

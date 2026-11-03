@@ -180,9 +180,30 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
 }
 
 function ReportCard({ tenantId, report }: { tenantId: string; report: Report }) {
-  const result = useQuery({ queryKey: ['dashboard-report', tenantId, report.entityId, report.id], queryFn: () => api.runReport(tenantId, report.entityId, report.id) })
-  return <div className="dashboard-card-body">{result.isLoading ? <p className="empty">Running report…</p> : result.error ? <p className="error">{result.error.message}</p> : result.data ? <ReportViewer result={result.data} visualization={report.visualization} /> : null}
-    <button className="link dashboard-refresh" onClick={() => result.refetch()} disabled={result.isFetching}><RefreshCw />Refresh</button></div>
+  const names = metricParameterNames(report.query.filter)
+  const [parametersOpen, setParametersOpen] = useState(false)
+  const automatic = useQuery({ queryKey: ['dashboard-report', tenantId, report.entityId, report.id, report.updatedAt],
+    queryFn: () => api.runReport(tenantId, report.entityId, report.id), enabled: !names.length })
+  const run = useMutation({
+    mutationFn: (parameters: Record<string, unknown>) => api.runReport(tenantId, report.entityId, report.id, parameters),
+    onSuccess: () => setParametersOpen(false),
+  })
+  const data = names.length ? run.data : automatic.data
+  const error = names.length ? run.error : automatic.error
+  const busy = names.length ? run.isPending : automatic.isFetching
+  return <div className="dashboard-card-body">
+    {data ? <ReportViewer result={data} visualization={report.visualization} /> : <p className="empty">{busy ? 'Running report…' : 'Run this report to enter parameter values.'}</p>}
+    {error && !parametersOpen && <p className="error">{error.message}</p>}
+    <button className="link dashboard-refresh" disabled={busy} onClick={() => {
+      if (names.length) { run.reset(); setParametersOpen(true) }
+      else void automatic.refetch()
+    }}><RefreshCw />{data ? 'Refresh' : 'Run report'}</button>
+    {parametersOpen && createPortal(<Modal title={`Run ${report.name}`} onClose={() => setParametersOpen(false)}>
+      <MetricParametersForm names={names} busy={busy} submitLabel="Run report"
+        onCancel={() => setParametersOpen(false)} onEvaluate={parameters => run.mutate(parameters)} />
+      {run.error && <p className="error" role="alert">{run.error.message}</p>}
+    </Modal>, document.body)}
+  </div>
 }
 
 function MetricCard({ tenantId, metric }: { tenantId: string; metric: Metric }) {
