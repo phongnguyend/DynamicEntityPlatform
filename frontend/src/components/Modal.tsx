@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import './Modal.css'
 import { X } from 'lucide-react'
 
 export function Modal({ title, onClose, wide, children }: { title: string; onClose: () => void; wide?: boolean; children: ReactNode }) {

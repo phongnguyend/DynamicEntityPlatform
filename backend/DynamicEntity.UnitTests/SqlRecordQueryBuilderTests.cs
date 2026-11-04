@@ -9,6 +9,27 @@ namespace DynamicEntity.UnitTests;
 public sealed class SqlRecordQueryBuilderTests
 {
     [Fact]
+    public void VirtualQueryProjectsLogicalColumnsAndUsesThemForSortAndMultiChoiceFilter()
+    {
+        var field = Field("Tags", FieldDataType.MultiChoice) with { Name = "tags" };
+        var entity = Entity(field) with { Name = "customers" };
+        var filter = new FilterGroup(FilterLogic.And, [new FilterGroup(FilterLogic.Or,
+            [new FilterCondition(field.Id, FilterOperator.Contains, Json("\"vip\""))])]);
+        var query = new RecordQuery(20, Filter: filter, Sort: [new(field.Id, SortDirection.Asc)]);
+        var logical = SqlRecordQueryBuilder.Build(entity, Storage(entity), query, virtualNames: true);
+        var physical = SqlRecordQueryBuilder.Build(entity, Storage(entity), query);
+        Assert.Contains("SELECT Id, [tags], CreatedAt", logical.Sql);
+        Assert.Contains("FROM [customers]", logical.Sql);
+        Assert.Contains("OPENJSON([tags])", logical.Sql);
+        Assert.Contains("ORDER BY [tags] ASC", logical.Sql);
+        Assert.DoesNotContain(field.StorageKey, logical.Sql);
+        Assert.Contains(field.StorageKey, physical.Sql);
+        Assert.Contains("SELECT Id, Data,", physical.Sql);
+        Assert.Contains(logical.Parameters, p => Equals(p.Value, "vip"));
+        Assert.Contains(logical.Parameters, p => p.Name == "@take" && Equals(p.Value, 21));
+    }
+
+    [Fact]
     public void Build_ProducesNestedParameterizedTypedFilter()
     {
         var amount = Field("amount", FieldDataType.Decimal);

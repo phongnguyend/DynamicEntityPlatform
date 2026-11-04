@@ -131,6 +131,12 @@ Use **Remove index** beside an indexed field to drop its SQL index and computed 
 
 ## View SQL preview
 
+All SQL previews (views, reports, and metrics) offer **Virtual names** and **Database
+names**. Virtual SQL uses the entity and field machine names as a logical table and
+columns; it is for understanding the query, not direct database execution. Database SQL
+shows the actual physical table, JSON paths, computed index columns, and storage
+predicates. Each representation displays its matching parameters.
+
 Use **View SQL** in the views list to inspect a saved view's record query, or in view
 details to inspect the current definition, including unsaved filter and sort changes.
 The popup shows SQL and bound parameters without executing the query. Column visibility

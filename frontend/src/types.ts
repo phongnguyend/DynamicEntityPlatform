@@ -54,3 +54,9 @@ export interface AlertHistory { evaluations: AlertEvaluation[]; notifications: A
 export type WebhookEvent = 'RecordCreated' | 'RecordUpdated' | 'RecordDeleted'
 export interface WebhookSubscription { id: string; entityId: string; name: string; endpoint: string; events: WebhookEvent[]; isEnabled: boolean; createdAt: string; updatedAt: string }
 import type { ResponsiveLayouts } from 'react-grid-layout'
+export interface SqlPreview {
+  sql: string
+  parameters: { name: string; value: unknown }[]
+  virtualSql: string
+  virtualParameters: { name: string; value: unknown }[]
+}

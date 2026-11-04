@@ -12,47 +12,47 @@ public sealed record SqlAnalyticsQueryPlan(
 
 public static class SqlAnalyticsQueryBuilder
 {
-    public static SqlAnalyticsQueryPlan Build(EntityDefinition entity, EntityStorageLocation storage, AnalyticsQuery query, bool allowUnbound = false)
+    public static SqlAnalyticsQueryPlan Build(EntityDefinition entity, EntityStorageLocation storage, AnalyticsQuery query, bool allowUnbound = false, bool virtualNames = false)
     {
         var fields = entity.Fields.ToDictionary(field => field.Id);
         var parameters = new List<SqlQueryParameter> { new("@take", query.Limit + 1) };
         var dimensions = query.Dimensions.Select(dimension =>
         {
             var field = fields[dimension.FieldId];
-            return (dimension, field, expression: Bucket(SqlFieldExpression.ForValue(field), dimension.DateBucket));
+            return (dimension, field, expression: Bucket(SqlFieldExpression.ForValue(field, virtualNames), dimension.DateBucket));
         }).ToArray();
         var measures = query.Measures.Select(measure =>
         {
             var field = measure.FieldId is Guid id ? fields[id] : null;
-            return (measure, field, expression: Measure(measure, field));
+            return (measure, field, expression: Measure(measure, field, virtualNames));
         }).ToArray();
 
         var select = dimensions.Select(item => $"{item.expression} AS {QuoteAlias(item.dimension.Alias)}")
             .Concat(measures.Select(item => $"{item.expression} AS {QuoteAlias(item.measure.Alias)}"));
         var where = new List<string>();
-        if (storage.RequiresEntityPredicate)
+        if (storage.RequiresEntityPredicate && !virtualNames)
         {
             where.Add("EntityId = @entityId");
             parameters.Add(new("@entityId", entity.Id));
         }
         if (query.Filter is { Conditions.Count: > 0 })
-            where.Add(SqlFilterExpression.Build(query.Filter, fields, parameters, allowUnbound));
+            where.Add(SqlFilterExpression.Build(query.Filter, fields, parameters, allowUnbound, virtualNames));
 
         var whereSql = where.Count == 0 ? string.Empty : $" WHERE {string.Join(" AND ", where)}";
         var groupSql = dimensions.Length == 0 ? string.Empty :
             $" GROUP BY {string.Join(", ", dimensions.Select(item => item.expression))}";
         var orderSql = query.Sort.Count == 0 ? string.Empty :
             $" ORDER BY {string.Join(", ", query.Sort.Select(sort => $"{QuoteAlias(sort.Alias)} {(sort.Direction == Domain.Queries.SortDirection.Asc ? "ASC" : "DESC")}"))}";
-        var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
-        var sql = $"SELECT TOP (@take) {string.Join(", ", select)} FROM dbo.{table}{whereSql}{groupSql}{orderSql};";
+        var table = virtualNames ? PhysicalName.QuoteSqlIdentifier(entity.Name) : $"dbo.{PhysicalName.QuoteSqlIdentifier(storage.TableName)}";
+        var sql = $"SELECT TOP (@take) {string.Join(", ", select)} FROM {table}{whereSql}{groupSql}{orderSql};";
         var columns = dimensions.Select(item => (item.dimension.Alias, (FieldDataType?)item.field.DataType, AnalyticsColumnRole.Dimension))
             .Concat(measures.Select(item => (item.measure.Alias, item.field?.DataType, AnalyticsColumnRole.Measure))).ToArray();
         return new(sql, parameters, columns);
     }
 
-    private static string Measure(AnalyticsMeasure measure, FieldDefinition? field)
+    private static string Measure(AnalyticsMeasure measure, FieldDefinition? field, bool virtualNames)
     {
-        var expression = field is null ? null : SqlFieldExpression.ForValue(field);
+        var expression = field is null ? null : SqlFieldExpression.ForValue(field, virtualNames);
         return measure.Aggregate switch
         {
             AggregateFunction.Count => expression is null ? "COUNT_BIG(*)" : $"COUNT_BIG({expression})",

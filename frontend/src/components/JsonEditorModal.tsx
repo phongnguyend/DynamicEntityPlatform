@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
+import { HighlightedCode } from './HighlightedCode'
 import { Save, X } from 'lucide-react'
 
 export function JsonEditorModal({ title, value, onClose, onSave }: {
@@ -39,9 +40,7 @@ export function JsonEditorModal({ title, value, onClose, onSave }: {
   return <Modal title={title} onClose={onClose}>
     <div className="json-editor">
       <p className="field-note">Edit the persisted definition payload. Server-side validation still applies.</p>
-      <label className="field">JSON
-        <textarea value={json} onChange={event => setJson(event.target.value)} spellCheck={false} />
-      </label>
+      <HighlightedCode label="JSON" language="json" value={json} onChange={setJson} disabled={saving} />
       {error && <p className="error">{error}</p>}
       <div className="modal-footer">
         <button type="button" disabled={saving} onClick={save}><Save />{saving ? 'Saving…' : 'Save JSON'}</button>

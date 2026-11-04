@@ -1,4 +1,4 @@
-import type { Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, Dashboard, DashboardDefinition, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant, WebhookSubscription } from './types'
+import type { SqlPreview, Alert, AlertHistory, AnalyticsQuery, AnalyticsResult, Dashboard, DashboardDefinition, DynamicRecord, Entity, EntityIndex, Field, FieldDataType, ImportJob, ImportPreview, Metric, MetricEvaluation, RecordPage, Report, SavedView, Tenant, WebhookSubscription } from './types'
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ''
 
@@ -62,7 +62,7 @@ export const api = {
     request<void>(`/api/entities/${entityId}/records/${record.id}`,
       { method: 'DELETE', headers: { 'If-Match': record.version } }, tenantId),
   viewSql: (tenantId: string, entityId: string, query: Record<string, unknown>) =>
-    request<{ sql: string; parameters: { name: string; value: unknown }[] }>(`/api/entities/${entityId}/query/sql`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
+    request<SqlPreview>(`/api/entities/${entityId}/query/sql`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
   query: (tenantId: string, entityId: string, query: Record<string, unknown>) =>
     request<RecordPage>(`/api/entities/${entityId}/query`, { method: 'POST', body: JSON.stringify(query) }, tenantId),
   facets: (tenantId: string, entityId: string, fieldId: string) =>
@@ -100,7 +100,7 @@ export const api = {
   previewReport: (tenantId: string, entityId: string, query: AnalyticsQuery, parameters?: Record<string, unknown>, signal?: AbortSignal) =>
     request<AnalyticsResult>(`/api/entities/${entityId}/reports/preview`, { method: 'POST', body: JSON.stringify({ ...query, parameters }), signal }, tenantId),
   reportSql: (tenantId: string, entityId: string, query: AnalyticsQuery, parameters?: Record<string, unknown>) =>
-    request<{ sql: string; parameters: { name: string; value: unknown }[] }>(`/api/entities/${entityId}/reports/sql`, { method: 'POST', body: JSON.stringify({ ...query, parameters }) }, tenantId),
+    request<SqlPreview>(`/api/entities/${entityId}/reports/sql`, { method: 'POST', body: JSON.stringify({ ...query, parameters }) }, tenantId),
   reports: (tenantId: string, entityId: string) => request<Report[]>(`/api/entities/${entityId}/reports`, {}, tenantId),
   report: (tenantId: string, entityId: string, reportId: string) => request<Report>(`/api/entities/${entityId}/reports/${reportId}`, {}, tenantId),
   saveReport: (tenantId: string, entityId: string, input: Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, reportId?: string) =>
@@ -114,7 +114,7 @@ export const api = {
   metrics: (tenantId: string, entityId: string) => request<Metric[]>(`/api/entities/${entityId}/metrics`, {}, tenantId),
   saveMetric: (tenantId: string, entityId: string, input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, metricId?: string) =>
     request<Metric>(`/api/entities/${entityId}/metrics${metricId ? `/${metricId}` : ''}`, { method: metricId ? 'PATCH' : 'POST', body: JSON.stringify(input) }, tenantId),
-  metricSql: (tenantId: string, entityId: string, input: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter'>, parameters?: Record<string, unknown>) => request<{ sql: string; parameters: { name: string; value: unknown }[] }>(`/api/entities/${entityId}/metrics/sql`, { method: 'POST', body: JSON.stringify({ ...input, parameters }) }, tenantId),
+  metricSql: (tenantId: string, entityId: string, input: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter'>, parameters?: Record<string, unknown>) => request<SqlPreview>(`/api/entities/${entityId}/metrics/sql`, { method: 'POST', body: JSON.stringify({ ...input, parameters }) }, tenantId),
   evaluateMetric: (tenantId: string, entityId: string, metricId: string, parameters?: Record<string, unknown>) => request<MetricEvaluation>(`/api/entities/${entityId}/metrics/${metricId}/evaluate`, { method: 'POST', body: parameters ? JSON.stringify({ parameters }) : undefined }, tenantId),
   previewMetric: (tenantId: string, entityId: string, input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, parameters?: Record<string, unknown>) => request<MetricEvaluation>(`/api/entities/${entityId}/metrics/preview`, { method: 'POST', body: JSON.stringify({ ...input, parameters }) }, tenantId),
   deleteMetric: (tenantId: string, entityId: string, metricId: string) => request<void>(`/api/entities/${entityId}/metrics/${metricId}`, { method: 'DELETE' }, tenantId),

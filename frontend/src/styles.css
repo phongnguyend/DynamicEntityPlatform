@@ -85,20 +85,20 @@
      read it to bleed their divider to the surface edge, so a shared component such as EntityDesigner
      lands correctly whether it renders inside a panel, a modal, or a nested card. */
   .panel { --surface-pad: 1.25rem; }
-  .modal { --surface-pad: 1.5rem; }
+
   .builder-section, .history { --surface-pad: 1rem; }
 
-  .panel-header, .modal-header { @apply mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3; }
-  .panel-footer, .modal-footer { @apply flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4; }
-  .panel-header, .modal-header, .panel-footer, .modal-footer {
+  .panel-header { @apply mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3; }
+  .panel-footer { @apply flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4; }
+  .panel-header, .panel-footer {
     margin-inline: calc(var(--surface-pad, 0rem) * -1); padding-inline: var(--surface-pad, 0rem);
   }
-  .panel-header h3, .modal-header h3, .panel-header h4 { @apply m-0; }
+  .panel-header h3, .panel-header h4 { @apply m-0; }
   .panel-header span { @apply text-muted; }
   .panel-header > .actions { @apply items-center; }
-  .panel-body, .modal-body { @apply min-w-0; }
+  .panel-body { @apply min-w-0; }
   /* Grid bodies already space their children; plain containers need room above the footer rule. */
-  .panel > .panel-footer, .index-creator > .modal-footer { @apply mt-4; }
+  .panel > .panel-footer { @apply mt-4; }
   .designer > .panel-header { @apply mb-0; }
   .dynamic-form, .designer { @apply grid gap-[.9rem]; }
 
@@ -225,10 +225,8 @@
   .tabs .tab { @apply bg-transparent; }
   .tabs a.active, .tabs .tab.active { @apply bg-primary-soft text-primary; }
   .form-page { @apply max-w-[560px]; }
-  .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center bg-sidebar/45 p-6; }
-  .modal { @apply max-h-[85vh] w-[min(560px,100%)] overflow-auto rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
-  .modal.wide { @apply w-[min(720px,100%)]; }
-  .modal .actions { @apply justify-end; }
+
+
   .index-column-order { @apply mt-4 grid gap-[.6rem]; }
   .index-column-controls { @apply flex items-center gap-[.35rem]; }
   .index-column-controls select { @apply rounded-[7px] border border-input-border bg-white p-[.48rem] text-ink; }
@@ -264,7 +262,7 @@
   .metric-card-header > small { @apply min-w-0 truncate text-muted; }
   .metric-card-icons { @apply -mr-1 -mt-1 flex shrink-0; }
   .metric-card-actions { @apply justify-end; }
-  .page .modal:has(.metric-expanded-card) { @apply w-[min(960px,100%)]; }
+
   .metric-expanded-card { @apply grid min-h-[min(520px,68vh)] min-w-0 place-items-center content-center gap-5 overflow-hidden rounded-[12px] bg-[linear-gradient(145deg,#f5faf6,#edf4ef)] px-[clamp(1rem,5vw,4rem)] py-10 text-center; container-type: inline-size; }
   .metric-expanded-card > strong { @apply max-w-full text-[clamp(3rem,11cqw,7rem)] leading-[1.05] tracking-[-.045em] text-primary; overflow-wrap: anywhere; }
   .metric-expanded-card > strong.long { @apply text-[clamp(2.25rem,8cqw,5rem)]; }
@@ -272,8 +270,7 @@
   .metric-expanded-card > span { @apply text-muted; }
   .dashboard-intro { @apply mb-0 text-muted; }
   .dashboard-delete { @apply text-danger; }
-  .dashboard-page .modal { @apply w-[min(680px,100%)]; }
-  .dashboard-page .modal:has(.dashboard-card-expanded) { @apply w-[min(1100px,100%)]; }
+
   .dashboard-library { @apply min-w-0; }
   .dashboard-library-summary { @apply flex justify-between rounded-lg bg-primary-soft px-3 py-2 text-sm text-[#365245]; }
   .dashboard-library-group h4 { @apply m-0; }
@@ -341,6 +338,7 @@
   .sort-row .order-actions { @apply justify-end; }
   .json-editor textarea, .view-editor textarea { @apply font-mono text-[.82rem] leading-normal whitespace-pre; tab-size: 2; }
   .json-editor textarea { @apply min-h-[420px]; }
+
   .view-editor textarea { @apply min-h-[260px]; }
   .view-records { @apply grid gap-3; }
   .view-records .record-count { @apply mt-0; }

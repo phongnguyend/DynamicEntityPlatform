@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { EntityTabs } from '../components/EntityTabs'
 import { Modal } from '../components/Modal'
+import { HighlightedCode } from '../components/HighlightedCode'
 import { ViewSqlButton } from '../components/ViewSqlButton'
 import { ViewColorDot, ViewColorPicker, getViewColor, withViewColor } from '../components/ViewColorPicker'
 import type { SavedView } from '../types'
@@ -87,7 +88,7 @@ function EditViewModal({ tenantId, entityId, view, onClose }: {
 function ViewJsonModal({ view, onClose }: { view: SavedView; onClose: () => void }) {
   return <Modal title={`${view.name} JSON`} onClose={onClose}>
     <div className="json-editor">
-      <label className="field">Definition<textarea readOnly value={JSON.stringify(view.definition, null, 2)} spellCheck={false} /></label>
+      <HighlightedCode label="Definition" language="json" value={JSON.stringify(view.definition, null, 2)} />
       <div className="modal-footer"><button type="button" className="secondary" onClick={onClose}><X />Close</button></div>
     </div>
   </Modal>

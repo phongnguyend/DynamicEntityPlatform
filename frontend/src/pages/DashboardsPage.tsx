@@ -9,6 +9,7 @@ import 'react-resizable/css/styles.css'
 import { api } from '../api'
 import { DashboardEditor } from '../components/DashboardEditor'
 import { Modal } from '../components/Modal'
+import { HighlightedCode } from '../components/HighlightedCode'
 import { ReportViewer } from '../components/ReportViewer'
 import { MetricParametersForm, metricParameterNames } from '../components/MetricParametersForm'
 import type { Dashboard, DashboardDefinition, DashboardGridBreakpoint as GridBreakpoint, DashboardItem, Entity, Metric, Report } from '../types'
@@ -162,7 +163,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
       })}
     </div></Modal>}
     {jsonOpen && <Modal title={`${dashboard.name} JSON`} onClose={() => setJsonOpen(false)}>
-      <div className="json-editor"><label className="field">Definition<textarea readOnly value={JSON.stringify(definition, null, 2)} spellCheck={false} /></label>
+      <div className="json-editor"><HighlightedCode label="Definition" language="json" value={JSON.stringify(definition, null, 2)} />
         <div className="modal-footer"><button type="button" onClick={async () => { await navigator.clipboard.writeText(JSON.stringify(definition, null, 2)); setJsonCopied(true) }}>{jsonCopied ? <><Check />Copied</> : <><Copy />Copy JSON</>}</button><button type="button" className="secondary" onClick={() => setJsonOpen(false)}><X />Close</button></div>
       </div>
     </Modal>}

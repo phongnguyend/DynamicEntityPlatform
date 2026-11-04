@@ -10,6 +10,32 @@ namespace DynamicEntity.UnitTests;
 public sealed class SqlAnalyticsQueryBuilderTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void VirtualNamesUseLogicalFieldsAcrossGroupingMeasuresAndFilters(bool indexed)
+    {
+        var (entity, field, storage) = Fixture(FieldDataType.Decimal);
+        field = field with { Name = "amount]total", IndexColumnName = indexed ? "IX_Amount" : null };
+        entity = entity with { Name = "orders]archive", Fields = [field] };
+        storage = storage with { RequiresEntityPredicate = true };
+        var filter = new FilterGroup(FilterLogic.And, [new FilterCondition(field.Id, FilterOperator.GreaterThan, JsonSerializer.SerializeToElement(42m))]);
+        var query = new AnalyticsQuery(filter, [new(field.Id, DateBucket.None, "amount")], [new(AggregateFunction.Sum, field.Id, "total")], [new("total", SortDirection.Desc)], 10);
+        var logical = SqlAnalyticsQueryBuilder.Build(entity, storage, query, virtualNames: true);
+        var physical = SqlAnalyticsQueryBuilder.Build(entity, storage, query);
+        Assert.Contains("FROM [orders]]archive]", logical.Sql);
+        Assert.Contains("SUM([amount]]total])", logical.Sql);
+        Assert.Contains("GROUP BY [amount]]total]", logical.Sql);
+        Assert.Contains("ORDER BY [total] DESC", logical.Sql);
+        Assert.DoesNotContain("JSON_VALUE", logical.Sql);
+        Assert.DoesNotContain("IX_Amount", logical.Sql);
+        Assert.DoesNotContain(logical.Parameters, p => p.Name == "@entityId");
+        Assert.Contains(physical.Parameters, p => p.Name == "@entityId");
+        Assert.Contains("dbo.[Records_Orders]", physical.Sql);
+        Assert.Contains(indexed ? "[IX_Amount]" : field.StorageKey, physical.Sql);
+        Assert.Contains(logical.Parameters, p => Equals(p.Value, 42m));
+    }
+
+    [Theory]
     [InlineData(FieldDataType.Integer, FilterOperator.Equal)]
     [InlineData(FieldDataType.Integer, FilterOperator.Between)]
     [InlineData(FieldDataType.Integer, FilterOperator.In)]

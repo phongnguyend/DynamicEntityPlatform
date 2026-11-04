@@ -8,12 +8,12 @@ namespace DynamicEntity.SqlServer.Queries;
 public static class SqlFilterExpression
 {
     public static string Build(FilterGroup group, IReadOnlyDictionary<Guid, FieldDefinition> fields,
-        List<SqlQueryParameter> parameters, bool allowUnbound = false)
+        List<SqlQueryParameter> parameters, bool allowUnbound = false, bool virtualNames = false)
     {
         var parts = group.Conditions.Select(node => node switch
         {
-            FilterGroup nested => Build(nested, fields, parameters, allowUnbound),
-            FilterCondition condition => BuildCondition(condition, fields[condition.FieldId], parameters, allowUnbound),
+            FilterGroup nested => Build(nested, fields, parameters, allowUnbound, virtualNames),
+            FilterCondition condition => BuildCondition(condition, fields[condition.FieldId], parameters, allowUnbound, virtualNames),
             _ => throw new InvalidOperationException("Unknown filter node.")
         }).ToArray();
         if (parts.Length == 0) return group.Logic == FilterLogic.And ? "1 = 1" : "1 = 0";
@@ -21,9 +21,9 @@ public static class SqlFilterExpression
     }
 
     private static string BuildCondition(FilterCondition condition, FieldDefinition field,
-        List<SqlQueryParameter> parameters, bool allowUnbound)
+        List<SqlQueryParameter> parameters, bool allowUnbound, bool virtualNames)
     {
-        var expression = SqlFieldExpression.ForValue(field);
+        var expression = SqlFieldExpression.ForValue(field, virtualNames);
         bool IsUnbound(JsonElement value) => allowUnbound && value.ValueKind == JsonValueKind.Object && value.TryGetProperty("parameter", out _);
         object Value(JsonElement value) => IsUnbound(value)
             ? new { parameter = value.GetProperty("parameter").GetString(), dataType = field.DataType.ToString(), unbound = true, @operator = condition.Operator.ToString() }
@@ -31,7 +31,8 @@ public static class SqlFilterExpression
         if (field.DataType == FieldDataType.MultiChoice && condition.Operator == FilterOperator.Contains)
         {
             var parameter = Add(parameters, Value(condition.Value));
-            return $"EXISTS (SELECT 1 FROM OPENJSON(Data, '$.{field.StorageKey}') AS j WHERE j.[value] = {parameter})";
+            var source = virtualNames ? expression : $"Data, '$.{field.StorageKey}'";
+            return $"EXISTS (SELECT 1 FROM OPENJSON({source}) AS j WHERE j.[value] = {parameter})";
         }
         if (IsUnbound(condition.Value) && condition.Operator is FilterOperator.Contains or FilterOperator.StartsWith or FilterOperator.EndsWith)
             return $"{expression} LIKE {Add(parameters, Value(condition.Value))} ESCAPE '\\'";

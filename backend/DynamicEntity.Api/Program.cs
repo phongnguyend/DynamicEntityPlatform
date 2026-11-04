@@ -402,7 +402,9 @@ entities.MapPost("/{entityId:guid}/reports/sql", async (Guid entityId, Analytics
         AnalyticsRequestFactory.Create(request, fields, allowRuntimeParameters: true), token, request.Parameters, allowUnbound: true);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
     var plan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true);
-    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+    var virtualPlan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true, virtualNames: true);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }),
+        VirtualSql = virtualPlan.Sql, VirtualParameters = virtualPlan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
 });
 entities.MapPost("/{entityId:guid}/reports/{reportId:guid}/export", async (Guid entityId, Guid reportId,
     RunReportRequest? request, ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
@@ -507,7 +509,9 @@ entities.MapPost("/{entityId:guid}/metrics/sql", async (Guid entityId, SaveMetri
         RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), token, request.Parameters);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
     var plan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true);
-    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+    var virtualPlan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true, virtualNames: true);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }),
+        VirtualSql = virtualPlan.Sql, VirtualParameters = virtualPlan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
 });
 entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/sql", async (Guid entityId, Guid metricId,
     EvaluateMetricRequest? request, ITenantContextAccessor tenantAccessor, MetricService service,
@@ -517,7 +521,9 @@ entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/sql", async (Guid ent
     var prepared = await service.PrepareQueryAsync(tenant.TenantId, entityId, metricId, token, request?.Parameters);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
     var plan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true);
-    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+    var virtualPlan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true, virtualNames: true);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }),
+        VirtualSql = virtualPlan.Sql, VirtualParameters = virtualPlan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
 });
 entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/evaluate", async (Guid entityId, Guid metricId,
     EvaluateMetricRequest? request, ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
@@ -662,7 +668,9 @@ entities.MapPost("/{entityId:guid}/query/sql", async (
     var query = RecordQueryFactory.Create(request, fields);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, cancellationToken);
     var plan = DynamicEntity.SqlServer.Queries.SqlRecordQueryBuilder.Build(entity with { Fields = fields }, storage, query);
-    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
+    var virtualPlan = DynamicEntity.SqlServer.Queries.SqlRecordQueryBuilder.Build(entity with { Fields = fields }, storage, query, virtualNames: true);
+    return Results.Ok(new { plan.Sql, Parameters = plan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }),
+        VirtualSql = virtualPlan.Sql, VirtualParameters = virtualPlan.Parameters.Select(parameter => new { parameter.Name, parameter.Value }) });
 });
 
 entities.MapPost("/{entityId:guid}/query", async (
