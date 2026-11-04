@@ -184,7 +184,7 @@ function FilterValue({ field, value, onChange }: { field?: Field; value: unknown
     {source === 'fixed' ? <label className="filter-control"><span>Value</span><LiteralFilterValue field={field} value={value} onChange={onChange} /></label> : source === 'parameter' ?
       <label className="filter-control"><span>Parameter name</span><input aria-label={`${field?.displayName ?? 'Filter'} parameter name`} aria-describedby={hintId} aria-invalid={invalidName} placeholder="e.g. customerId" autoComplete="off" spellCheck={false} maxLength={64} value={reference?.parameter ?? ''} onChange={event => onChange({ ...reference, parameter: event.target.value })} /></label> : null}
     {source !== 'fixed' && <p id={hintId} className={`metric-filter-hint${invalidName ? ' invalid' : ''}`}>
-      {source === 'parameter' ? invalidName ? 'Start with a letter. Use only letters, numbers, and underscores.' : 'You’ll supply this value when evaluating the metric.'
+      {source === 'parameter' ? invalidName ? 'Start with a letter. Use only letters, numbers, and underscores.' : 'You’ll supply this value when running the report or metric.'
         : source === 'today' ? 'Uses today’s date at midnight UTC on each evaluation.' : 'Uses the current UTC time on each evaluation.'}
     </p>}
   </div>

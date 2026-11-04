@@ -1,3 +1,4 @@
+import { RuntimeParametersBadge } from './RuntimeParametersBadge'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Braces, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
@@ -5,7 +6,7 @@ import { api } from '../api'
 import type { AggregateFunction, AnalyticsDimension, AnalyticsMeasure, AnalyticsQuery, AnalyticsSort, Field, Report, VisualizationType } from '../types'
 import { ReportViewer } from './ReportViewer'
 import { Modal } from './Modal'
-import { MetricParametersForm, metricParameterNames } from './MetricParametersForm'
+import { MetricParametersForm, metricParameterNames, hasRuntimeParameterReferences } from './MetricParametersForm'
 import { SqlPreviewButton } from './SqlPreviewButton'
 import { AnalyticsFilterEditor } from './AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from './JsonEditorModal'
@@ -36,11 +37,13 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
   }
   function changeFilter(nextFilter?: unknown) {
     previewAbort.current?.abort()
+    preview.reset()
+    save.reset()
     setFilter(nextFilter)
     setPreviewStale(true)
   }
   useEffect(() => {
-    if (metricParameterNames(query.filter).length) { setPreviewStale(true); return }
+    if (hasRuntimeParameterReferences(query.filter)) { setPreviewStale(true); return }
     const handle = window.setTimeout(() => refreshPreview(query), 600)
     return () => { window.clearTimeout(handle); previewAbort.current?.abort() }
   }, [dimensions, measures, sort, limit, filter]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -67,7 +70,7 @@ export function ReportBuilder({ tenantId, entityId, fields, report, onSaved }: {
     const saved = await api.saveReport(tenantId, entityId, input as unknown as Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>, report?.id)
     onSaved(saved)
   }
-  return <div className="report-builder"><div className="panel"><div className="panel-header"><h3>Report definition</h3></div><div className="panel-body builder-controls">
+  return <div className="report-builder"><div className="panel"><div className="panel-header"><h3>Report definition</h3><RuntimeParametersBadge filter={filter} /></div><div className="panel-body builder-controls">
     <label className="field">Name<input value={name} onChange={event => setName(event.target.value)} /></label>
     <label className="field">Description<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
     <div className="builder-section"><div className="panel-header"><h3>Dimensions</h3><button className="secondary" disabled={dimensions.length >= 2 || !fields.length} onClick={addDimension}><Plus />Add</button></div>

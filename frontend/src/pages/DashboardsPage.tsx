@@ -1,3 +1,4 @@
+import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -139,7 +140,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
           {definition.items.map(item => {
             const key = itemKey(item); const report = reports.find(value => value.id === item.id && value.entityId === item.entityId); const metric = metrics.find(value => value.id === item.id && value.entityId === item.entityId)
             return <article className="dashboard-card" key={key}>
-              <div className="dashboard-card-header"><span className="drag-handle" title="Drag to move card"><GripVertical /></span><div><small>{entityName(item.entityId)} · {item.kind}</small><h3>{report?.name ?? metric?.name ?? 'Unavailable card'}</h3></div><div className="dashboard-card-actions"><button className="link icon-only" title="Open larger view" aria-label="Open card in larger view" onClick={() => setExpandedKey(key)}><Maximize2 /></button><button className="link danger icon-only" title="Remove from dashboard" aria-label="Remove from dashboard" onClick={() => remove(key)}><Trash2 /></button></div></div>
+              <div className="dashboard-card-header"><span className="drag-handle" title="Drag to move card"><GripVertical /></span><div><small>{entityName(item.entityId)} · {item.kind}</small><h3>{report?.name ?? metric?.name ?? 'Unavailable card'}</h3><RuntimeParametersBadge filter={report?.query.filter ?? metric?.filter} /></div><div className="dashboard-card-actions"><button className="link icon-only" title="Open larger view" aria-label="Open card in larger view" onClick={() => setExpandedKey(key)}><Maximize2 /></button><button className="link danger icon-only" title="Remove from dashboard" aria-label="Remove from dashboard" onClick={() => remove(key)}><Trash2 /></button></div></div>
               {!available.has(key) && !loading ? <p className="empty">This saved item no longer exists.</p> : report ? <ReportCard tenantId={tenantId} report={report} /> : metric ? <MetricCard tenantId={tenantId} metric={metric} /> : <p className="empty">Loading card…</p>}
             </article>
           })}

@@ -1,12 +1,19 @@
 import { useState } from 'react'
 
-export function metricParameterNames(filter: unknown): string[] {
+// A newly added reference has an empty name, but still requires manual evaluation.
+export function hasRuntimeParameterReferences(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+  if (Array.isArray(value)) return value.some(hasRuntimeParameterReferences)
+  return Object.prototype.hasOwnProperty.call(value, 'parameter') || Object.values(value).some(hasRuntimeParameterReferences)
+}
+
+export function metricParameterNames(filter: unknown, requiredOnly = false): string[] {
   const names = new Set<string>()
   function visit(value: unknown) {
     if (!value || typeof value !== 'object') return
     if (Array.isArray(value)) { value.forEach(visit); return }
     const node = value as Record<string, unknown>
-    if (typeof node.parameter === 'string') names.add(node.parameter)
+    if (typeof node.parameter === 'string' && node.parameter.trim() && (!requiredOnly || !Object.prototype.hasOwnProperty.call(node, 'defaultValue'))) names.add(node.parameter)
     Object.values(node).forEach(visit)
   }
   visit(filter)
