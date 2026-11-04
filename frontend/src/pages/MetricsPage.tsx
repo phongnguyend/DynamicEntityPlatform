@@ -10,7 +10,7 @@ import type { AggregateFunction, Metric, MetricEvaluation, MetricFormat } from '
 import { useEntityContext } from './useEntityContext'
 import { AnalyticsFilterEditor } from '../components/AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from '../components/JsonEditorModal'
-import { MetricParametersForm, metricParameterNames } from '../components/MetricParametersForm'
+import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
 import { MetricSqlButton } from '../components/MetricSqlButton'
 
 export function MetricsPage({ tenantId }: { tenantId: string }) {
@@ -308,7 +308,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
       )}
       {parameterMetric && (
         <Modal title={`Evaluate ${parameterMetric.name}`} onClose={() => setParameterMetric(undefined)}>
-          <MetricParametersForm
+          <RuntimeParametersForm
             key={parameterMetric.id}
             names={metricParameterNames(parameterMetric.filter)}
             busy={evaluation.isPending}

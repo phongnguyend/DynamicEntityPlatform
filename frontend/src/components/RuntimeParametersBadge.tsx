@@ -1,5 +1,5 @@
 import { SlidersHorizontal } from 'lucide-react'
-import { metricParameterNames } from './MetricParametersForm'
+import { metricParameterNames } from './RuntimeParametersForm'
 import './RuntimeParametersBadge.css'
 
 export function RuntimeParametersBadge({ filter }: { filter: unknown }) {

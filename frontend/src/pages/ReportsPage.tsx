@@ -1,7 +1,7 @@
 import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useState } from 'react'
 import { Modal } from '../components/Modal'
-import { MetricParametersForm, metricParameterNames } from '../components/MetricParametersForm'
+import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
 import type { Report } from '../types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
@@ -111,7 +111,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
       {exportMutation.error && !exporting && <p className="error">{exportMutation.error.message}</p>}
       {exporting && (
         <Modal title={`Export ${exporting.name}`} onClose={() => setExporting(undefined)}>
-          <MetricParametersForm
+          <RuntimeParametersForm
             names={metricParameterNames(exporting.query.filter)}
             busy={exportMutation.isPending}
             submitLabel="Export CSV"

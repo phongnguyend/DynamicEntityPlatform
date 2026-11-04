@@ -15,7 +15,7 @@ import type {
 } from '../types'
 import { ReportViewer } from './ReportViewer'
 import { Modal } from './Modal'
-import { MetricParametersForm, metricParameterNames, hasRuntimeParameterReferences } from './MetricParametersForm'
+import { RuntimeParametersForm, metricParameterNames, hasRuntimeParameterReferences } from './RuntimeParametersForm'
 import { SqlPreviewButton } from './SqlPreviewButton'
 import { AnalyticsFilterEditor } from './AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from './JsonEditorModal'
@@ -453,7 +453,7 @@ export function ReportBuilder({
       </div>
       {parametersOpen && (
         <Modal title="Run report" onClose={() => setParametersOpen(false)}>
-          <MetricParametersForm
+          <RuntimeParametersForm
             names={metricParameterNames(filter)}
             busy={preview.isPending}
             submitLabel="Run report"

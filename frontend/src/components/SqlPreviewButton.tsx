@@ -6,7 +6,7 @@ import { Code } from 'lucide-react'
 import type { SqlPreview } from '../types'
 import { Modal } from './Modal'
 import { HighlightedCode } from './HighlightedCode'
-import { MetricParametersForm, metricParameterNames } from './MetricParametersForm'
+import { RuntimeParametersForm, metricParameterNames } from './RuntimeParametersForm'
 
 export function SqlPreviewButton({
   name,
@@ -51,7 +51,7 @@ export function SqlPreviewButton({
               {names.length > 0 && (
                 <details className="sql-preview-inputs">
                   <summary>Parameter values (optional)</summary>
-                  <MetricParametersForm
+                  <RuntimeParametersForm
                     names={names}
                     busy={preview.isPending}
                     optional

@@ -20,10 +20,11 @@ import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { api } from '../api'
 import { DashboardEditor } from '../components/DashboardEditor'
+import { DashboardParametersModal } from '../components/DashboardParametersModal'
 import { Modal } from '../components/Modal'
 import { HighlightedCode } from '../components/HighlightedCode'
 import { ReportViewer } from '../components/ReportViewer'
-import { MetricParametersForm, metricParameterNames } from '../components/MetricParametersForm'
+import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
 import type {
   Dashboard,
   DashboardDefinition,
@@ -93,6 +94,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   const [jsonOpen, setJsonOpen] = useState(false)
   const [expandedKey, setExpandedKey] = useState<string>()
   const [configureKey, setConfigureKey] = useState<string>()
+  const [parametersOpen, setParametersOpen] = useState(false)
   const dashboard = dashboardQuery.data
   const definition =
     draft?.dashboardId === dashboardId ? draft.definition : (dashboard?.definition ?? { items: [], layouts: {} })
@@ -166,13 +168,13 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
         return current
       }
       const items = [...current.items, item]
-      return { items, layouts: fitLayouts(items, current.layouts) }
+      return { ...current, items, layouts: fitLayouts(items, current.layouts) }
     })
   }
   function remove(key: string) {
     updateDashboard((current) => {
       const items = current.items.filter((item) => itemKey(item) !== key)
-      return { items, layouts: fitLayouts(items, current.layouts) }
+      return { ...current, items, layouts: fitLayouts(items, current.layouts) }
     })
   }
   function saveLayouts(next: ResponsiveLayouts<GridBreakpoint>) {
@@ -244,6 +246,10 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
           <button type="button" className="secondary" onClick={() => setJsonOpen(true)}>
             <Braces />
             View JSON
+          </button>
+          <button type="button" className="secondary" onClick={() => setParametersOpen(true)}>
+            <SlidersHorizontal />
+            Parameters ({definition.parameters?.length ?? 0})
           </button>
           <button type="button" className="secondary" onClick={() => setRenaming(true)}>
             <Pencil />
@@ -474,6 +480,18 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
           }}
         />
       )}
+      {parametersOpen && (
+        <DashboardParametersModal
+          parameters={definition.parameters ?? []}
+          onClose={() => setParametersOpen(false)}
+          onSave={async (parameters) => {
+            const next = { ...definition, parameters }
+            await save.mutateAsync(next)
+            setDraft({ dashboardId, definition: next })
+            setParametersOpen(false)
+          }}
+        />
+      )}
       {renaming && (
         <DashboardEditor
           tenantId={tenantId}
@@ -524,7 +542,7 @@ function CardParametersModal({
       }}
     >
       <p className="field-note">Values are saved for this dashboard card and reused when it loads or refreshes.</p>
-      <MetricParametersForm
+      <RuntimeParametersForm
         names={metricParameterNames(filter)}
         initialValues={item.parameters}
         busy={saveParameters.isPending}

@@ -37,7 +37,7 @@ export function metricParameterNames(filter: unknown, requiredOnly = false): str
   return [...names]
 }
 
-export function MetricParametersForm({
+export function RuntimeParametersForm({
   names,
   busy,
   onEvaluate,

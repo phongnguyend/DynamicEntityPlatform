@@ -88,9 +88,18 @@ export type DashboardItem = {
   parameters?: Record<string, unknown>
 }
 export type DashboardGridBreakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
+export interface DashboardParameter {
+  id: string
+  name: string
+  label: string
+  description: string
+  type: 'text' | 'number' | 'boolean' | 'date' | 'datetime-local'
+  value?: string | number | boolean
+}
 export interface DashboardDefinition {
   items: DashboardItem[]
   layouts: ResponsiveLayouts<DashboardGridBreakpoint>
+  parameters?: DashboardParameter[]
 }
 export interface Dashboard {
   id: string

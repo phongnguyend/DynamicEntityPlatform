@@ -1,4 +1,4 @@
-import { metricParameterNames } from '../components/MetricParametersForm'
+import { metricParameterNames } from '../components/RuntimeParametersForm'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Braces, FlaskConical, History, Pencil, Plus, Save, Send, Trash2, X } from 'lucide-react'
