@@ -81,7 +81,12 @@ export interface SavedView {
   name: string
   definition: Record<string, unknown>
 }
-export type DashboardItem = { kind: 'report' | 'metric'; entityId: string; id: string }
+export type DashboardItem = {
+  kind: 'report' | 'metric'
+  entityId: string
+  id: string
+  parameters?: Record<string, unknown>
+}
 export type DashboardGridBreakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
 export interface DashboardDefinition {
   items: DashboardItem[]

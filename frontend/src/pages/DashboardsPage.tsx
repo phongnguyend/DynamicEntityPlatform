@@ -1,8 +1,19 @@
 import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BarChart3, Braces, GripVertical, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  BarChart3,
+  Braces,
+  GripVertical,
+  Maximize2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  SlidersHorizontal,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { Responsive, useContainerWidth, verticalCompactor, type ResponsiveLayouts } from 'react-grid-layout'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import 'react-grid-layout/css/styles.css'
@@ -81,6 +92,7 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   const [renaming, setRenaming] = useState(false)
   const [jsonOpen, setJsonOpen] = useState(false)
   const [expandedKey, setExpandedKey] = useState<string>()
+  const [configureKey, setConfigureKey] = useState<string>()
   const dashboard = dashboardQuery.data
   const definition =
     draft?.dashboardId === dashboardId ? draft.definition : (dashboard?.definition ?? { items: [], layouts: {} })
@@ -175,6 +187,11 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   const entityName = (entityId: string) =>
     entities.find((entity) => entity.id === entityId)?.displayName ?? 'Unknown entity'
   const expandedItem = definition.items.find((item) => itemKey(item) === expandedKey)
+  const configureItem = definition.items.find((item) => itemKey(item) === configureKey)
+  const configureSource =
+    configureItem?.kind === 'report'
+      ? reports.find((report) => report.id === configureItem.id && report.entityId === configureItem.entityId)
+      : metrics.find((metric) => metric.id === configureItem?.id && metric.entityId === configureItem?.entityId)
   const expandedReport =
     expandedItem?.kind === 'report'
       ? reports.find((report) => report.id === expandedItem.id && report.entityId === expandedItem.entityId)
@@ -286,6 +303,17 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
                       <RuntimeParametersBadge filter={report?.query.filter ?? metric?.filter} />
                     </div>
                     <div className="dashboard-card-actions">
+                      {metricParameterNames(report?.query.filter ?? metric?.filter).length > 0 && (
+                        <button
+                          type="button"
+                          className="link icon-only"
+                          title="Configure runtime parameters"
+                          aria-label="Configure runtime parameters"
+                          onClick={() => setConfigureKey(key)}
+                        >
+                          <SlidersHorizontal />
+                        </button>
+                      )}
                       <button
                         className="link icon-only"
                         title="Open larger view"
@@ -307,9 +335,19 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
                   {!available.has(key) && !loading ? (
                     <p className="empty">This saved item no longer exists.</p>
                   ) : report ? (
-                    <ReportCard tenantId={tenantId} report={report} />
+                    <ReportCard
+                      tenantId={tenantId}
+                      report={report}
+                      parameters={item.parameters}
+                      onConfigure={() => setConfigureKey(key)}
+                    />
                   ) : metric ? (
-                    <MetricCard tenantId={tenantId} metric={metric} />
+                    <MetricCard
+                      tenantId={tenantId}
+                      metric={metric}
+                      parameters={item.parameters}
+                      onConfigure={() => setConfigureKey(key)}
+                    />
                   ) : (
                     <p className="empty">Loading card…</p>
                   )}
@@ -399,14 +437,42 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
               {entityName(expandedItem.entityId)} · {expandedItem.kind}
             </p>
             {expandedReport ? (
-              <ReportCard tenantId={tenantId} report={expandedReport} />
+              <ReportCard
+                tenantId={tenantId}
+                report={expandedReport}
+                parameters={expandedItem.parameters}
+                onConfigure={() => setConfigureKey(expandedKey)}
+              />
             ) : expandedMetric ? (
-              <MetricCard tenantId={tenantId} metric={expandedMetric} />
+              <MetricCard
+                tenantId={tenantId}
+                metric={expandedMetric}
+                parameters={expandedItem.parameters}
+                onConfigure={() => setConfigureKey(expandedKey)}
+              />
             ) : (
               <p className="empty">This saved item is no longer available.</p>
             )}
           </div>
         </Modal>
+      )}
+      {configureItem && configureSource && (
+        <CardParametersModal
+          key={configureKey}
+          tenantId={tenantId}
+          item={configureItem}
+          source={configureSource}
+          onClose={() => setConfigureKey(undefined)}
+          onSave={async (parameters) => {
+            const next = {
+              ...definition,
+              items: definition.items.map((item) => (itemKey(item) === configureKey ? { ...item, parameters } : item)),
+            }
+            await save.mutateAsync(next)
+            setDraft({ dashboardId, definition: next })
+            setConfigureKey(undefined)
+          }}
+        />
       )}
       {renaming && (
         <DashboardEditor
@@ -424,129 +490,152 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   )
 }
 
-function ReportCard({ tenantId, report }: { tenantId: string; report: Report }) {
-  const names = metricParameterNames(report.query.filter)
-  const [parametersOpen, setParametersOpen] = useState(false)
-  const automatic = useQuery({
-    queryKey: ['dashboard-report', tenantId, report.entityId, report.id, report.updatedAt],
-    queryFn: () => api.runReport(tenantId, report.entityId, report.id),
-    enabled: !names.length,
+function CardParametersModal({
+  tenantId,
+  item,
+  source,
+  onClose,
+  onSave,
+}: {
+  tenantId: string
+  item: DashboardItem
+  source: Report | Metric
+  onClose: () => void
+  onSave: (parameters: Record<string, unknown>) => Promise<void>
+}) {
+  const filter = 'query' in source ? source.query.filter : source.filter
+  const saveParameters = useMutation({
+    mutationFn: async (parameters: Record<string, unknown>) => {
+      if (item.kind === 'report') {
+        await api.runReport(tenantId, item.entityId, item.id, parameters)
+      } else {
+        await api.evaluateMetric(tenantId, item.entityId, item.id, parameters)
+      }
+      await onSave(parameters)
+    },
   })
-  const run = useMutation({
-    mutationFn: (parameters: Record<string, unknown>) =>
-      api.runReport(tenantId, report.entityId, report.id, parameters),
-    onSuccess: () => setParametersOpen(false),
+  return (
+    <Modal
+      title={`Configure parameters: ${source.name}`}
+      onClose={() => {
+        if (!saveParameters.isPending) {
+          onClose()
+        }
+      }}
+    >
+      <p className="field-note">Values are saved for this dashboard card and reused when it loads or refreshes.</p>
+      <MetricParametersForm
+        names={metricParameterNames(filter)}
+        initialValues={item.parameters}
+        busy={saveParameters.isPending}
+        submitLabel="Save parameters"
+        onCancel={onClose}
+        onEvaluate={(parameters) => saveParameters.mutate(parameters)}
+      />
+      {saveParameters.error && (
+        <p className="error" role="alert">
+          {saveParameters.error.message}
+        </p>
+      )}
+    </Modal>
+  )
+}
+
+type CardParameterProps = {
+  parameters?: Record<string, unknown>
+  onConfigure: () => void
+}
+
+function hasCardParameters(filter: unknown, parameters: Record<string, unknown> | undefined) {
+  return metricParameterNames(filter, true).every((name) =>
+    Object.prototype.hasOwnProperty.call(parameters ?? {}, name),
+  )
+}
+
+function ReportCard({
+  tenantId,
+  report,
+  parameters,
+  onConfigure,
+}: { tenantId: string; report: Report } & CardParameterProps) {
+  const configured = hasCardParameters(report.query.filter, parameters)
+  const result = useQuery({
+    queryKey: ['dashboard-report', tenantId, report.entityId, report.id, report.updatedAt, parameters],
+    queryFn: () => api.runReport(tenantId, report.entityId, report.id, parameters),
+    enabled: configured,
   })
-  const data = names.length ? run.data : automatic.data
-  const error = names.length ? run.error : automatic.error
-  const busy = names.length ? run.isPending : automatic.isFetching
   return (
     <div className="dashboard-card-body">
-      {data ? (
-        <ReportViewer result={data} visualization={report.visualization} />
+      {result.data ? (
+        <ReportViewer result={result.data} visualization={report.visualization} />
       ) : (
-        <p className="empty">{busy ? 'Running report…' : 'Run this report to enter parameter values.'}</p>
+        <p className="empty">
+          {result.isFetching
+            ? 'Running report…'
+            : configured
+              ? 'No report result yet.'
+              : 'Configure runtime parameters to run this report.'}
+        </p>
       )}
-      {error && !parametersOpen && <p className="error">{error.message}</p>}
+      {result.error && <p className="error">{result.error.message}</p>}
       <button
         className="link dashboard-refresh"
-        disabled={busy}
+        disabled={result.isFetching}
         onClick={() => {
-          if (names.length) {
-            run.reset()
-            setParametersOpen(true)
+          if (configured) {
+            void result.refetch()
           } else {
-            void automatic.refetch()
+            onConfigure()
           }
         }}
       >
-        <RefreshCw />
-        {data ? 'Refresh' : 'Run report'}
+        {configured ? <RefreshCw /> : <SlidersHorizontal />}
+        {configured ? 'Refresh' : 'Configure parameters'}
       </button>
-      {parametersOpen &&
-        createPortal(
-          <Modal title={`Run ${report.name}`} onClose={() => setParametersOpen(false)}>
-            <MetricParametersForm
-              names={names}
-              busy={busy}
-              submitLabel="Run report"
-              onCancel={() => setParametersOpen(false)}
-              onEvaluate={(parameters) => run.mutate(parameters)}
-            />
-            {run.error && (
-              <p className="error" role="alert">
-                {run.error.message}
-              </p>
-            )}
-          </Modal>,
-          document.body,
-        )}
     </div>
   )
 }
 
-function MetricCard({ tenantId, metric }: { tenantId: string; metric: Metric }) {
-  const names = metricParameterNames(metric.filter)
-  const [parametersOpen, setParametersOpen] = useState(false)
-  const automatic = useQuery({
-    queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id, metric.updatedAt],
-    queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id),
-    enabled: !names.length,
+function MetricCard({
+  tenantId,
+  metric,
+  parameters,
+  onConfigure,
+}: { tenantId: string; metric: Metric } & CardParameterProps) {
+  const configured = hasCardParameters(metric.filter, parameters)
+  const result = useQuery({
+    queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id, metric.updatedAt, parameters],
+    queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id, parameters),
+    enabled: configured,
   })
-  const evaluation = useMutation({
-    mutationFn: (parameters: Record<string, unknown>) =>
-      api.evaluateMetric(tenantId, metric.entityId, metric.id, parameters),
-    onSuccess: () => setParametersOpen(false),
-  })
-  const data = names.length ? evaluation.data : automatic.data
-  const error = names.length ? evaluation.error : automatic.error
-  const busy = names.length ? evaluation.isPending : automatic.isFetching
   return (
     <div className="dashboard-card-body metric-dashboard-card">
-      <strong>{data ? formatMetric(data.value, metric) : '—'}</strong>
+      <strong>{result.data ? formatMetric(result.data.value, metric) : '—'}</strong>
       <span>
-        {data
-          ? `Updated ${new Date(data.evaluatedAt).toLocaleTimeString()}`
-          : names.length
-            ? 'Run this metric to enter parameter values.'
-            : `${metric.aggregate} metric`}
+        {result.data
+          ? `Updated ${new Date(result.data.evaluatedAt).toLocaleTimeString()}`
+          : configured
+            ? `${metric.aggregate} metric`
+            : 'Configure runtime parameters to run this metric.'}
       </span>
-      {error && !parametersOpen && <p className="error">{error.message}</p>}
+      {result.error && <p className="error">{result.error.message}</p>}
       <button
         className="link dashboard-refresh"
-        disabled={busy}
+        disabled={result.isFetching}
         onClick={() => {
-          if (names.length) {
-            setParametersOpen(true)
+          if (configured) {
+            void result.refetch()
           } else {
-            void automatic.refetch()
+            onConfigure()
           }
         }}
       >
-        <RefreshCw />
-        {data ? 'Refresh' : 'Run metric'}
+        {configured ? <RefreshCw /> : <SlidersHorizontal />}
+        {configured ? 'Refresh' : 'Configure parameters'}
       </button>
-      {parametersOpen &&
-        createPortal(
-          <Modal title={`Run ${metric.name}`} onClose={() => setParametersOpen(false)}>
-            <MetricParametersForm
-              names={names}
-              busy={busy}
-              onCancel={() => setParametersOpen(false)}
-              onEvaluate={(parameters) => evaluation.mutate(parameters)}
-            />
-            {evaluation.error && (
-              <p className="error" role="alert">
-                {evaluation.error.message}
-              </p>
-            )}
-          </Modal>,
-          document.body,
-        )}
     </div>
   )
 }
-
 function formatMetric(value: unknown, metric: Metric) {
   const number = Number(value)
   const format = metric.format

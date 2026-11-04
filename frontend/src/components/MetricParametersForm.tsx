@@ -44,6 +44,7 @@ export function MetricParametersForm({
   onCancel,
   submitLabel = 'Evaluate metric',
   optional = false,
+  initialValues = {},
 }: {
   names: string[]
   busy: boolean
@@ -51,8 +52,11 @@ export function MetricParametersForm({
   onCancel?: () => void
   submitLabel?: string
   optional?: boolean
+  initialValues?: Record<string, unknown>
 }) {
-  const [values, setValues] = useState<Record<string, string>>({})
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(Object.entries(initialValues).map(([name, value]) => [name, String(value ?? '')])),
+  )
   return (
     <form
       className="dynamic-form"
