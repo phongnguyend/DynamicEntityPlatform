@@ -57,7 +57,8 @@ public sealed record AlertDefinition(
     bool NotifyOnRecovery, bool IsEnabled, IReadOnlyList<AlertActionConfiguration> Actions,
     AlertState? LastState, DateTimeOffset? LastEvaluatedAt,
     DateTimeOffset NextEvaluationAt, string? LeaseOwner, DateTimeOffset? LeaseExpiresAt,
-    Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+    Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Parameters = null);
 
 public sealed record AlertActionConfiguration(
     AlertActionType Type, IReadOnlyList<string>? EmailRecipients, IReadOnlyList<Uri>? WebhookUrls);

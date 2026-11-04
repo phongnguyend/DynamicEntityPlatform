@@ -47,7 +47,7 @@ export type AlertComparisonOperator = 'GreaterThan' | 'GreaterThanOrEqual' | 'Le
 export type AlertInterval = 'FiveMinutes' | 'Hourly' | 'Daily'
 export type AlertState = 'Normal' | 'Firing' | 'Error' | 'Recovered'
 export type AlertAction = { type: 'Email'; emailRecipients: string[]; webhookUrls?: never } | { type: 'Webhook'; webhookUrls: string[]; emailRecipients?: never }
-export interface Alert { id: string; entityId: string; metricId: string; name: string; comparisonOperator: AlertComparisonOperator; threshold: number; interval: AlertInterval; timezone: string; cooldownSeconds: number; notifyOnRecovery: boolean; isEnabled: boolean; actions: AlertAction[]; lastState?: AlertState; lastEvaluatedAt?: string; nextEvaluationAt: string; createdAt: string; updatedAt: string }
+export interface Alert { parameters?: Record<string, unknown>; id: string; entityId: string; metricId: string; name: string; comparisonOperator: AlertComparisonOperator; threshold: number; interval: AlertInterval; timezone: string; cooldownSeconds: number; notifyOnRecovery: boolean; isEnabled: boolean; actions: AlertAction[]; lastState?: AlertState; lastEvaluatedAt?: string; nextEvaluationAt: string; createdAt: string; updatedAt: string }
 export interface AlertEvaluation { id: string; alertId: string; value?: unknown; threshold: number; state: AlertState; error?: string; evaluatedAt: string }
 export interface AlertNotification { id: string; alertId: string; evaluationId: string; channel: string; status: string; attempts: number; lastError?: string; createdAt: string; deliveredAt?: string; nextAttemptAt?: string }
 export interface AlertHistory { evaluations: AlertEvaluation[]; notifications: AlertNotification[] }

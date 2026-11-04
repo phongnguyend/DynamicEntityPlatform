@@ -182,8 +182,11 @@ and `POST /api/entities/{entityId}/reports/sql`, respectively.
 Use `"value": { "system": "today" }` for the UTC date (or UTC midnight for a date-time
 field), or `"value": { "system": "now" }` for the current UTC timestamp on a date-time
 field. Nested filters and individual bounds of `Between`/`In` arrays support references.
-Scheduled alerts resolve automatic values and saved defaults; they cannot supply interactive
-inputs, so required parameters without defaults cause an evaluation error.
+Selecting a parameterized metric in the alert editor displays **Metric parameters**.
+Supply required values before saving; optional inputs can use the metric's defaults.
+Values are stored per alert and reused by scheduled evaluations and **Test now**.
+Automatic values are resolved on every evaluation. The alert API accepts a `parameters`
+object on create/update. Tenant migration 10 adds storage for these values.
 
 ## Production integration points
 

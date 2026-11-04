@@ -425,6 +425,11 @@ internal static class SqlServerSchema
             ALTER TABLE dbo.EntityDefinitions ADD Icon NVARCHAR(64) NULL;
         """;
 
+    public const string TenantDatabaseV10 = """
+        IF COL_LENGTH(N'dbo.AlertDefinitions', N'ParametersJson') IS NULL
+            ALTER TABLE dbo.AlertDefinitions ADD ParametersJson NVARCHAR(MAX) NULL;
+        """;
+
     public const string TenantDatabaseV9 = """
         IF COL_LENGTH(N'dbo.EntityDefinitions', N'PinnedOrder') IS NULL
             ALTER TABLE dbo.EntityDefinitions ADD PinnedOrder INT NULL;

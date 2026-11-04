@@ -1,3 +1,4 @@
+import { metricParameterNames } from '../components/MetricParametersForm'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Braces, FlaskConical, History, Pencil, Plus, Save, Send, Trash2, X } from 'lucide-react'
@@ -18,6 +19,11 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
   const [editing, setEditing] = useState<Alert>()
   const [name, setName] = useState('')
   const [metricId, setMetricId] = useState('')
+  const [parameters, setParameters] = useState<Record<string, unknown>>({})
+  const selectedMetric = metrics.data?.find(metric => metric.id === metricId)
+  const parameterNames = metricParameterNames(selectedMetric?.filter)
+  const requiredNames = metricParameterNames(selectedMetric?.filter, true)
+  const missingParameters = requiredNames.some(name => !Object.prototype.hasOwnProperty.call(parameters, name))
   const [comparisonOperator, setComparison] = useState<AlertComparisonOperator>('GreaterThan')
   const [threshold, setThreshold] = useState(0)
   const [interval, setInterval] = useState<AlertInterval>('Hourly')
@@ -37,15 +43,15 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
     ...(webhookEnabled ? [{ type: 'Webhook' as const, webhookUrls: webhookUrls.map(value => value.trim()).filter(Boolean) }] : [])
   ]
   const save = useMutation({
-    mutationFn: () => api.saveAlert(tenantId, entityId, { name, metricId, comparisonOperator, threshold, interval, timezone: 'UTC', cooldownSeconds, notifyOnRecovery, isEnabled, actions: configuredActions() }, editing?.id),
-    onSuccess: () => { setEditing(undefined); setName(''); setEmailEnabled(false); setEmailRecipients(''); setWebhookEnabled(false); setWebhookUrls(['']); refresh() }
+    mutationFn: () => api.saveAlert(tenantId, entityId, { name, metricId, parameters, comparisonOperator, threshold, interval, timezone: 'UTC', cooldownSeconds, notifyOnRecovery, isEnabled, actions: configuredActions() }, editing?.id),
+    onSuccess: () => { setEditing(undefined); setName(''); setParameters({}); setEmailEnabled(false); setEmailRecipients(''); setWebhookEnabled(false); setWebhookUrls(['']); refresh() }
   })
   const remove = useMutation({ mutationFn: api.deleteAlert.bind(null, tenantId, entityId), onSuccess: refresh })
 
   function edit(alert: Alert) {
     const email = alert.actions.find(action => action.type === 'Email')
     const webhook = alert.actions.find(action => action.type === 'Webhook')
-    setEditing(alert); setName(alert.name); setMetricId(alert.metricId); setComparison(alert.comparisonOperator)
+    setEditing(alert); setParameters(alert.parameters ?? {}); setName(alert.name); setMetricId(alert.metricId); setComparison(alert.comparisonOperator)
     setThreshold(alert.threshold); setInterval(alert.interval); setCooldown(alert.cooldownSeconds)
     setRecovery(alert.notifyOnRecovery); setEnabled(alert.isEnabled); setEmailEnabled(Boolean(email))
     setEmailRecipients(email?.type === 'Email' ? email.emailRecipients.join(', ') : '')
@@ -67,7 +73,14 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
     <div className="workspace-grid">
       <div className="panel"><div className="panel-header"><h3>{editing ? 'Edit alert' : 'New alert'}</h3></div><div className="panel-body designer">
         <label className="field">Name<input value={name} onChange={event => setName(event.target.value)} /></label>
-        <label className="field">Metric<select value={metricId} onChange={event => setMetricId(event.target.value)}><option value="">Select a metric</option>{metrics.data?.map(metric => <option key={metric.id} value={metric.id}>{metric.name}</option>)}</select></label>
+        <label className="field">Metric<select value={metricId} onChange={event => { setMetricId(event.target.value); setParameters({}); save.reset() }}><option value="">Select a metric</option>{metrics.data?.map(metric => <option key={metric.id} value={metric.id}>{metric.name}</option>)}</select></label>
+        {parameterNames.length > 0 && <fieldset className="dynamic-form"><legend>Metric parameters</legend>
+          <p className="field-note">Provide values for this alert. Scheduled runs and Test now use these saved values. Optional inputs use the metric's defaults when left untouched. Dates use YYYY-MM-DD; booleans use true or false.</p>
+          {parameterNames.map(parameter => <label className="field" key={parameter}>{parameter}{requiredNames.includes(parameter) ? ' (required)' : ' (optional)'}
+            <input value={String(parameters[parameter] ?? '')} placeholder={requiredNames.includes(parameter) ? 'Enter a value' : 'Use metric default'}
+              onChange={event => { setParameters(current => ({ ...current, [parameter]: event.target.value })); save.reset() }} />
+          </label>)}
+        </fieldset>}
         <div className="threshold-row"><label className="field">Comparison<select value={comparisonOperator} onChange={event => setComparison(event.target.value as AlertComparisonOperator)}><option value="GreaterThan">&gt;</option><option value="GreaterThanOrEqual">≥</option><option value="LessThan">&lt;</option><option value="LessThanOrEqual">≤</option><option value="Equal">=</option><option value="NotEqual">≠</option></select></label><label className="field">Threshold<input type="number" value={threshold} onChange={event => setThreshold(Number(event.target.value))} /></label></div>
         <label className="field">Interval<select value={interval} onChange={event => setInterval(event.target.value as AlertInterval)}><option value="FiveMinutes">Every 5 minutes</option><option value="Hourly">Hourly</option><option value="Daily">Daily</option></select></label>
         <label className="field">Cooldown (seconds)<input type="number" min="0" value={cooldownSeconds} onChange={event => setCooldown(Number(event.target.value))} /></label>
@@ -81,7 +94,7 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
         <label className="check"><input type="checkbox" checked={isEnabled} onChange={event => setEnabled(event.target.checked)} />Enabled</label>
         {save.error && <p className="error">{save.error.message}</p>}
       </div>
-      <div className="panel-footer"><button disabled={!name || !metricId || emailEnabled && !emailRecipients.trim() || webhookEnabled && !webhookUrls.some(value => value.trim())} onClick={() => save.mutate()}><Save />Save alert</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button>{editing && <button className="secondary" onClick={() => setEditing(undefined)}><X />Cancel</button>}</div>
+      <div className="panel-footer"><button disabled={!name || !metricId || missingParameters || save.isPending || emailEnabled && !emailRecipients.trim() || webhookEnabled && !webhookUrls.some(value => value.trim())} onClick={() => save.mutate()}><Save />Save alert</button><button className="secondary" onClick={() => setJsonOpen(true)}><Braces />Edit JSON</button>{editing && <button className="secondary" onClick={() => setEditing(undefined)}><X />Cancel</button>}</div>
       </div>
       <div className="panel wide"><div className="panel-header"><h3>Alerts</h3></div><div className="panel-body"><ul className="definition-list">{alerts.data?.map(alert => <li key={alert.id}><div><strong>{alert.name}</strong><small><span className={`alert-state ${alert.lastState?.toLowerCase() ?? 'normal'}`}>{alert.lastState ?? 'Not evaluated'}</span> · {alert.interval} · {alert.isEnabled ? 'Enabled' : 'Disabled'} · {alert.actions.length ? alert.actions.map(action => action.type).join(', ') : 'In-app only'}</small></div><div className="actions"><button className="secondary" onClick={() => test(alert)}><FlaskConical />Test now</button><button className="link" onClick={() => showHistory(alert)}><History />History</button><button className="link" onClick={() => edit(alert)}><Pencil />Edit</button><button className="link danger" onClick={() => remove.mutate(alert.id)}><Trash2 />Delete</button></div></li>)}</ul>
         {history && <div className="history">
@@ -98,6 +111,6 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
         </div>}
       </div></div>
     </div>
-    {jsonOpen && <JsonEditorModal title={`${editing ? 'Edit' : 'Create'} alert as JSON`} value={{ metricId, name, comparisonOperator, threshold, interval, timezone: 'UTC', cooldownSeconds, notifyOnRecovery, isEnabled, actions: configuredActions() }} onClose={() => setJsonOpen(false)} onSave={saveJson} />}
+    {jsonOpen && <JsonEditorModal title={`${editing ? 'Edit' : 'Create'} alert as JSON`} value={{ metricId, parameters, name, comparisonOperator, threshold, interval, timezone: 'UTC', cooldownSeconds, notifyOnRecovery, isEnabled, actions: configuredActions() }} onClose={() => setJsonOpen(false)} onSave={saveJson} />}
   </section>
 }

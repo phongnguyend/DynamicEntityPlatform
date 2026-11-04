@@ -18,7 +18,7 @@ public sealed class AlertEvaluationWorker(IControlPlaneStore controlPlane,IAlert
             using var activity=AnalyticsTelemetry.Source.StartActivity("alert.evaluate");activity?.SetTag("tenant.id",tenantId);activity?.SetTag("entity.id",alert.EntityId);activity?.SetTag("alert.id",alert.Id);activity?.SetTag("metric.id",alert.MetricId);
             try
             {
-                var result=await metrics.EvaluateAsync(tenantId,alert.EntityId,alert.MetricId,token);var threshold=JsonSerializer.Deserialize<decimal>(alert.ThresholdJson);
+                var result=await metrics.EvaluateAsync(tenantId,alert.EntityId,alert.MetricId,token,alert.Parameters);var threshold=JsonSerializer.Deserialize<decimal>(alert.ThresholdJson);
                 var firing=thresholdEvaluator.IsMatch(result.Value,threshold,alert.ComparisonOperator);var recovered=alert.LastState==AlertState.Firing&&!firing;
                 var evaluation=new AlertEvaluation(Guid.NewGuid(),alert.Id,JsonSerializer.Serialize(result.Value),alert.ThresholdJson,recovered?AlertState.Recovered:firing?AlertState.Firing:AlertState.Normal,null,now);
                 await evaluations.CreateAsync(tenantId,evaluation,storage,token);
