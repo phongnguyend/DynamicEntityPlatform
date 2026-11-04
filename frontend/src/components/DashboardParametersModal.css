@@ -4,6 +4,13 @@
   .dashboard-parameters {
     @apply grid gap-4;
   }
+  .dashboard-parameter-value-checkbox {
+    @apply flex cursor-pointer items-center gap-2 text-sm font-semibold;
+  }
+  .dashboard-parameter-value-checkbox > input {
+    @apply m-0 h-4 w-4 shrink-0 cursor-pointer;
+    accent-color: #176b50;
+  }
   .dashboard-parameters-toolbar {
     @apply flex flex-wrap items-center justify-between gap-3;
   }

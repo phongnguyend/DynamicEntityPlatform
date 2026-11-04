@@ -86,6 +86,7 @@ export type DashboardItem = {
   entityId: string
   id: string
   parameters?: Record<string, unknown>
+  parameterBindings?: Record<string, string>
 }
 export type DashboardGridBreakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
 export interface DashboardParameter {

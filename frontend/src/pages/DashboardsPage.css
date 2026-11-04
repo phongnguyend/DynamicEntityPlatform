@@ -1,0 +1,189 @@
+@reference "../styles.css";
+
+@layer components {
+  .dashboard-intro {
+    @apply mb-0 text-muted;
+  }
+  .dashboard-delete {
+    @apply text-danger;
+  }
+
+  .dashboard-library {
+    @apply min-w-0;
+  }
+  .dashboard-library-summary {
+    @apply flex justify-between rounded-lg bg-primary-soft px-3 py-2 text-sm text-[#365245];
+  }
+  .dashboard-library-group h4 {
+    @apply m-0;
+  }
+  .dashboard-library-group {
+    @apply mt-5 grid gap-2;
+  }
+  .dashboard-library-group h4 {
+    @apply text-xs uppercase tracking-[.08em] text-muted;
+  }
+  .dashboard-library-item {
+    @apply flex w-full justify-between rounded-[9px] border border-border bg-input px-3 py-[.65rem] text-left text-ink;
+  }
+  .dashboard-library-item:hover {
+    @apply border-[#b9d5c4] bg-primary-soft;
+  }
+  .dashboard-library-item:disabled {
+    @apply cursor-default opacity-45;
+  }
+  .dashboard-library-item span {
+    @apply grid min-w-0 gap-0.5;
+  }
+  .dashboard-library-item small {
+    @apply text-[.65rem] font-bold uppercase tracking-[.08em] text-muted;
+  }
+  .dashboard-library-item strong {
+    @apply truncate text-[.86rem];
+  }
+  .dashboard-library-action {
+    @apply flex shrink-0 items-center gap-1 text-xs font-bold text-primary;
+  }
+  .dashboard-library-item svg {
+    @apply size-4 shrink-0 text-primary;
+  }
+  .dashboard-grid-container {
+    @apply min-h-[240px] min-w-0;
+  }
+  .dashboard-grid-container .react-grid-placeholder {
+    @apply rounded-[14px] bg-primary-soft opacity-80!;
+  }
+  .dashboard-grid-container .react-grid-item.react-draggable-dragging {
+    @apply z-20 shadow-[0_20px_45px_rgb(22_42_32/20%)];
+  }
+  .dashboard-grid-container .react-resizable-handle::after {
+    @apply size-2.5 border-[#4d7e67];
+  }
+  .dashboard-empty {
+    @apply col-span-full grid min-h-[360px] place-items-center content-center rounded-[14px] border-2 border-dashed border-[#cad8cf] p-8 text-center text-muted;
+  }
+  .dashboard-empty svg {
+    @apply mb-3 size-10 text-[#7da08c];
+  }
+  .dashboard-empty h3 {
+    @apply mb-2 text-ink;
+  }
+  .dashboard-empty p {
+    @apply m-0;
+  }
+  .dashboard-card {
+    @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[14px] border border-border bg-white p-5 shadow-[0_8px_25px_rgb(22_42_32/5%)];
+  }
+  .dashboard-card-header {
+    @apply mb-4 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2;
+  }
+  .dashboard-card-header .drag-handle {
+    @apply cursor-grab touch-none rounded-md p-1 hover:bg-primary-soft active:cursor-grabbing;
+  }
+  .dashboard-card-header h3 {
+    @apply m-0 text-base;
+  }
+  .dashboard-card-header small {
+    @apply block text-[.68rem] font-bold uppercase tracking-[.06em] text-muted;
+  }
+  .dashboard-card-actions {
+    @apply flex;
+  }
+  .dashboard-card-actions button:disabled {
+    @apply cursor-default opacity-25;
+  }
+  .dashboard-card-body {
+    @apply min-h-0 min-w-0 flex-1 overflow-auto;
+  }
+  .dashboard-card-body .grid-wrap {
+    @apply max-h-[300px];
+  }
+  .dashboard-card-body .simple-chart {
+    @apply h-[240px];
+  }
+  .dashboard-card-expanded {
+    @apply min-h-[420px] min-w-0;
+  }
+  .dashboard-card-expanded .dashboard-card-body {
+    @apply overflow-visible;
+  }
+  .dashboard-card-expanded .simple-chart {
+    @apply h-[min(520px,55vh)];
+  }
+  .dashboard-card-expanded .grid-wrap {
+    @apply max-h-[55vh] overflow-auto;
+  }
+  .dashboard-card-expanded .metric-dashboard-card > strong {
+    @apply max-w-full text-[clamp(2.5rem,9vw,6rem)];
+    overflow-wrap: anywhere;
+  }
+  .dashboard-expanded-context {
+    @apply mb-4 text-xs font-bold uppercase tracking-[.08em] text-muted;
+  }
+  .dashboard-refresh {
+    @apply mt-3;
+  }
+  .metric-dashboard-card {
+    @apply grid gap-1;
+  }
+  .metric-dashboard-card > strong {
+    @apply text-[clamp(2rem,5vw,3.5rem)];
+  }
+  .metric-dashboard-card > span {
+    @apply text-sm text-muted;
+  }
+  .metric-dashboard-card .dashboard-refresh {
+    @apply justify-self-start;
+  }
+  .card-parameters-form {
+    @apply gap-5;
+  }
+  .card-parameters-form > .field-note {
+    @apply m-0;
+  }
+  .card-parameter {
+    @apply m-0 min-w-0 rounded-lg border border-border px-4 pb-4 pt-2;
+  }
+  .card-parameter > legend {
+    @apply px-2 text-sm font-semibold;
+    overflow-wrap: anywhere;
+  }
+  .card-parameter-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .card-parameter-controls .field {
+    @apply m-0 min-w-0 gap-2;
+  }
+  .card-parameter-controls input,
+  .card-parameter-controls select {
+    @apply w-full min-w-0 font-normal;
+  }
+  .card-parameter-preview {
+    @apply mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md bg-slate-50 px-3 py-2 text-sm;
+  }
+  .card-parameter-preview > span,
+  .card-parameter-preview > small {
+    @apply text-slate-500;
+  }
+  .card-parameter-preview > strong {
+    @apply min-w-0 font-medium;
+    overflow-wrap: anywhere;
+  }
+  .card-parameter-preview > small {
+    @apply ml-auto;
+  }
+  .card-parameter-preview.is-unset {
+    @apply bg-amber-50;
+  }
+  .card-parameter-preview.is-unset > span {
+    @apply text-amber-800;
+  }
+  @media (max-width: 520px) {
+    .card-parameter-controls {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

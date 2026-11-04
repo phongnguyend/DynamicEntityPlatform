@@ -24,12 +24,15 @@ import { DashboardParametersModal } from '../components/DashboardParametersModal
 import { Modal } from '../components/Modal'
 import { HighlightedCode } from '../components/HighlightedCode'
 import { ReportViewer } from '../components/ReportViewer'
-import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
+import { metricParameterNames } from '../components/RuntimeParametersForm'
+import { resolveCardParameters } from '../dashboardParameters'
+import './DashboardsPage.css'
 import type {
   Dashboard,
   DashboardDefinition,
   DashboardGridBreakpoint as GridBreakpoint,
   DashboardItem,
+  DashboardParameter,
   Entity,
   Metric,
   Report,
@@ -344,14 +347,14 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
                     <ReportCard
                       tenantId={tenantId}
                       report={report}
-                      parameters={item.parameters}
+                      {...resolveCardParameters(item, definition.parameters ?? [], report.query.filter)}
                       onConfigure={() => setConfigureKey(key)}
                     />
                   ) : metric ? (
                     <MetricCard
                       tenantId={tenantId}
                       metric={metric}
-                      parameters={item.parameters}
+                      {...resolveCardParameters(item, definition.parameters ?? [], metric.filter)}
                       onConfigure={() => setConfigureKey(key)}
                     />
                   ) : (
@@ -446,14 +449,14 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
               <ReportCard
                 tenantId={tenantId}
                 report={expandedReport}
-                parameters={expandedItem.parameters}
+                {...resolveCardParameters(expandedItem, definition.parameters ?? [], expandedReport.query.filter)}
                 onConfigure={() => setConfigureKey(expandedKey)}
               />
             ) : expandedMetric ? (
               <MetricCard
                 tenantId={tenantId}
                 metric={expandedMetric}
-                parameters={expandedItem.parameters}
+                {...resolveCardParameters(expandedItem, definition.parameters ?? [], expandedMetric.filter)}
                 onConfigure={() => setConfigureKey(expandedKey)}
               />
             ) : (
@@ -468,11 +471,14 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
           tenantId={tenantId}
           item={configureItem}
           source={configureSource}
+          dashboardParameters={definition.parameters ?? []}
           onClose={() => setConfigureKey(undefined)}
-          onSave={async (parameters) => {
+          onSave={async (parameters, parameterBindings) => {
             const next = {
               ...definition,
-              items: definition.items.map((item) => (itemKey(item) === configureKey ? { ...item, parameters } : item)),
+              items: definition.items.map((item) =>
+                itemKey(item) === configureKey ? { ...item, parameters, parameterBindings } : item,
+              ),
             }
             await save.mutateAsync(next)
             setDraft({ dashboardId, definition: next })
@@ -512,24 +518,45 @@ function CardParametersModal({
   tenantId,
   item,
   source,
+  dashboardParameters,
   onClose,
   onSave,
 }: {
   tenantId: string
   item: DashboardItem
   source: Report | Metric
+  dashboardParameters: DashboardParameter[]
   onClose: () => void
-  onSave: (parameters: Record<string, unknown>) => Promise<void>
+  onSave: (parameters: Record<string, unknown>, bindings: Record<string, string>) => Promise<void>
 }) {
   const filter = 'query' in source ? source.query.filter : source.filter
+  const names = metricParameterNames(filter)
+  const [values, setValues] = useState<Record<string, unknown>>(item.parameters ?? {})
+  const [bindings, setBindings] = useState<Record<string, string>>(item.parameterBindings ?? {})
   const saveParameters = useMutation({
-    mutationFn: async (parameters: Record<string, unknown>) => {
+    mutationFn: async () => {
+      const directValues = Object.fromEntries(
+        names
+          .filter((name) => bindings[name] === undefined && Object.prototype.hasOwnProperty.call(values, name))
+          .map((name) => [name, values[name]]),
+      )
+      const savedBindings = Object.fromEntries(
+        names.filter((name) => bindings[name] !== undefined).map((name) => [name, bindings[name]]),
+      )
+      const { parameters, parameterError } = resolveCardParameters(
+        { ...item, parameters: directValues, parameterBindings: savedBindings },
+        dashboardParameters,
+        filter,
+      )
+      if (parameterError) {
+        throw new Error(parameterError)
+      }
       if (item.kind === 'report') {
         await api.runReport(tenantId, item.entityId, item.id, parameters)
       } else {
         await api.evaluateMetric(tenantId, item.entityId, item.id, parameters)
       }
-      await onSave(parameters)
+      await onSave(directValues, savedBindings)
     },
   })
   return (
@@ -541,26 +568,126 @@ function CardParametersModal({
         }
       }}
     >
-      <p className="field-note">Values are saved for this dashboard card and reused when it loads or refreshes.</p>
-      <RuntimeParametersForm
-        names={metricParameterNames(filter)}
-        initialValues={item.parameters}
-        busy={saveParameters.isPending}
-        submitLabel="Save parameters"
-        onCancel={onClose}
-        onEvaluate={(parameters) => saveParameters.mutate(parameters)}
-      />
-      {saveParameters.error && (
-        <p className="error" role="alert">
-          {saveParameters.error.message}
-        </p>
-      )}
+      <form
+        className="dynamic-form card-parameters-form"
+        onSubmit={(event) => {
+          event.preventDefault()
+          saveParameters.mutate()
+        }}
+      >
+        <p className="field-note">Set a fixed value or link to a dashboard parameter that stays in sync.</p>
+        {names.map((name) => {
+          const bound = bindings[name] !== undefined
+          const selected = dashboardParameters.find((parameter) => parameter.id === bindings[name])
+          return (
+            <fieldset className="card-parameter" key={name} disabled={saveParameters.isPending}>
+              <legend>{name}</legend>
+              <div className="card-parameter-controls">
+                <label className="field">
+                  Source
+                  <select
+                    aria-label={`Value source for ${name}`}
+                    value={bound ? 'dashboard' : 'direct'}
+                    onChange={(event) => {
+                      setBindings((current) => {
+                        const next = { ...current }
+                        if (event.target.value === 'dashboard') {
+                          next[name] = dashboardParameters[0]?.id ?? ''
+                        } else {
+                          delete next[name]
+                        }
+                        return next
+                      })
+                    }}
+                  >
+                    <option value="direct">Fixed value</option>
+                    <option value="dashboard">Dashboard parameter</option>
+                  </select>
+                </label>
+                {bound ? (
+                  <>
+                    <label className="field">
+                      Dashboard parameter
+                      <select
+                        required
+                        aria-label={`Dashboard parameter for ${name}`}
+                        value={bindings[name]}
+                        onChange={(event) => setBindings((current) => ({ ...current, [name]: event.target.value }))}
+                      >
+                        <option value="" disabled>
+                          Select a parameter
+                        </option>
+                        {bindings[name] && !selected && (
+                          <option value={bindings[name]} disabled>
+                            Missing dashboard parameter
+                          </option>
+                        )}
+                        {dashboardParameters.map((parameter) => (
+                          <option key={parameter.id} value={parameter.id}>
+                            {parameter.label || parameter.name} ({parameter.name})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <label className="field">
+                    Value
+                    <input
+                      aria-label={`Value for ${name}`}
+                      placeholder="Enter a value"
+                      value={String(values[name] ?? '')}
+                      onChange={(event) => setValues((current) => ({ ...current, [name]: event.target.value }))}
+                    />
+                  </label>
+                )}
+              </div>
+              {bound && (
+                <div
+                  className={`card-parameter-preview${selected?.value === undefined ? ' is-unset' : ''}`}
+                  aria-live="polite"
+                >
+                  {selected?.value !== undefined ? (
+                    <>
+                      <span>Current value</span>
+                      <strong>{selected.value === '' ? '(empty text)' : String(selected.value)}</strong>
+                      <small>Updates automatically</small>
+                    </>
+                  ) : (
+                    <span>
+                      {!dashboardParameters.length
+                        ? 'Add a dashboard parameter from the Parameters menu first.'
+                        : selected
+                          ? 'This dashboard parameter needs a value.'
+                          : 'Select a dashboard parameter to link.'}
+                    </span>
+                  )}
+                </div>
+              )}
+            </fieldset>
+          )
+        })}
+        {saveParameters.error && (
+          <p className="error" role="alert">
+            {saveParameters.error.message}
+          </p>
+        )}
+        <div className="modal-footer">
+          <button type="button" className="secondary" disabled={saveParameters.isPending} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saveParameters.isPending}>
+            {saveParameters.isPending ? 'Saving…' : 'Save parameters'}
+          </button>
+        </div>
+      </form>
     </Modal>
   )
 }
 
 type CardParameterProps = {
   parameters?: Record<string, unknown>
+  parameterError?: string
   onConfigure: () => void
 }
 
@@ -574,9 +701,10 @@ function ReportCard({
   tenantId,
   report,
   parameters,
+  parameterError,
   onConfigure,
 }: { tenantId: string; report: Report } & CardParameterProps) {
-  const configured = hasCardParameters(report.query.filter, parameters)
+  const configured = !parameterError && hasCardParameters(report.query.filter, parameters)
   const result = useQuery({
     queryKey: ['dashboard-report', tenantId, report.entityId, report.id, report.updatedAt, parameters],
     queryFn: () => api.runReport(tenantId, report.entityId, report.id, parameters),
@@ -584,7 +712,7 @@ function ReportCard({
   })
   return (
     <div className="dashboard-card-body">
-      {result.data ? (
+      {configured && result.data ? (
         <ReportViewer result={result.data} visualization={report.visualization} />
       ) : (
         <p className="empty">
@@ -595,7 +723,8 @@ function ReportCard({
               : 'Configure runtime parameters to run this report.'}
         </p>
       )}
-      {result.error && <p className="error">{result.error.message}</p>}
+      {parameterError && <p className="error">{parameterError}</p>}
+      {configured && result.error && <p className="error">{result.error.message}</p>}
       <button
         className="link dashboard-refresh"
         disabled={result.isFetching}
@@ -618,9 +747,10 @@ function MetricCard({
   tenantId,
   metric,
   parameters,
+  parameterError,
   onConfigure,
 }: { tenantId: string; metric: Metric } & CardParameterProps) {
-  const configured = hasCardParameters(metric.filter, parameters)
+  const configured = !parameterError && hasCardParameters(metric.filter, parameters)
   const result = useQuery({
     queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id, metric.updatedAt, parameters],
     queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id, parameters),
@@ -628,15 +758,16 @@ function MetricCard({
   })
   return (
     <div className="dashboard-card-body metric-dashboard-card">
-      <strong>{result.data ? formatMetric(result.data.value, metric) : '—'}</strong>
+      <strong>{configured && result.data ? formatMetric(result.data.value, metric) : '—'}</strong>
       <span>
-        {result.data
+        {configured && result.data
           ? `Updated ${new Date(result.data.evaluatedAt).toLocaleTimeString()}`
           : configured
             ? `${metric.aggregate} metric`
             : 'Configure runtime parameters to run this metric.'}
       </span>
-      {result.error && <p className="error">{result.error.message}</p>}
+      {parameterError && <p className="error">{parameterError}</p>}
+      {configured && result.error && <p className="error">{result.error.message}</p>}
       <button
         className="link dashboard-refresh"
         disabled={result.isFetching}

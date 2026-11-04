@@ -46,8 +46,9 @@ export function DashboardParametersModal({
     >
       <div className="dashboard-parameters">
         <p className="field-note">
-          Manage values shared by this dashboard. Card bindings will be available in a future update; these values do
-          not affect cards yet.
+          Manage values shared by this dashboard. Bind them using each card's Configure runtime parameters action.
+          Changing a value updates bound cards; deleting or clearing a parameter prevents those cards from running until
+          configured again.
         </p>
         {editing ? (
           <DashboardParameterForm
@@ -284,12 +285,9 @@ function DashboardParameterForm({
           </label>
         </>
       )}
-      <label className="field">
-        Value configuration
-        <select value={configured ? 'set' : 'unset'} onChange={(event) => setConfigured(event.target.value === 'set')}>
-          <option value="unset">Not configured</option>
-          <option value="set">Set a value</option>
-        </select>
+      <label className="dashboard-parameter-value-checkbox">
+        <input type="checkbox" checked={configured} onChange={(event) => setConfigured(event.target.checked)} />
+        Set a value
       </label>
       {configured && (
         <label className="field">
