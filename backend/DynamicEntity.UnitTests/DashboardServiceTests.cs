@@ -64,7 +64,11 @@ public sealed class DashboardServiceTests
         public Task<DashboardDefinition?> UpdateAsync(DashboardDefinition dashboard, EntityStorageLocation storage, CancellationToken cancellationToken)
         {
             var index = dashboards.FindIndex(item => item.TenantId == dashboard.TenantId && item.Id == dashboard.Id);
-            if (index < 0) return Task.FromResult<DashboardDefinition?>(null);
+            if (index < 0)
+            {
+                return Task.FromResult<DashboardDefinition?>(null);
+            }
+
             dashboards[index] = dashboard;
             return Task.FromResult<DashboardDefinition?>(dashboard);
         }

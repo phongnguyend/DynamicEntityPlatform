@@ -79,7 +79,11 @@ public sealed class TenantServiceTests
     private sealed class FakeControlPlaneStore : IControlPlaneStore, IControlPlaneInitializer
     {
         public List<string> Events { get; } = [];
-        public Tenant? Tenant { get; set; }
+
+        public Tenant? Tenant
+        {
+            get; set;
+        }
 
         public Task InitializeAsync(CancellationToken cancellationToken)
         {
@@ -96,14 +100,20 @@ public sealed class TenantServiceTests
 
         public Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken)
         {
-            Tenant = Tenant! with { Name = name };
+            Tenant = Tenant! with
+            {
+                Name = name
+            };
             return Task.CompletedTask;
         }
 
         public Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken)
         {
             Events.Add(status.ToString());
-            Tenant = Tenant! with { Status = status };
+            Tenant = Tenant! with
+            {
+                Status = status
+            };
             return Task.CompletedTask;
         }
 
@@ -130,7 +140,11 @@ public sealed class TenantServiceTests
         public Task<EntityStorageLocation> ProvisionAsync(Guid tenantId, string connectionString, CancellationToken cancellationToken)
         {
             events.Add("configure");
-            if (shouldFail) throw new InvalidOperationException("Provisioning failed");
+            if (shouldFail)
+            {
+                throw new InvalidOperationException("Provisioning failed");
+            }
+
             return Task.FromResult(new EntityStorageLocation("Acme", string.Empty,
                 EntityStorageMode.DedicatedTable, false, connectionString));
         }

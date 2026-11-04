@@ -1,9 +1,64 @@
 import {
-  Ban, Bell, Book, Bookmark, Boxes, Briefcase, Building2, Calendar, ClipboardList, Clock, Cloud, Coffee, Coins,
-  Contact, Cpu, CreditCard, Database, Factory, FileText, Flag, Folder, Gift, Globe, GraduationCap, Handshake,
-  Heart, House, IdCard, Key, Layers, Leaf, Lock, Mail, MapPin, Newspaper, Package, Phone, Plane, Receipt, Rocket,
-  Server, Shield, ShoppingCart, SquareCheck, Star, Stethoscope, Store, TableProperties, Tag, Target, Ticket,
-  TrendingUp, Truck, User, Users, Utensils, Wallet, Warehouse, Wrench, type LucideIcon,
+  Ban,
+  Bell,
+  Book,
+  Bookmark,
+  Boxes,
+  Briefcase,
+  Building2,
+  Calendar,
+  ClipboardList,
+  Clock,
+  Cloud,
+  Coffee,
+  Coins,
+  Contact,
+  Cpu,
+  CreditCard,
+  Database,
+  Factory,
+  FileText,
+  Flag,
+  Folder,
+  Gift,
+  Globe,
+  GraduationCap,
+  Handshake,
+  Heart,
+  House,
+  IdCard,
+  Key,
+  Layers,
+  Leaf,
+  Lock,
+  Mail,
+  MapPin,
+  Newspaper,
+  Package,
+  Phone,
+  Plane,
+  Receipt,
+  Rocket,
+  Server,
+  Shield,
+  ShoppingCart,
+  SquareCheck,
+  Star,
+  Stethoscope,
+  Store,
+  TableProperties,
+  Tag,
+  Target,
+  Ticket,
+  TrendingUp,
+  Truck,
+  User,
+  Users,
+  Utensils,
+  Wallet,
+  Warehouse,
+  Wrench,
+  type LucideIcon,
 } from 'lucide-react'
 
 /**
@@ -73,7 +128,7 @@ export const ENTITY_ICONS: Array<{ name: string; label: string; Icon: LucideIcon
 ]
 
 const DEFAULT_ICON = TableProperties
-const iconsByName = new Map(ENTITY_ICONS.map(option => [option.name, option.Icon]))
+const iconsByName = new Map(ENTITY_ICONS.map((option) => [option.name, option.Icon]))
 
 export function getEntityIcon(icon: string | null | undefined) {
   return (icon ? iconsByName.get(icon) : undefined) ?? DEFAULT_ICON
@@ -85,15 +140,34 @@ export function EntityIcon({ icon, className }: { icon?: string | null; classNam
 }
 
 export function EntityIconPicker({ icon, onChange }: { icon?: string; onChange: (icon?: string) => void }) {
-  return <fieldset className="entity-icon-picker">
-    <legend>Icon</legend>
-    <div className="entity-icon-options">
-      <button type="button" className={`entity-icon-option none${icon ? '' : ' selected'}`}
-        title="Default icon" aria-label="Default icon" aria-pressed={!icon} onClick={() => onChange(undefined)}><Ban /></button>
-      {ENTITY_ICONS.map(option => <button key={option.name} type="button"
-        className={`entity-icon-option${icon === option.name ? ' selected' : ''}`}
-        title={option.label} aria-label={option.label} aria-pressed={icon === option.name}
-        onClick={() => onChange(option.name)}><option.Icon /></button>)}
-    </div>
-  </fieldset>
+  return (
+    <fieldset className="entity-icon-picker">
+      <legend>Icon</legend>
+      <div className="entity-icon-options">
+        <button
+          type="button"
+          className={`entity-icon-option none${icon ? '' : ' selected'}`}
+          title="Default icon"
+          aria-label="Default icon"
+          aria-pressed={!icon}
+          onClick={() => onChange(undefined)}
+        >
+          <Ban />
+        </button>
+        {ENTITY_ICONS.map((option) => (
+          <button
+            key={option.name}
+            type="button"
+            className={`entity-icon-option${icon === option.name ? ' selected' : ''}`}
+            title={option.label}
+            aria-label={option.label}
+            aria-pressed={icon === option.name}
+            onClick={() => onChange(option.name)}
+          >
+            <option.Icon />
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  )
 }

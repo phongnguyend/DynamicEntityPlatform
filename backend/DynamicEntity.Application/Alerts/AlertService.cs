@@ -6,17 +6,105 @@ using DynamicEntity.Domain.Analytics;
 
 namespace DynamicEntity.Application.Alerts;
 
-public sealed class AlertService(IControlPlaneStore controlPlane,IEntityMetadataStore entities,IMetricStore metrics,IAlertStore alerts,
-    IAlertEvaluationStore evaluations,IAlertNotificationStore notifications,TimeProvider timeProvider,IFieldMetadataStore fields)
+public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadataStore entities, IMetricStore metrics, IAlertStore alerts,
+    IAlertEvaluationStore evaluations, IAlertNotificationStore notifications, TimeProvider timeProvider, IFieldMetadataStore fields)
 {
-    public async Task<AlertDefinition> CreateAsync(Guid tenantId,Guid entityId,Guid metricId,string name,AlertComparisonOperator comparison,string thresholdJson,AlertInterval interval,string timezone,TimeSpan cooldown,bool recovery,bool enabled,IReadOnlyList<AlertActionConfiguration>? actions,Guid? userId,CancellationToken token,IReadOnlyDictionary<string, JsonElement>? parameters = null)
-    {Validate(name,comparison,thresholdJson,interval,timezone,cooldown);var normalizedActions=AlertActionValidator.Normalize(actions);var s=await RequireEntityAsync(tenantId,entityId,token);var metric=await metrics.GetAsync(tenantId,entityId,metricId,s,token)??throw new NotFoundException($"Metric '{metricId}' was not found.");MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson),await fields.ListAsync(tenantId,entityId,s,token),parameters,timeProvider.GetUtcNow());var now=timeProvider.GetUtcNow();var a=new AlertDefinition(Guid.NewGuid(),entityId,metricId,name.Trim(),comparison,thresholdJson,interval,timezone,cooldown,recovery,enabled,normalizedActions,null,null,now,null,null,userId,now,now,parameters);return await alerts.CreateAsync(tenantId,a,s,token);}
-    public async Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId,Guid entityId,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);return await alerts.ListAsync(tenantId,entityId,s,token);}
-    public async Task<AlertDefinition> GetAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);return await alerts.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Alert '{id}' was not found.");}
-    public async Task<AlertDefinition> UpdateAsync(Guid tenantId,Guid entityId,Guid id,Guid metricId,string name,AlertComparisonOperator comparison,string thresholdJson,AlertInterval interval,string timezone,TimeSpan cooldown,bool recovery,bool enabled,IReadOnlyList<AlertActionConfiguration>? actions,CancellationToken token,IReadOnlyDictionary<string, JsonElement>? parameters = null)
-    {Validate(name,comparison,thresholdJson,interval,timezone,cooldown);var normalizedActions=AlertActionValidator.Normalize(actions);var s=await RequireEntityAsync(tenantId,entityId,token);var metric=await metrics.GetAsync(tenantId,entityId,metricId,s,token)??throw new NotFoundException($"Metric '{metricId}' was not found.");MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson),await fields.ListAsync(tenantId,entityId,s,token),parameters,timeProvider.GetUtcNow());var current=await alerts.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Alert '{id}' was not found.");var updated=current with{MetricId=metricId,Name=name.Trim(),ComparisonOperator=comparison,ThresholdJson=thresholdJson,Interval=interval,Timezone=timezone,Cooldown=cooldown,NotifyOnRecovery=recovery,IsEnabled=enabled,Actions=normalizedActions,Parameters=parameters,NextEvaluationAt=enabled?timeProvider.GetUtcNow():current.NextEvaluationAt,UpdatedAt=timeProvider.GetUtcNow()};return await alerts.UpdateAsync(tenantId,updated,s,token)??throw new NotFoundException($"Alert '{id}' was not found.");}
-    public async Task DeleteAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);if(!await alerts.DeleteAsync(tenantId,entityId,id,s,token))throw new NotFoundException($"Alert '{id}' was not found.");}
-    public async Task<(IReadOnlyList<AlertEvaluation>,IReadOnlyList<AlertNotification>)> HistoryAsync(Guid tenantId,Guid entityId,Guid id,CancellationToken token){var s=await RequireEntityAsync(tenantId,entityId,token);_=await alerts.GetAsync(tenantId,entityId,id,s,token)??throw new NotFoundException($"Alert '{id}' was not found.");return(await evaluations.ListAsync(tenantId,id,s,token),await notifications.ListAsync(tenantId,id,s,token));}
-    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId,Guid entityId,CancellationToken token){var s=await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId,token);_=await entities.GetAsync(tenantId,entityId,s,token)??throw new NotFoundException($"Entity '{entityId}' was not found.");return s;}
-    private static void Validate(string name,AlertComparisonOperator comparison,string threshold,AlertInterval interval,string timezone,TimeSpan cooldown){if(name.Trim().Length is <1 or >200)throw new ValidationException("Alert name must contain between 1 and 200 characters.");if(!Enum.IsDefined(comparison)||!Enum.IsDefined(interval))throw new ValidationException("Alert comparison or interval is invalid.");try{using var d=JsonDocument.Parse(threshold);if(d.RootElement.ValueKind!=JsonValueKind.Number||!d.RootElement.TryGetDecimal(out _))throw new ValidationException("Alert threshold must be a JSON number.");}catch(JsonException){throw new ValidationException("Alert threshold must be valid JSON.");}try{_=TimeZoneInfo.FindSystemTimeZoneById(timezone);}catch(Exception exception)when(exception is TimeZoneNotFoundException or InvalidTimeZoneException){throw new ValidationException($"Timezone '{timezone}' was not found.");}if(cooldown<TimeSpan.Zero||cooldown>TimeSpan.FromDays(365))throw new ValidationException("Alert cooldown must be between zero and 365 days.");}
+    public async Task<AlertDefinition> CreateAsync(Guid tenantId, Guid entityId, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, Guid? userId, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        Validate(name, comparison, thresholdJson, interval, timezone, cooldown);
+        var normalizedActions = AlertActionValidator.Normalize(actions);
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        var metric = await metrics.GetAsync(tenantId, entityId, metricId, s, token) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
+        MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, entityId, s, token), parameters, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        var a = new AlertDefinition(Guid.NewGuid(), entityId, metricId, name.Trim(), comparison, thresholdJson, interval, timezone, cooldown, recovery, enabled, normalizedActions, null, null, now, null, null, userId, now, now, parameters);
+        return await alerts.CreateAsync(tenantId, a, s, token);
+    }
+    public async Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    {
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        return await alerts.ListAsync(tenantId, entityId, s, token);
+    }
+    public async Task<AlertDefinition> GetAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    {
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        return await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
+    }
+    public async Task<AlertDefinition> UpdateAsync(Guid tenantId, Guid entityId, Guid id, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        Validate(name, comparison, thresholdJson, interval, timezone, cooldown);
+        var normalizedActions = AlertActionValidator.Normalize(actions);
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        var metric = await metrics.GetAsync(tenantId, entityId, metricId, s, token) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
+        MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, entityId, s, token), parameters, timeProvider.GetUtcNow());
+        var current = await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
+        var updated = current with
+        {
+            MetricId = metricId,
+            Name = name.Trim(),
+            ComparisonOperator = comparison,
+            ThresholdJson = thresholdJson,
+            Interval = interval,
+            Timezone = timezone,
+            Cooldown = cooldown,
+            NotifyOnRecovery = recovery,
+            IsEnabled = enabled,
+            Actions = normalizedActions,
+            Parameters = parameters,
+            NextEvaluationAt = enabled ? timeProvider.GetUtcNow() : current.NextEvaluationAt,
+            UpdatedAt = timeProvider.GetUtcNow()
+        };
+        return await alerts.UpdateAsync(tenantId, updated, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
+    }
+    public async Task DeleteAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    {
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        if (!await alerts.DeleteAsync(tenantId, entityId, id, s, token))
+        {
+            throw new NotFoundException($"Alert '{id}' was not found.");
+        }
+    }
+    public async Task<(IReadOnlyList<AlertEvaluation>, IReadOnlyList<AlertNotification>)> HistoryAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    {
+        var s = await RequireEntityAsync(tenantId, entityId, token);
+        _ = await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
+        return (await evaluations.ListAsync(tenantId, id, s, token), await notifications.ListAsync(tenantId, id, s, token));
+    }
+    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    {
+        var s = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, token);
+        _ = await entities.GetAsync(tenantId, entityId, s, token) ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        return s;
+    }
+    private static void Validate(string name, AlertComparisonOperator comparison, string threshold, AlertInterval interval, string timezone, TimeSpan cooldown)
+    {
+        if (name.Trim().Length is < 1 or > 200)
+        {
+            throw new ValidationException("Alert name must contain between 1 and 200 characters.");
+        }
+
+        if (!Enum.IsDefined(comparison) || !Enum.IsDefined(interval))
+        {
+            throw new ValidationException("Alert comparison or interval is invalid.");
+        }
+
+        try
+        {
+            using var d = JsonDocument.Parse(threshold);
+            if (d.RootElement.ValueKind != JsonValueKind.Number || !d.RootElement.TryGetDecimal(out _))
+            {
+                throw new ValidationException("Alert threshold must be a JSON number.");
+            }
+        }
+        catch (JsonException) { throw new ValidationException("Alert threshold must be valid JSON."); }
+        try
+        {
+            _ = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+        }
+        catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException) { throw new ValidationException($"Timezone '{timezone}' was not found."); }
+        if (cooldown < TimeSpan.Zero || cooldown > TimeSpan.FromDays(365))
+        {
+            throw new ValidationException("Alert cooldown must be between zero and 365 days.");
+        }
+    }
 }

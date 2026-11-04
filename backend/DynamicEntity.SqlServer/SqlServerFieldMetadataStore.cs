@@ -102,7 +102,9 @@ public sealed class SqlServerFieldMetadataStore : IFieldMetadataStore
                 reader.IsDBNull(11) ? null : reader.GetString(11), reader.IsDBNull(12) ? null : reader.GetString(12),
                 reader.GetInt32(13), reader.GetBoolean(14), reader.GetFieldValue<DateTimeOffset>(15),
                 reader.GetFieldValue<DateTimeOffset>(16))
-                { IndexColumnName = reader.IsDBNull(17) ? null : reader.GetString(17) });
+            {
+                IndexColumnName = reader.IsDBNull(17) ? null : reader.GetString(17)
+            });
         }
         return result;
     }

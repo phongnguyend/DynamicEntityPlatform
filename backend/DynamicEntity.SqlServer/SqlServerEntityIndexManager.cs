@@ -18,7 +18,10 @@ public sealed class SqlServerEntityIndexManager(
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
+        {
             throw new NotSupportedException("Computed indexes currently require dedicated table storage.");
+        }
+
         var indexId = Guid.NewGuid();
         var indexName = $"IX_{indexId:N}";
         var createdAt = DateTimeOffset.UtcNow;
@@ -50,7 +53,9 @@ public sealed class SqlServerEntityIndexManager(
                 $"{PhysicalName.QuoteSqlIdentifier(column.PhysicalColumnName)} {(column.IsDescending ? "DESC" : "ASC")}"));
             var createIndexSql = $"CREATE INDEX {index} ON dbo.{table} ({columnList});";
             await using (var createIndexCommand = new SqlCommand(createIndexSql, connection, transaction) { CommandTimeout = 120 })
+            {
                 await createIndexCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
 
             const string insertIndexSql = """
                 INSERT INTO dbo.EntityIndexDefinitions (Id, EntityId, IndexName, Status, CreatedAt)
@@ -141,7 +146,10 @@ public sealed class SqlServerEntityIndexManager(
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
+        {
             throw new NotSupportedException("Computed indexes currently require dedicated table storage.");
+        }
+
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
         await using var connection = SqlServerTenantConnection.Create(storage);
         await connection.OpenAsync(cancellationToken);
@@ -180,7 +188,9 @@ public sealed class SqlServerEntityIndexManager(
                     DROP INDEX {quotedIndex} ON dbo.{table};
                 """;
             await using (var dropIndexCommand = new SqlCommand(dropIndexSql, connection, transaction) { CommandTimeout = 120 })
+            {
                 await dropIndexCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
 
             const string deleteColumnsSql = "DELETE FROM dbo.EntityIndexColumns WHERE IndexId = @indexId;";
             await using (var deleteColumnsCommand = new SqlCommand(deleteColumnsSql, connection, transaction))

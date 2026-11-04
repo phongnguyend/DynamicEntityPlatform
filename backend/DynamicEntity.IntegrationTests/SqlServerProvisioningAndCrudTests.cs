@@ -83,7 +83,10 @@ public sealed class SqlServerProvisioningAndCrudTests
             Assert.Contains(field.StorageKey, loaded.Data);
             var analyticsFields = await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None);
             Assert.NotNull(analyticsFields.Single(item => item.Id == amountField.Id).IndexColumnName);
-            await ExerciseAnalyticsAsync(options, control, resolver, tenant.Id, entity with { Fields = analyticsFields });
+            await ExerciseAnalyticsAsync(options, control, resolver, tenant.Id, entity with
+            {
+                Fields = analyticsFields
+            });
 
             await Assert.ThrowsAsync<ConflictException>(() => service.UpdateAsync(tenant.Id, entity.Id,
                 created.Id, input.RootElement, new byte[8], null, CancellationToken.None));
@@ -126,14 +129,20 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.Single(await dashboardStore.ListAsync(tenantId, storage, CancellationToken.None));
         Assert.NotNull(await dashboardStore.GetAsync(tenantId, dashboard.Id, storage, CancellationToken.None));
         Assert.True(await dashboardStore.NameExistsAsync(tenantId, dashboard.Name, null, storage, CancellationToken.None));
-        Assert.NotNull(await dashboardStore.UpdateAsync(dashboard with { Name = "Executive" }, storage, CancellationToken.None));
+        Assert.NotNull(await dashboardStore.UpdateAsync(dashboard with
+        {
+            Name = "Executive"
+        }, storage, CancellationToken.None));
 
         var reportStore = new SqlReportStore();
         var report = await reportStore.CreateAsync(tenantId,
             new ReportDefinition(Guid.NewGuid(), entity.Id, "Count report", null, "{\"query\":{}}", null, now, now),
             storage, CancellationToken.None);
         Assert.Single(await reportStore.ListAsync(tenantId, entity.Id, storage, CancellationToken.None));
-        Assert.NotNull(await reportStore.UpdateAsync(tenantId, report with { Name = "Updated report" }, storage, CancellationToken.None));
+        Assert.NotNull(await reportStore.UpdateAsync(tenantId, report with
+        {
+            Name = "Updated report"
+        }, storage, CancellationToken.None));
 
         var metricStore = new SqlMetricStore();
         var metric = await metricStore.CreateAsync(tenantId,
@@ -164,8 +173,12 @@ public sealed class SqlServerProvisioningAndCrudTests
             "InApp", NotificationStatus.Delivered, 1, null, now, now), storage, CancellationToken.None);
         Assert.Single(await evaluationStore.ListAsync(tenantId, alert.Id, storage, CancellationToken.None));
         Assert.Single(await notificationStore.ListAsync(tenantId, alert.Id, storage, CancellationToken.None));
-        await alertStore.CompleteAsync(tenantId, claimed! with { LastState = AlertState.Firing,
-            LastEvaluatedAt = now, NextEvaluationAt = now.AddMinutes(5) }, storage, CancellationToken.None);
+        await alertStore.CompleteAsync(tenantId, claimed! with
+        {
+            LastState = AlertState.Firing,
+            LastEvaluatedAt = now,
+            NextEvaluationAt = now.AddMinutes(5)
+        }, storage, CancellationToken.None);
         Assert.True(await alertStore.DeleteAsync(tenantId, entity.Id, alert.Id, storage, CancellationToken.None));
         Assert.True(await metricStore.DeleteAsync(tenantId, entity.Id, metric.Id, storage, CancellationToken.None));
         Assert.True(await reportStore.DeleteAsync(tenantId, entity.Id, report.Id, storage, CancellationToken.None));
@@ -176,7 +189,10 @@ public sealed class SqlServerProvisioningAndCrudTests
             new WebhookSubscription(Guid.NewGuid(), entity.Id, "Record changes", new Uri("https://example.test/hooks/records"),
                 [WebhookEvent.RecordCreated, WebhookEvent.RecordUpdated], true, null, now, now), storage, CancellationToken.None);
         Assert.Single(await webhookStore.ListAsync(tenantId, entity.Id, storage, CancellationToken.None));
-        Assert.NotNull(await webhookStore.UpdateAsync(tenantId, webhook with { IsEnabled = false }, storage, CancellationToken.None));
+        Assert.NotNull(await webhookStore.UpdateAsync(tenantId, webhook with
+        {
+            IsEnabled = false
+        }, storage, CancellationToken.None));
         Assert.True(await webhookStore.DeleteAsync(tenantId, entity.Id, webhook.Id, storage, CancellationToken.None));
     }
 
@@ -207,7 +223,10 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.True(await reader.ReadAsync());
         Assert.Equal(DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator.MigrationCount,
             reader.GetInt32(0));
-        for (var ordinal = 1; ordinal <= 8; ordinal++) Assert.Equal(1, reader.GetInt32(ordinal));
+        for (var ordinal = 1; ordinal <= 8; ordinal++)
+        {
+            Assert.Equal(1, reader.GetInt32(ordinal));
+        }
     }
 
     private static async Task CreateDatabaseAsync(string serverConnection, string databaseName)
@@ -226,7 +245,10 @@ public sealed class SqlServerProvisioningAndCrudTests
         if (!databaseName.StartsWith("Tenant_", StringComparison.Ordinal) &&
             !databaseName.StartsWith("DynamicEntityControl_Test_", StringComparison.Ordinal) &&
             !databaseName.StartsWith("DynamicEntityTenant_Test_", StringComparison.Ordinal))
+        {
             throw new InvalidOperationException("Refusing to drop a database outside the integration-test naming convention.");
+        }
+
         var builder = new SqlConnectionStringBuilder(serverConnection);
         await using var connection = new SqlConnection(builder.ConnectionString);
         await connection.OpenAsync();

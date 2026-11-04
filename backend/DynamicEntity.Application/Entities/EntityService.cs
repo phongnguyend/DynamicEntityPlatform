@@ -66,12 +66,23 @@ public sealed class EntityService(
         var updatedName = name?.Trim() ?? current.Name;
         var updatedDisplay = displayName?.Trim() ?? current.DisplayName;
         if (updatedName.Length is < 1 or > 100 || !IsMachineName(updatedName))
+        {
             throw new ValidationException("Entity name must start with a letter and contain only letters, numbers, or underscores.");
+        }
+
         if (updatedDisplay.Length is < 1 or > 200)
+        {
             throw new ValidationException("Display name must contain between 1 and 200 characters.");
-        var updated = current with { Name = updatedName, DisplayName = updatedDisplay,
+        }
+
+        var updated = current with
+        {
+            Name = updatedName,
+            DisplayName = updatedDisplay,
             Description = description?.Trim() ?? current.Description,
-            Icon = icon is null ? current.Icon : NormalizeIcon(icon), UpdatedAt = timeProvider.GetUtcNow() };
+            Icon = icon is null ? current.Icon : NormalizeIcon(icon),
+            UpdatedAt = timeProvider.GetUtcNow()
+        };
         return await metadataStore.UpdateAsync(tenantId, updated, storage, cancellationToken)
             ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
     }
@@ -105,7 +116,9 @@ public sealed class EntityService(
     {
         var storage = await RequireActiveTenantStorageAsync(tenantId, cancellationToken);
         if (!await metadataStore.ArchiveAsync(tenantId, entityId, storage, cancellationToken))
+        {
             throw new NotFoundException($"Entity '{entityId}' was not found.");
+        }
     }
 
     private async Task<Domain.Storage.EntityStorageLocation> RequireActiveTenantStorageAsync(

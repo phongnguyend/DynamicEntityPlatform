@@ -24,7 +24,13 @@ public sealed class FacetService(
         var field = definitions.SingleOrDefault(field => field.Id == fieldId)
             ?? throw new NotFoundException($"Field '{fieldId}' was not found.");
         if (!field.IsFacetable)
+        {
             throw new ValidationException($"Field '{field.DisplayName}' is not facetable.");
-        return await facets.GetValuesAsync(new TenantContext(tenantId), entity with { Fields = definitions }, field, cancellationToken);
+        }
+
+        return await facets.GetValuesAsync(new TenantContext(tenantId), entity with
+        {
+            Fields = definitions
+        }, field, cancellationToken);
     }
 }

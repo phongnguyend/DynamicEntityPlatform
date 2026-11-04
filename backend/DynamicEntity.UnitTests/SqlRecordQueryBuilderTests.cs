@@ -11,8 +11,14 @@ public sealed class SqlRecordQueryBuilderTests
     [Fact]
     public void VirtualQueryProjectsLogicalColumnsAndUsesThemForSortAndMultiChoiceFilter()
     {
-        var field = Field("Tags", FieldDataType.MultiChoice) with { Name = "tags" };
-        var entity = Entity(field) with { Name = "customers" };
+        var field = Field("Tags", FieldDataType.MultiChoice) with
+        {
+            Name = "tags"
+        };
+        var entity = Entity(field) with
+        {
+            Name = "customers"
+        };
         var filter = new FilterGroup(FilterLogic.And, [new FilterGroup(FilterLogic.Or,
             [new FilterCondition(field.Id, FilterOperator.Contains, Json("\"vip\""))])]);
         var query = new RecordQuery(20, Filter: filter, Sort: [new(field.Id, SortDirection.Asc)]);
@@ -128,7 +134,10 @@ public sealed class SqlRecordQueryBuilderTests
     {
         var now = DateTimeOffset.UtcNow;
         return new EntityDefinition(Guid.NewGuid(), Guid.NewGuid(), "entity", "Entity", null, 1,
-            EntityStatus.Active, now, now) { Fields = fields };
+            EntityStatus.Active, now, now)
+        {
+            Fields = fields
+        };
     }
 
     private static EntityStorageLocation Storage(EntityDefinition entity) =>

@@ -21,7 +21,9 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
         };
 
         if (status == StatusCodes.Status500InternalServerError)
+        {
             logger.LogError(exception, "Unhandled request failure");
+        }
 
         httpContext.Response.StatusCode = status;
         var problem = new ProblemDetails
@@ -30,7 +32,10 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
             Title = status == 500 ? "An unexpected error occurred." : exception.Message
         };
         if (exception is RecordValidationException recordValidation)
+        {
             problem.Extensions["errors"] = recordValidation.Errors;
+        }
+
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,

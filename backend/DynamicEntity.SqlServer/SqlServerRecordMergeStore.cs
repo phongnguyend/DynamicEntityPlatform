@@ -13,12 +13,23 @@ public sealed class SqlServerRecordMergeStore(IEntityStorageResolver resolver) :
         FieldDefinition matchField, IReadOnlyList<string> normalizedRecords, Guid? userId, CancellationToken cancellationToken)
     {
         var storage = await resolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
-        if (storage.Mode != EntityStorageMode.DedicatedTable) throw new NotSupportedException("Merge currently requires dedicated storage.");
-        await using var connection = SqlServerTenantConnection.Create(storage); await connection.OpenAsync(cancellationToken);
+        if (storage.Mode != EntityStorageMode.DedicatedTable)
+        {
+            throw new NotSupportedException("Merge currently requires dedicated storage.");
+        }
+
+        await using var connection = SqlServerTenantConnection.Create(storage);
+        await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         await using (var create = new SqlCommand("CREATE TABLE #MergeRows(SourceRow INT NOT NULL PRIMARY KEY, ExternalKey NVARCHAR(4000) NOT NULL, NewData NVARCHAR(MAX) NOT NULL);", connection, transaction))
+        {
             await create.ExecuteNonQueryAsync(cancellationToken);
-        var rows = new DataTable(); rows.Columns.Add("SourceRow", typeof(int)); rows.Columns.Add("ExternalKey", typeof(string)); rows.Columns.Add("NewData", typeof(string));
+        }
+
+        var rows = new DataTable();
+        rows.Columns.Add("SourceRow", typeof(int));
+        rows.Columns.Add("ExternalKey", typeof(string));
+        rows.Columns.Add("NewData", typeof(string));
         for (var index = 0; index < normalizedRecords.Count; index++)
         {
             using var json = JsonDocument.Parse(normalizedRecords[index]);
@@ -26,7 +37,9 @@ public sealed class SqlServerRecordMergeStore(IEntityStorageResolver resolver) :
         }
         using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.Default, transaction) { DestinationTableName = "#MergeRows" })
         {
-            bulk.ColumnMappings.Add("SourceRow", "SourceRow"); bulk.ColumnMappings.Add("ExternalKey", "ExternalKey"); bulk.ColumnMappings.Add("NewData", "NewData");
+            bulk.ColumnMappings.Add("SourceRow", "SourceRow");
+            bulk.ColumnMappings.Add("ExternalKey", "ExternalKey");
+            bulk.ColumnMappings.Add("NewData", "NewData");
             await bulk.WriteToServerAsync(rows, cancellationToken);
         }
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
@@ -43,9 +56,12 @@ public sealed class SqlServerRecordMergeStore(IEntityStorageResolver resolver) :
             """;
         await using var command = new SqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("@userId", (object?)userId ?? DBNull.Value);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken); await reader.ReadAsync(cancellationToken);
-        var result = (reader.GetInt32(0), reader.GetInt32(1)); await reader.CloseAsync();
-        await transaction.CommitAsync(cancellationToken); return result;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
+        var result = (reader.GetInt32(0), reader.GetInt32(1));
+        await reader.CloseAsync();
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
     private static string Scalar(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
 }

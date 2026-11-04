@@ -15,8 +15,14 @@ public sealed class SqlWebhookSubscriptionStore : IWebhookSubscriptionStore
     public async Task<WebhookSubscription> CreateAsync(Guid tenantId, WebhookSubscription value, EntityStorageLocation storage, CancellationToken token)
     {
         const string sql = "INSERT dbo.WebhookSubscriptions(Id,EntityId,Name,EndpointUrl,EventsJson,IsEnabled,CreatedBy,CreatedAt,UpdatedAt) SELECT @id,@entityId,@name,@endpoint,@events,@enabled,@createdBy,@createdAt,@updatedAt WHERE EXISTS(SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
-        await using var connection = await OpenAsync(storage, token); await using var command = new SqlCommand(sql, connection); Add(command, tenantId, value);
-        if (await command.ExecuteNonQueryAsync(token) != 1) throw new InvalidOperationException("Entity ownership changed while creating webhook subscription.");
+        await using var connection = await OpenAsync(storage, token);
+        await using var command = new SqlCommand(sql, connection);
+        Add(command, tenantId, value);
+        if (await command.ExecuteNonQueryAsync(token) != 1)
+        {
+            throw new InvalidOperationException("Entity ownership changed while creating webhook subscription.");
+        }
+
         return value;
     }
 
@@ -29,36 +35,64 @@ public sealed class SqlWebhookSubscriptionStore : IWebhookSubscriptionStore
     public async Task<WebhookSubscription?> UpdateAsync(Guid tenantId, WebhookSubscription value, EntityStorageLocation storage, CancellationToken token)
     {
         var sql = $"UPDATE w SET Name=@name,EndpointUrl=@endpoint,EventsJson=@events,IsEnabled=@enabled,UpdatedAt=@updatedAt OUTPUT {string.Join(',', Columns.Split(',').Select(column => "inserted." + column[(column.IndexOf('.') + 1)..]))} FROM dbo.WebhookSubscriptions w JOIN dbo.EntityDefinitions e ON e.Id=w.EntityId WHERE w.Id=@id AND w.EntityId=@entityId AND e.TenantId=@tenantId;";
-        await using var connection = await OpenAsync(storage, token); await using var command = new SqlCommand(sql, connection); Add(command, tenantId, value);
-        await using var reader = await command.ExecuteReaderAsync(token); return await reader.ReadAsync(token) ? Read(reader) : null;
+        await using var connection = await OpenAsync(storage, token);
+        await using var command = new SqlCommand(sql, connection);
+        Add(command, tenantId, value);
+        await using var reader = await command.ExecuteReaderAsync(token);
+        return await reader.ReadAsync(token) ? Read(reader) : null;
     }
 
     public async Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid subscriptionId, EntityStorageLocation storage, CancellationToken token)
     {
         const string sql = "DELETE w FROM dbo.WebhookSubscriptions w JOIN dbo.EntityDefinitions e ON e.Id=w.EntityId WHERE w.Id=@id AND w.EntityId=@entityId AND e.TenantId=@tenantId;";
-        await using var connection = await OpenAsync(storage, token); await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@tenantId", tenantId); command.Parameters.AddWithValue("@entityId", entityId); command.Parameters.AddWithValue("@id", subscriptionId);
+        await using var connection = await OpenAsync(storage, token);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@tenantId", tenantId);
+        command.Parameters.AddWithValue("@entityId", entityId);
+        command.Parameters.AddWithValue("@id", subscriptionId);
         return await command.ExecuteNonQueryAsync(token) == 1;
     }
 
     private async Task<IReadOnlyList<WebhookSubscription>> ReadManyAsync(string sql, Guid tenantId, Guid entityId, Guid? id, EntityStorageLocation storage, CancellationToken token)
     {
-        await using var connection = await OpenAsync(storage, token); await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@tenantId", tenantId); command.Parameters.AddWithValue("@entityId", entityId); if (id is not null) command.Parameters.AddWithValue("@id", id.Value);
-        await using var reader = await command.ExecuteReaderAsync(token); var result = new List<WebhookSubscription>(); while (await reader.ReadAsync(token)) result.Add(Read(reader)); return result;
+        await using var connection = await OpenAsync(storage, token);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@tenantId", tenantId);
+        command.Parameters.AddWithValue("@entityId", entityId);
+        if (id is not null)
+        {
+            command.Parameters.AddWithValue("@id", id.Value);
+        }
+
+        await using var reader = await command.ExecuteReaderAsync(token);
+        var result = new List<WebhookSubscription>();
+        while (await reader.ReadAsync(token))
+        {
+            result.Add(Read(reader));
+        }
+
+        return result;
     }
 
     private async Task<SqlConnection> OpenAsync(EntityStorageLocation storage, CancellationToken token)
     {
-        var connection = SqlServerTenantConnection.Create(storage); await connection.OpenAsync(token); return connection;
+        var connection = SqlServerTenantConnection.Create(storage);
+        await connection.OpenAsync(token);
+        return connection;
     }
 
     private static void Add(SqlCommand command, Guid tenantId, WebhookSubscription value)
     {
-        command.Parameters.AddWithValue("@tenantId", tenantId); command.Parameters.AddWithValue("@id", value.Id); command.Parameters.AddWithValue("@entityId", value.EntityId);
-        command.Parameters.AddWithValue("@name", value.Name); command.Parameters.AddWithValue("@endpoint", value.Endpoint.AbsoluteUri);
-        command.Parameters.AddWithValue("@events", JsonSerializer.Serialize(value.Events, JsonOptions)); command.Parameters.AddWithValue("@enabled", value.IsEnabled);
-        command.Parameters.AddWithValue("@createdBy", (object?)value.CreatedBy ?? DBNull.Value); command.Parameters.AddWithValue("@createdAt", value.CreatedAt); command.Parameters.AddWithValue("@updatedAt", value.UpdatedAt);
+        command.Parameters.AddWithValue("@tenantId", tenantId);
+        command.Parameters.AddWithValue("@id", value.Id);
+        command.Parameters.AddWithValue("@entityId", value.EntityId);
+        command.Parameters.AddWithValue("@name", value.Name);
+        command.Parameters.AddWithValue("@endpoint", value.Endpoint.AbsoluteUri);
+        command.Parameters.AddWithValue("@events", JsonSerializer.Serialize(value.Events, JsonOptions));
+        command.Parameters.AddWithValue("@enabled", value.IsEnabled);
+        command.Parameters.AddWithValue("@createdBy", (object?)value.CreatedBy ?? DBNull.Value);
+        command.Parameters.AddWithValue("@createdAt", value.CreatedAt);
+        command.Parameters.AddWithValue("@updatedAt", value.UpdatedAt);
     }
 
     private static WebhookSubscription Read(SqlDataReader reader) => new(reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2),

@@ -20,18 +20,29 @@ public sealed class SqlAnalyticsStore(
         await connection.OpenAsync(cancellationToken);
         var plan = SqlAnalyticsQueryBuilder.Build(entity, storage, query);
         await using var command = new SqlCommand(plan.Sql, connection) { CommandTimeout = options.AnalyticsCommandTimeoutSeconds };
-        foreach (var parameter in plan.Parameters) command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+        foreach (var parameter in plan.Parameters)
+        {
+            command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+        }
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         while (await reader.ReadAsync(cancellationToken))
         {
             var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
             for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+            {
                 row[reader.GetName(ordinal)] = reader.IsDBNull(ordinal) ? null : reader.GetValue(ordinal);
+            }
+
             rows.Add(row);
         }
         var truncated = rows.Count > query.Limit;
-        if (truncated) rows.RemoveAt(rows.Count - 1);
+        if (truncated)
+        {
+            rows.RemoveAt(rows.Count - 1);
+        }
+
         return new(rows, truncated);
     }
 }

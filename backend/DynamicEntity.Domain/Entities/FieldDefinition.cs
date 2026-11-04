@@ -38,5 +38,9 @@ public sealed record FieldDefinition(
     DateTimeOffset UpdatedAt)
 {
     public string StorageKey => PhysicalName.ForFieldStorageKey(Id);
-    public string? IndexColumnName { get; init; }
+
+    public string? IndexColumnName
+    {
+        get; init;
+    }
 }

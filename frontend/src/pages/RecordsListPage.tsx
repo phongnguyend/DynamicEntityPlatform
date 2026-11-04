@@ -21,7 +21,7 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
   const [importOpen, setImportOpen] = useState(false)
   const records = useQuery({
     queryKey: ['records', tenantId, entityId, queryDefinition],
-    queryFn: () => queryDefinition ? api.query(tenantId, entityId, queryDefinition) : api.records(tenantId, entityId),
+    queryFn: () => (queryDefinition ? api.query(tenantId, entityId, queryDefinition) : api.records(tenantId, entityId)),
     enabled: Boolean(entityId),
   })
   const remove = useMutation({
@@ -30,41 +30,105 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
   })
   const appliedFilterFieldId = getAppliedFilterFieldId(queryDefinition)
 
-  if (isLoading) return <p>Loading…</p>
-  if (error) return <p className="error">{error.message}</p>
-  if (!entity) return <p className="error">Entity not found.</p>
+  if (isLoading) {
+    return <p>Loading…</p>
+  }
+  if (error) {
+    return <p className="error">{error.message}</p>
+  }
+  if (!entity) {
+    return <p className="error">Entity not found.</p>
+  }
 
-  return <section className="page">
-    <header><div><p className="eyebrow">Entity</p><h2>{entity.displayName}</h2><p>{entity.description}</p></div>
-      <span className="pill">Schema v{entity.schemaVersion}</span></header>
-    <EntityTabs entityId={entityId} />
-    <div className="panel">
-    <div className="panel-header"><h3>Records</h3>
-      <div className="page-actions">
-        <button className="link" onClick={async () => {
-          const blob = await api.exportRecords(tenantId, entityId); const url = URL.createObjectURL(blob)
-          const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${entity.name}.csv`; anchor.click(); URL.revokeObjectURL(url)
-        }}><Download />Export CSV</button>
-        <button type="button" className="secondary" onClick={() => setImportOpen(true)}><Upload />Import</button>
-        <button type="button" disabled={fields.length === 0} onClick={() => navigate(`/entities/${entityId}/records/new`)}><Plus />New record</button>
+  return (
+    <section className="page">
+      <header>
+        <div>
+          <p className="eyebrow">Entity</p>
+          <h2>{entity.displayName}</h2>
+          <p>{entity.description}</p>
+        </div>
+        <span className="pill">Schema v{entity.schemaVersion}</span>
+      </header>
+      <EntityTabs entityId={entityId} />
+      <div className="panel">
+        <div className="panel-header">
+          <h3>Records</h3>
+          <div className="page-actions">
+            <button
+              className="link"
+              onClick={async () => {
+                const blob = await api.exportRecords(tenantId, entityId)
+                const url = URL.createObjectURL(blob)
+                const anchor = document.createElement('a')
+                anchor.href = url
+                anchor.download = `${entity.name}.csv`
+                anchor.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              <Download />
+              Export CSV
+            </button>
+            <button type="button" className="secondary" onClick={() => setImportOpen(true)}>
+              <Upload />
+              Import
+            </button>
+            <button
+              type="button"
+              disabled={fields.length === 0}
+              onClick={() => navigate(`/entities/${entityId}/records/new`)}
+            >
+              <Plus />
+              New record
+            </button>
+          </div>
+        </div>
+        <div className="panel-body">
+          {records.isLoading ? (
+            <p>Loading records…</p>
+          ) : records.error ? (
+            <p className="error">{records.error.message}</p>
+          ) : (
+            <>
+              <DynamicGrid
+                fields={fields}
+                records={records.data?.items ?? []}
+                selectedFilterFieldId={filterFieldId}
+                appliedFilterFieldId={appliedFilterFieldId}
+                onSelectFilter={(field) => setFilterFieldId((current) => (current === field.id ? '' : field.id))}
+                renderFilter={(field) => (
+                  <FilterPanel
+                    key={field.id}
+                    tenantId={tenantId}
+                    entityId={entityId}
+                    field={field}
+                    condition={getAppliedFilterCondition(queryDefinition, field.id)}
+                    onApply={setQueryDefinition}
+                    onClose={() => setFilterFieldId('')}
+                  />
+                )}
+                onEdit={(record) => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
+                onDelete={(record) => {
+                  if (confirm('Delete this record?')) {
+                    remove.mutate(record)
+                  }
+                }}
+              />
+              <p className="record-count">
+                {records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}
+              </p>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-    <div className="panel-body">{records.isLoading ? <p>Loading records…</p> : records.error ? <p className="error">{records.error.message}</p> : <>
-      <DynamicGrid fields={fields} records={records.data?.items ?? []}
-        selectedFilterFieldId={filterFieldId} appliedFilterFieldId={appliedFilterFieldId}
-        onSelectFilter={field => setFilterFieldId(current => current === field.id ? '' : field.id)}
-        renderFilter={field => <FilterPanel key={field.id} tenantId={tenantId} entityId={entityId}
-          field={field} condition={getAppliedFilterCondition(queryDefinition, field.id)}
-          onApply={setQueryDefinition} onClose={() => setFilterFieldId('')} />}
-        onEdit={record => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
-        onDelete={record => { if (confirm('Delete this record?')) remove.mutate(record) }} />
-      <p className="record-count">{records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}</p>
-    </>}</div>
-    </div>
-    {importOpen && <Modal title={`Import records into ${entity.displayName}`} wide onClose={() => setImportOpen(false)}>
-      <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} onClose={() => setImportOpen(false)} />
-    </Modal>}
-  </section>
+      {importOpen && (
+        <Modal title={`Import records into ${entity.displayName}`} wide onClose={() => setImportOpen(false)}>
+          <ImportPanel tenantId={tenantId} entityId={entityId} fields={fields} onClose={() => setImportOpen(false)} />
+        </Modal>
+      )}
+    </section>
+  )
 }
 
 export function getAppliedFilterFieldId(query: Record<string, unknown> | null) {
@@ -72,12 +136,22 @@ export function getAppliedFilterFieldId(query: Record<string, unknown> | null) {
 }
 
 export function getAppliedFilterCondition(query: Record<string, unknown> | null, fieldId?: string) {
-  if (!query || typeof query.filter !== 'object' || query.filter === null) return undefined
+  if (!query || typeof query.filter !== 'object' || query.filter === null) {
+    return undefined
+  }
   const conditions = (query.filter as { conditions?: unknown }).conditions
-  if (!Array.isArray(conditions)) return undefined
-  const condition = conditions.find(item => typeof item === 'object' && item !== null &&
-    typeof (item as { fieldId?: unknown }).fieldId === 'string' &&
-    (!fieldId || (item as { fieldId: string }).fieldId === fieldId)) as Record<string, unknown> | undefined
-  if (!condition || typeof condition.fieldId !== 'string' || typeof condition.operator !== 'string') return undefined
+  if (!Array.isArray(conditions)) {
+    return undefined
+  }
+  const condition = conditions.find(
+    (item) =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as { fieldId?: unknown }).fieldId === 'string' &&
+      (!fieldId || (item as { fieldId: string }).fieldId === fieldId),
+  ) as Record<string, unknown> | undefined
+  if (!condition || typeof condition.fieldId !== 'string' || typeof condition.operator !== 'string') {
+    return undefined
+  }
   return { fieldId: condition.fieldId, operator: condition.operator, value: condition.value }
 }

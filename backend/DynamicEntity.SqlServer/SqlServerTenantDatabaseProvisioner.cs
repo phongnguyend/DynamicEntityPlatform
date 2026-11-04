@@ -21,9 +21,14 @@ public sealed class SqlServerTenantDatabaseProvisioner : ITenantDatabaseProvisio
         }
         var databaseName = builder.InitialCatalog;
         if (string.IsNullOrWhiteSpace(databaseName))
+        {
             throw new ValidationException("The tenant connection string must specify Initial Catalog (Database).");
+        }
+
         if (builder.DataSource.Contains("\\\\", StringComparison.Ordinal) || databaseName.Contains('\\'))
+        {
             throw new ValidationException("The tenant connection string contains escaped backslashes. Enter it as plain text, for example Server=(localdb)\\MSSQLLocalDB;Database=Tenant_name.");
+        }
 
         var location = new EntityStorageLocation(
             databaseName,

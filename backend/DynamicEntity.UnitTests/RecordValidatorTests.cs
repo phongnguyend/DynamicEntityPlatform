@@ -102,7 +102,10 @@ public sealed class RecordValidatorTests
     {
         var now = DateTimeOffset.UtcNow;
         return new EntityDefinition(Guid.NewGuid(), Guid.NewGuid(), "entity", "Entity", null, 1,
-            EntityStatus.Active, now, now) { Fields = fields };
+            EntityStatus.Active, now, now)
+        {
+            Fields = fields
+        };
     }
 
     private static FieldDefinition Field(

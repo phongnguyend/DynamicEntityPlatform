@@ -18,11 +18,17 @@ public sealed class TabularFileParser : ITabularFileParser
     {
         var extension = Path.GetExtension(fileName);
         if (extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+        {
             await ParseCsvAsync(stream, onHeader, onRow, cancellationToken);
+        }
         else if (extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
             await ParseXlsxAsync(stream, onHeader, onRow, cancellationToken);
+        }
         else
+        {
             throw new ValidationException("Only .csv and .xlsx files are supported.");
+        }
     }
 
     private static async Task ParseCsvAsync(
@@ -41,7 +47,11 @@ public sealed class TabularFileParser : ITabularFileParser
         while (await ReadCsvRecordAsync(reader, cancellationToken) is { } line)
         {
             rowNumber++;
-            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
             var values = ParseCsvLine(line);
             var row = headers.Select((header, index) => new { header, value = index < values.Count ? values[index] : null })
                 .ToDictionary(item => item.header, item => item.value, StringComparer.OrdinalIgnoreCase);
@@ -66,7 +76,11 @@ public sealed class TabularFileParser : ITabularFileParser
         while (xml.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (xml.NodeType != XmlNodeType.Element || xml.LocalName != "row") continue;
+            if (xml.NodeType != XmlNodeType.Element || xml.LocalName != "row")
+            {
+                continue;
+            }
+
             logicalRow++;
             var cells = ReadRow(xml.ReadSubtree(), shared);
             if (headers is null)
@@ -81,7 +95,10 @@ public sealed class TabularFileParser : ITabularFileParser
                 .ToDictionary(item => item.header, item => item.value, StringComparer.OrdinalIgnoreCase);
             await onRow(logicalRow, row, cancellationToken);
         }
-        if (headers is null) throw new ValidationException("The workbook is empty.");
+        if (headers is null)
+        {
+            throw new ValidationException("The workbook is empty.");
+        }
     }
 
     private static Dictionary<int, string?> ReadRow(XmlReader rowReader, IReadOnlyList<string> shared)
@@ -89,7 +106,11 @@ public sealed class TabularFileParser : ITabularFileParser
         var cells = new Dictionary<int, string?>();
         while (rowReader.Read())
         {
-            if (rowReader.NodeType != XmlNodeType.Element || rowReader.LocalName != "c") continue;
+            if (rowReader.NodeType != XmlNodeType.Element || rowReader.LocalName != "c")
+            {
+                continue;
+            }
+
             var reference = rowReader.GetAttribute("r") ?? "A1";
             var type = rowReader.GetAttribute("t");
             using var cellReader = rowReader.ReadSubtree();
@@ -97,9 +118,15 @@ public sealed class TabularFileParser : ITabularFileParser
             while (cellReader.Read())
             {
                 if (cellReader.NodeType == XmlNodeType.Element && cellReader.LocalName is "v" or "t")
+                {
                     value = cellReader.ReadElementContentAsString();
+                }
             }
-            if (type == "s" && int.TryParse(value, out var index) && index >= 0 && index < shared.Count) value = shared[index];
+            if (type == "s" && int.TryParse(value, out var index) && index >= 0 && index < shared.Count)
+            {
+                value = shared[index];
+            }
+
             cells[ColumnIndex(reference)] = value;
         }
         return cells;
@@ -108,7 +135,11 @@ public sealed class TabularFileParser : ITabularFileParser
     private static IReadOnlyList<string> ReadSharedStrings(ZipArchive archive)
     {
         var entry = archive.GetEntry("xl/sharedStrings.xml");
-        if (entry is null) return [];
+        if (entry is null)
+        {
+            return [];
+        }
+
         using var stream = entry.Open();
         var document = XDocument.Load(stream);
         return document.Descendants().Where(element => element.Name.LocalName == "si")
@@ -126,13 +157,31 @@ public sealed class TabularFileParser : ITabularFileParser
             var character = line[index];
             if (character == '"')
             {
-                if (quoted && index + 1 < line.Length && line[index + 1] == '"') { value.Append('"'); index++; }
-                else quoted = !quoted;
+                if (quoted && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    value.Append('"');
+                    index++;
+                }
+                else
+                {
+                    quoted = !quoted;
+                }
             }
-            else if (character == ',' && !quoted) { values.Add(value.ToString()); value.Clear(); }
-            else value.Append(character);
+            else if (character == ',' && !quoted)
+            {
+                values.Add(value.ToString());
+                value.Clear();
+            }
+            else
+            {
+                value.Append(character);
+            }
         }
-        if (quoted) throw new ValidationException("A CSV row contains an unterminated quoted value.");
+        if (quoted)
+        {
+            throw new ValidationException("A CSV row contains an unterminated quoted value.");
+        }
+
         values.Add(value.ToString());
         return values;
     }
@@ -140,7 +189,11 @@ public sealed class TabularFileParser : ITabularFileParser
     private static async Task<string?> ReadCsvRecordAsync(StreamReader reader, CancellationToken cancellationToken)
     {
         var line = await reader.ReadLineAsync(cancellationToken);
-        if (line is null) return null;
+        if (line is null)
+        {
+            return null;
+        }
+
         var record = new StringBuilder(line);
         while (HasOpenQuote(record))
         {
@@ -156,9 +209,19 @@ public sealed class TabularFileParser : ITabularFileParser
         var quoted = false;
         for (var index = 0; index < value.Length; index++)
         {
-            if (value[index] != '"') continue;
-            if (quoted && index + 1 < value.Length && value[index + 1] == '"') index++;
-            else quoted = !quoted;
+            if (value[index] != '"')
+            {
+                continue;
+            }
+
+            if (quoted && index + 1 < value.Length && value[index + 1] == '"')
+            {
+                index++;
+            }
+            else
+            {
+                quoted = !quoted;
+            }
         }
         return quoted;
     }
@@ -166,15 +229,25 @@ public sealed class TabularFileParser : ITabularFileParser
     private static int ColumnIndex(string reference)
     {
         var result = 0;
-        foreach (var character in reference.TakeWhile(char.IsLetter)) result = result * 26 + char.ToUpperInvariant(character) - 'A' + 1;
+        foreach (var character in reference.TakeWhile(char.IsLetter))
+        {
+            result = result * 26 + char.ToUpperInvariant(character) - 'A' + 1;
+        }
+
         return result - 1;
     }
 
     private static string UniqueHeader(string? value, int index) => string.IsNullOrWhiteSpace(value) ? $"Column{index + 1}" : value.Trim();
     private static void ValidateHeaders(IReadOnlyList<string> headers)
     {
-        if (headers.Count == 0) throw new ValidationException("The file has no columns.");
+        if (headers.Count == 0)
+        {
+            throw new ValidationException("The file has no columns.");
+        }
+
         if (headers.Count != headers.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+        {
             throw new ValidationException("Source column names must be unique.");
+        }
     }
 }

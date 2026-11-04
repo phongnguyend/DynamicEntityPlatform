@@ -26,10 +26,18 @@ public sealed class RecordService(
     {
         var entity = await GetEntityWithFieldsAsync(tenantId, entityId, cancellationToken);
         var result = await validator.ValidateAsync(entity, data, cancellationToken);
-        if (!result.IsValid) throw new RecordValidationException(result.Errors);
+        if (!result.IsValid)
+        {
+            throw new RecordValidationException(result.Errors);
+        }
+
         var constraintErrors = await constraintValidator.ValidateAsync(
             new TenantContext(tenantId), entity, result.NormalizedData!, null, cancellationToken);
-        if (constraintErrors.Count != 0) throw new RecordValidationException(constraintErrors);
+        if (constraintErrors.Count != 0)
+        {
+            throw new RecordValidationException(constraintErrors);
+        }
+
         return await records.InsertAsync(
             new TenantContext(tenantId), entity, Guid.NewGuid(), result.NormalizedData!, userId, cancellationToken);
     }
@@ -77,17 +85,28 @@ public sealed class RecordService(
         CancellationToken cancellationToken)
     {
         if (expectedVersion.Length != 8)
+        {
             throw new ValidationException("Expected version must be an 8-byte SQL rowversion value.");
+        }
+
         var entity = await GetEntityWithFieldsAsync(tenantId, entityId, cancellationToken);
         var context = new TenantContext(tenantId);
         var existing = await records.GetAsync(context, entity, recordId, cancellationToken)
             ?? throw new NotFoundException($"Record '{recordId}' was not found.");
         using var mergedDocument = MergePatch(existing.Data, data, entity.Fields);
         var validation = await validator.ValidateAsync(entity, mergedDocument.RootElement, cancellationToken);
-        if (!validation.IsValid) throw new RecordValidationException(validation.Errors);
+        if (!validation.IsValid)
+        {
+            throw new RecordValidationException(validation.Errors);
+        }
+
         var constraintErrors = await constraintValidator.ValidateAsync(
             context, entity, validation.NormalizedData!, recordId, cancellationToken);
-        if (constraintErrors.Count != 0) throw new RecordValidationException(constraintErrors);
+        if (constraintErrors.Count != 0)
+        {
+            throw new RecordValidationException(constraintErrors);
+        }
+
         var result = await records.UpdateAsync(
             context, entity, recordId, validation.NormalizedData!, expectedVersion, userId, cancellationToken);
         return result.Status switch
@@ -106,14 +125,22 @@ public sealed class RecordService(
         CancellationToken cancellationToken)
     {
         if (expectedVersion.Length != 8)
+        {
             throw new ValidationException("Expected version must be an 8-byte SQL rowversion value.");
+        }
+
         var entity = await GetEntityWithFieldsAsync(tenantId, entityId, cancellationToken);
         var status = await records.DeleteAsync(
             new TenantContext(tenantId), entity, recordId, expectedVersion, cancellationToken);
         if (status == RecordWriteStatus.NotFound)
+        {
             throw new NotFoundException($"Record '{recordId}' was not found.");
+        }
+
         if (status == RecordWriteStatus.Conflict)
+        {
             throw new ConflictException($"Record '{recordId}' was changed by another request.");
+        }
     }
 
     private async Task<EntityDefinition> GetEntityWithFieldsAsync(
@@ -125,7 +152,10 @@ public sealed class RecordService(
         var entity = await entities.GetAsync(tenantId, entityId, storage, cancellationToken)
             ?? throw new NotFoundException($"Entity '{entityId}' was not found for tenant '{tenantId}'.");
         var definitions = await fields.ListAsync(tenantId, entityId, storage, cancellationToken);
-        return entity with { Fields = definitions };
+        return entity with
+        {
+            Fields = definitions
+        };
     }
 
     private static JsonDocument MergePatch(
@@ -134,7 +164,9 @@ public sealed class RecordService(
         IReadOnlyList<FieldDefinition> fields)
     {
         if (patch.ValueKind != JsonValueKind.Object)
+        {
             return JsonDocument.Parse(patch.GetRawText());
+        }
 
         var merged = JsonNode.Parse(existingJson)?.AsObject() ?? new JsonObject();
         var aliases = new Dictionary<string, FieldDefinition>(StringComparer.OrdinalIgnoreCase);

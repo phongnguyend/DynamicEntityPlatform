@@ -36,7 +36,9 @@ public static class SqlAnalyticsQueryBuilder
             parameters.Add(new("@entityId", entity.Id));
         }
         if (query.Filter is { Conditions.Count: > 0 })
+        {
             where.Add(SqlFilterExpression.Build(query.Filter, fields, parameters, allowUnbound, virtualNames));
+        }
 
         var whereSql = where.Count == 0 ? string.Empty : $" WHERE {string.Join(" AND ", where)}";
         var groupSql = dimensions.Length == 0 ? string.Empty :

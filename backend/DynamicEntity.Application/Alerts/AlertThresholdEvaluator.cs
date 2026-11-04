@@ -8,11 +8,20 @@ public sealed class AlertThresholdEvaluator
 {
     public bool IsMatch(object? value, decimal threshold, AlertComparisonOperator comparison)
     {
-        if (value is null) throw new ValidationException("A null metric value cannot be compared to a threshold.");
+        if (value is null)
+        {
+            throw new ValidationException("A null metric value cannot be compared to a threshold.");
+        }
+
         decimal actual;
-        try { actual = Convert.ToDecimal(value, CultureInfo.InvariantCulture); }
+        try
+        {
+            actual = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+        }
         catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
-        { throw new ValidationException("The metric value is not numeric and cannot be used by an alert."); }
+        {
+            throw new ValidationException("The metric value is not numeric and cannot be used by an alert.");
+        }
         return comparison switch
         {
             AlertComparisonOperator.GreaterThan => actual > threshold,

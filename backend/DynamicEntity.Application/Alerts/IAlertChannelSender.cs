@@ -22,7 +22,10 @@ public static class AlertChannels
 /// </summary>
 public interface IAlertChannelSender
 {
-    string Channel { get; }
+    string Channel
+    {
+        get;
+    }
 
     Task SendAsync(Guid tenantId, AlertNotification notification, AlertNotificationPayload payload,
         CancellationToken token);

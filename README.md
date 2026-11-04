@@ -89,6 +89,28 @@ dotnet test backend/DynamicEntity.IntegrationTests
 
 CI runs the same integration test against a disposable SQL Server service.
 
+## Formatting
+
+Formatting follows `AGENTS.md`: control-flow bodies use braces and multiple lines,
+C# braces start on a new line, and adjacent C# properties have a blank line between them.
+
+From the repository root:
+
+```powershell
+dotnet format backend/DynamicEntity.slnx --diagnostics IDE0011 --severity info --no-restore
+npm --prefix frontend run format
+```
+
+To check without modifying source files:
+
+```powershell
+dotnet format backend/DynamicEntity.slnx --diagnostics IDE0011 --severity info --no-restore --verify-no-changes
+npm --prefix frontend run format:check
+```
+
+Property spacing is maintained when writing and reviewing C# code.
+Generated files and build output are excluded from formatting.
+
 ## Run locally
 
 Terminal 1:

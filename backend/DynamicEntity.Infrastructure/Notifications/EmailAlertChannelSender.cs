@@ -21,9 +21,14 @@ public sealed class EmailAlertChannelSender(EmailAlertOptions options) : IAlertC
         CancellationToken token)
     {
         if (!options.IsConfigured)
+        {
             throw new AlertDeliveryException("The email channel has no SMTP host or sender address configured.", true);
+        }
+
         if (payload.Targets.Count == 0)
+        {
             throw new AlertDeliveryException("The email action has no recipients.", true);
+        }
 
         using var message = BuildMessage(payload, notification);
         using var client = CreateClient();
@@ -64,7 +69,10 @@ public sealed class EmailAlertChannelSender(EmailAlertOptions options) : IAlertC
         foreach (var recipient in payload.Targets)
         {
             if (!MailAddress.TryCreate(recipient, out var address))
+            {
                 throw new AlertDeliveryException($"Recipient '{recipient}' is not a valid email address.", true);
+            }
+
             message.To.Add(address);
         }
 

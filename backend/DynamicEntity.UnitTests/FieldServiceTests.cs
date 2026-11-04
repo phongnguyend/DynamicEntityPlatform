@@ -30,11 +30,30 @@ public sealed class FieldServiceTests
 
     private sealed class FakeRepository : IControlPlaneStore, IEntityMetadataStore, IFieldMetadataStore
     {
-        public Tenant Tenant { get; }
-        public EntityDefinition Entity { get; }
-        public FieldDefinition Field { get; }
-        public FieldDefinition? SavedField { get; private set; }
-        private EntityStorageLocation Storage { get; } =
+        public Tenant Tenant
+        {
+            get;
+        }
+
+        public EntityDefinition Entity
+        {
+            get;
+        }
+
+        public FieldDefinition Field
+        {
+            get;
+        }
+
+        public FieldDefinition? SavedField
+        {
+            get; private set;
+        }
+
+        private EntityStorageLocation Storage
+        {
+            get;
+        } =
             new("tenant", string.Empty, EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()

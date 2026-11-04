@@ -37,12 +37,24 @@ public sealed class SqlServerRecordStore(
         await using (connection)
         await using (var command = new SqlCommand(plan.Sql, connection))
         {
-            foreach (var parameter in plan.Parameters) command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+            foreach (var parameter in plan.Parameters)
+            {
+                command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+            }
+
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var records = new List<DynamicRecord>();
-            while (await reader.ReadAsync(cancellationToken)) records.Add(ReadRecord(reader));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                records.Add(ReadRecord(reader));
+            }
+
             var hasMore = records.Count > query.PageSize;
-            if (hasMore) records.RemoveAt(records.Count - 1);
+            if (hasMore)
+            {
+                records.RemoveAt(records.Count - 1);
+            }
+
             var cursor = hasMore
                 ? SqlRecordQueryBuilder.EncodeNextCursor(records[^1], plan.Offset + query.PageSize, plan.UsesOffset)
                 : null;
@@ -104,7 +116,9 @@ public sealed class SqlServerRecordStore(
                 command.Parameters.AddWithValue("@expectedVersion", expectedVersion);
                 await using var reader = await command.ExecuteReaderAsync(cancellationToken);
                 if (await reader.ReadAsync(cancellationToken))
+                {
                     return new RecordWriteResult(RecordWriteStatus.Success, ReadRecord(reader));
+                }
             }
             return new RecordWriteResult(await ExistsAsync(connection, table, recordId, cancellationToken)
                 ? RecordWriteStatus.Conflict : RecordWriteStatus.NotFound);
@@ -125,7 +139,10 @@ public sealed class SqlServerRecordStore(
             {
                 command.Parameters.AddWithValue("@id", recordId);
                 command.Parameters.AddWithValue("@expectedVersion", expectedVersion);
-                if (await command.ExecuteNonQueryAsync(cancellationToken) == 1) return RecordWriteStatus.Success;
+                if (await command.ExecuteNonQueryAsync(cancellationToken) == 1)
+                {
+                    return RecordWriteStatus.Success;
+                }
             }
             return await ExistsAsync(connection, table, recordId, cancellationToken)
                 ? RecordWriteStatus.Conflict : RecordWriteStatus.NotFound;
@@ -139,7 +156,10 @@ public sealed class SqlServerRecordStore(
     {
         var storage = await storageResolver.ResolveAsync(tenant.TenantId, entity.Id, cancellationToken);
         if (storage.Mode != EntityStorageMode.DedicatedTable || storage.RequiresEntityPredicate)
+        {
             throw new NotSupportedException("The configured storage mode is not implemented by this record store yet.");
+        }
+
         var connection = await OpenConnectionAsync(storage, cancellationToken);
         return (connection, PhysicalName.QuoteSqlIdentifier(storage.TableName));
     }

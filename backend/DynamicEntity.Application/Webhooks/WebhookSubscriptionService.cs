@@ -37,8 +37,11 @@ public sealed class WebhookSubscriptionService(
             ?? throw new NotFoundException($"Webhook subscription '{id}' was not found.");
         var updated = current with
         {
-            Name = name!.Trim(), Endpoint = endpoint!, Events = NormalizeEvents(events!),
-            IsEnabled = isEnabled, UpdatedAt = timeProvider.GetUtcNow()
+            Name = name!.Trim(),
+            Endpoint = endpoint!,
+            Events = NormalizeEvents(events!),
+            IsEnabled = isEnabled,
+            UpdatedAt = timeProvider.GetUtcNow()
         };
         return await subscriptions.UpdateAsync(tenantId, updated, storage, token)
             ?? throw new NotFoundException($"Webhook subscription '{id}' was not found.");
@@ -48,7 +51,9 @@ public sealed class WebhookSubscriptionService(
     {
         var storage = await RequireEntityAsync(tenantId, entityId, token);
         if (!await subscriptions.DeleteAsync(tenantId, entityId, id, storage, token))
+        {
             throw new NotFoundException($"Webhook subscription '{id}' was not found.");
+        }
     }
 
     private async Task<EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid entityId, CancellationToken token)
@@ -62,13 +67,24 @@ public sealed class WebhookSubscriptionService(
     internal static void Validate(string? name, Uri? endpoint, IReadOnlyList<WebhookEvent>? events)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 200)
+        {
             throw new ValidationException("Webhook name must contain between 1 and 200 characters.");
+        }
+
         if (endpoint is null || !endpoint.IsAbsoluteUri || endpoint.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(endpoint.UserInfo))
+        {
             throw new ValidationException("Webhook endpoint must be an absolute HTTPS URL without embedded credentials.");
+        }
+
         if (endpoint.AbsoluteUri.Length > 2048)
+        {
             throw new ValidationException("Webhook endpoint must not exceed 2048 characters.");
+        }
+
         if (events is null || events.Count == 0 || events.Any(value => !Enum.IsDefined(value)))
+        {
             throw new ValidationException("Select at least one valid webhook event.");
+        }
     }
 
     private static IReadOnlyList<WebhookEvent> NormalizeEvents(IReadOnlyList<WebhookEvent> events) =>

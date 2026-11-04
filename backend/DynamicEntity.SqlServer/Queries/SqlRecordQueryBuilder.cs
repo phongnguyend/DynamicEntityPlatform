@@ -22,14 +22,18 @@ public static class SqlRecordQueryBuilder
             parameters.Add(new("@entityId", entity.Id));
         }
         if (query.Filter is not null && query.Filter.Conditions.Count != 0)
+        {
             where.Add(SqlFilterExpression.Build(query.Filter, entity.Fields.ToDictionary(field => field.Id), parameters, virtualNames: virtualNames));
+        }
 
         var customSort = query.Sort is { Count: > 0 };
         var offset = 0;
         if (query.Cursor is not null)
         {
             if (customSort)
+            {
                 offset = DecodeOffset(query.Cursor);
+            }
             else
             {
                 var cursor = DecodeKeyset(query.Cursor);
@@ -76,7 +80,11 @@ public static class SqlRecordQueryBuilder
         try
         {
             var parts = Encoding.UTF8.GetString(Convert.FromBase64String(encoded)).Split('|');
-            if (parts.Length != 2 || parts[0] != "o" || !int.TryParse(parts[1], out var offset) || offset < 0) throw new FormatException();
+            if (parts.Length != 2 || parts[0] != "o" || !int.TryParse(parts[1], out var offset) || offset < 0)
+            {
+                throw new FormatException();
+            }
+
             return offset;
         }
         catch (FormatException) { throw new ValidationException("The query cursor is invalid."); }
@@ -87,7 +95,11 @@ public static class SqlRecordQueryBuilder
         try
         {
             var parts = Encoding.UTF8.GetString(Convert.FromBase64String(encoded)).Split('|');
-            if (parts.Length != 3 || parts[0] != "k") throw new FormatException();
+            if (parts.Length != 3 || parts[0] != "k")
+            {
+                throw new FormatException();
+            }
+
             return (DateTimeOffset.Parse(parts[1], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), Guid.Parse(parts[2]));
         }
         catch (FormatException) { throw new ValidationException("The query cursor is invalid."); }

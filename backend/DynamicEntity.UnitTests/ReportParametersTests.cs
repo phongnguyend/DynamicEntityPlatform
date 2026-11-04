@@ -59,16 +59,25 @@ public sealed class ReportParametersTests
 
     private sealed class CapturingAnalytics : IAnalyticsStore
     {
-        public AnalyticsQuery? Query { get; private set; }
+        public AnalyticsQuery? Query
+        {
+            get; private set;
+        }
         public Task<AnalyticsStoreResult> ExecuteAsync(TenantContext tenant, EntityDefinition entity, AnalyticsQuery query, CancellationToken token)
-        { Query = query; return Task.FromResult(new AnalyticsStoreResult([], false)); }
+        {
+            Query = query;
+            return Task.FromResult(new AnalyticsStoreResult([], false));
+        }
     }
 
     private sealed class ReportStore : IReportStore
     {
         private ReportDefinition? saved;
         public Task<ReportDefinition> CreateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken token)
-        { saved = report; return Task.FromResult(report); }
+        {
+            saved = report;
+            return Task.FromResult(report);
+        }
         public Task<ReportDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(saved);
         public Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<ReportDefinition?> UpdateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
@@ -78,9 +87,22 @@ public sealed class ReportParametersTests
     private sealed class FakeRepository : IControlPlaneStore, IEntityMetadataStore, IFieldMetadataStore
     {
         public Tenant Tenant { get; } = new(Guid.NewGuid(), "Acme", TenantStatus.Active, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
-        public EntityDefinition Entity { get; }
-        public FieldDefinition NameField { get; }
-        public FieldDefinition AgeField { get; }
+
+        public EntityDefinition Entity
+        {
+            get;
+        }
+
+        public FieldDefinition NameField
+        {
+            get;
+        }
+
+        public FieldDefinition AgeField
+        {
+            get;
+        }
+
         private EntityStorageLocation Storage { get; } = new("tenant", "entity", EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()

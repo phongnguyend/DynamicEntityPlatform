@@ -14,8 +14,15 @@ public static class AlertDeliveryRetryPolicy
     /// </summary>
     public static TimeSpan? NextDelay(int completedAttempts)
     {
-        if (completedAttempts < 1) throw new ArgumentOutOfRangeException(nameof(completedAttempts));
-        if (completedAttempts >= MaxAttempts) return null;
+        if (completedAttempts < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(completedAttempts));
+        }
+
+        if (completedAttempts >= MaxAttempts)
+        {
+            return null;
+        }
 
         var seconds = FirstDelay.TotalSeconds * Math.Pow(2, completedAttempts - 1);
         return TimeSpan.FromSeconds(Math.Min(seconds, MaxDelay.TotalSeconds));

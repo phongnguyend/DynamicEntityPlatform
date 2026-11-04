@@ -110,7 +110,11 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         command.Parameters.AddWithValue("@tenantId", tenantId);
         command.Parameters.AddWithValue("@entityId", entityId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
         return tenantStorage with
         {
             TableName = reader.GetString(0),
@@ -127,10 +131,16 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
             WHERE Id=@id AND TenantId=@tenantId AND Status=N'Active';
             """;
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
-        await using var command = new SqlCommand(sql, connection); AddEntityParameters(command, entity);
-        try { return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? entity : null; }
+        await using var command = new SqlCommand(sql, connection);
+        AddEntityParameters(command, entity);
+        try
+        {
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? entity : null;
+        }
         catch (SqlException exception) when (exception.Number is 2601 or 2627)
-        { throw new ConflictException($"An entity named '{entity.Name}' already exists."); }
+        {
+            throw new ConflictException($"An entity named '{entity.Name}' already exists.");
+        }
     }
 
     public async Task<bool> ArchiveAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage,
@@ -139,7 +149,8 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         const string sql = "UPDATE dbo.EntityDefinitions SET Status=N'Archived',UpdatedAt=SYSUTCDATETIME() WHERE Id=@id AND TenantId=@tenantId AND Status=N'Active';";
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@id", entityId); command.Parameters.AddWithValue("@tenantId", tenantId);
+        command.Parameters.AddWithValue("@id", entityId);
+        command.Parameters.AddWithValue("@tenantId", tenantId);
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
@@ -194,7 +205,11 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         command.Parameters.AddWithValue("@tenantId", tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var entities = new List<EntityDefinition>();
-        while (await reader.ReadAsync(cancellationToken)) entities.Add(ReadEntity(reader));
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            entities.Add(ReadEntity(reader));
+        }
+
         return entities;
     }
 

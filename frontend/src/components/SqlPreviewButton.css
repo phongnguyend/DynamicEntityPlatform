@@ -1,10 +1,23 @@
 @reference "../styles.css";
 
 @layer components {
-  .sql-preview { @apply grid gap-4; }
-  .sql-preview-inputs { @apply rounded-lg border border-border p-4; }
-  .sql-preview-inputs > summary { @apply cursor-pointer font-semibold; }
-  .sql-preview-inputs > form { @apply mt-4; }
-  .sql-preview-modes { @apply border-t border-border pt-4; }
-  .sql-preview-modes > button { @apply min-w-0; flex: 0 1 auto; }
+  .sql-preview {
+    @apply grid gap-4;
+  }
+  .sql-preview-inputs {
+    @apply rounded-lg border border-border p-4;
+  }
+  .sql-preview-inputs > summary {
+    @apply cursor-pointer font-semibold;
+  }
+  .sql-preview-inputs > form {
+    @apply mt-4;
+  }
+  .sql-preview-modes {
+    @apply border-t border-border pt-4;
+  }
+  .sql-preview-modes > button {
+    @apply min-w-0;
+    flex: 0 1 auto;
+  }
 }

@@ -61,7 +61,10 @@ public sealed class QueuedAlertNotifier(IAlertNotificationStore notifications) :
         foreach (var action in alert.Actions)
         {
             var targets = AlertNotificationPayloads.Targets(action);
-            if (targets.Count == 0) continue;
+            if (targets.Count == 0)
+            {
+                continue;
+            }
 
             // (EvaluationId, Channel) is unique, so a replayed evaluation enqueues the delivery at most once.
             await notifications.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id,

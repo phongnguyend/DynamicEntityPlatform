@@ -13,7 +13,9 @@ internal sealed class TenantStorageGuard(IControlPlaneStore controlPlane)
         var tenant = await controlPlane.GetTenantAsync(tenantId, cancellationToken)
             ?? throw new NotFoundException($"Tenant '{tenantId}' was not found.");
         if (tenant.Status != TenantStatus.Active)
+        {
             throw new ConflictException($"Tenant '{tenantId}' is not active.");
+        }
 
         return await controlPlane.GetTenantStorageAsync(tenantId, cancellationToken)
             ?? throw new ConflictException($"Tenant '{tenantId}' has no storage mapping.");

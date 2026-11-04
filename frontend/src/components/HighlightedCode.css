@@ -1,31 +1,94 @@
 @reference "../styles.css";
 
 @layer components {
-  .highlighted-code { @apply min-w-0 overflow-hidden rounded-lg border border-border; }
-  .highlighted-code-label { @apply flex items-center justify-between border-b border-border bg-primary-soft px-4 py-2 text-sm font-semibold; }
-  .highlighted-code-actions { @apply ml-auto flex shrink-0 items-center gap-3; }
-  .highlighted-code-language { @apply text-xs font-normal text-muted; }
-  .highlighted-code-copy-error { @apply block px-4 py-2 text-sm text-danger; }
-  .highlighted-code pre { @apply m-0 bg-[#f8fafc] p-4 text-[.82rem] leading-relaxed; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
-  .highlighted-code pre:focus-visible { outline: 2px solid #147d64; outline-offset: -2px; }
-  .highlighted-code code { font-family: Consolas, 'Courier New', monospace; }
-  .syntax-keyword { color: #6d28d9; font-weight: 600; }
-  .syntax-string { color: #166534; }
-  .syntax-identifier, .syntax-property { color: #075985; }
-  .syntax-parameter { color: #9d174d; }
-  .syntax-number { color: #9a3412; }
-  .syntax-comment { color: #64748b; font-style: italic; }
-  .highlighted-code-editor { position: relative; background: #f8fafc; }
-  .highlighted-code-editor pre, .json-editor .highlighted-code-editor textarea {
-    box-sizing: border-box; margin: 0; border: 0; padding: 1rem; min-height: 420px;
-    font-family: Consolas, 'Courier New', monospace; font-size: .82rem; line-height: 1.625;
-    white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; letter-spacing: normal;
+  .highlighted-code {
+    @apply min-w-0 overflow-hidden rounded-lg border border-border;
+  }
+  .highlighted-code-label {
+    @apply flex items-center justify-between border-b border-border bg-primary-soft px-4 py-2 text-sm font-semibold;
+  }
+  .highlighted-code-actions {
+    @apply ml-auto flex shrink-0 items-center gap-3;
+  }
+  .highlighted-code-language {
+    @apply text-xs font-normal text-muted;
+  }
+  .highlighted-code-copy-error {
+    @apply block px-4 py-2 text-sm text-danger;
+  }
+  .highlighted-code pre {
+    @apply m-0 bg-[#f8fafc] p-4 text-[.82rem] leading-relaxed;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    tab-size: 2;
+  }
+  .highlighted-code pre:focus-visible {
+    outline: 2px solid #147d64;
+    outline-offset: -2px;
+  }
+  .highlighted-code code {
+    font-family: Consolas, 'Courier New', monospace;
+  }
+  .syntax-keyword {
+    color: #6d28d9;
+    font-weight: 600;
+  }
+  .syntax-string {
+    color: #166534;
+  }
+  .syntax-identifier,
+  .syntax-property {
+    color: #075985;
+  }
+  .syntax-parameter {
+    color: #9d174d;
+  }
+  .syntax-number {
+    color: #9a3412;
+  }
+  .syntax-comment {
+    color: #64748b;
+    font-style: italic;
+  }
+  .highlighted-code-editor {
+    position: relative;
+    background: #f8fafc;
+  }
+  .highlighted-code-editor pre,
+  .json-editor .highlighted-code-editor textarea {
+    box-sizing: border-box;
+    margin: 0;
+    border: 0;
+    padding: 1rem;
+    min-height: 420px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 1.625;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    tab-size: 2;
+    letter-spacing: normal;
   }
   .json-editor .highlighted-code-editor textarea {
-    position: absolute; inset: 0; width: 100%; height: 100%; resize: none; overflow: hidden;
-    background: transparent; color: transparent; caret-color: #172e25; -webkit-text-fill-color: transparent;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: transparent;
+    caret-color: #172e25;
+    -webkit-text-fill-color: transparent;
   }
-  .highlighted-code-editor textarea:focus-visible { outline: 2px solid #147d64; outline-offset: -2px; }
-  .highlighted-code-editor textarea::selection { background: rgb(20 125 100 / 22%); }
-  .highlighted-code-editor:has(textarea:disabled) { opacity: .65; }
+  .highlighted-code-editor textarea:focus-visible {
+    outline: 2px solid #147d64;
+    outline-offset: -2px;
+  }
+  .highlighted-code-editor textarea::selection {
+    background: rgb(20 125 100 / 22%);
+  }
+  .highlighted-code-editor:has(textarea:disabled) {
+    opacity: 0.65;
+  }
 }

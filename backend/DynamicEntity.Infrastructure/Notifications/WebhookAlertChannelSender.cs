@@ -36,9 +36,17 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
                 ? [literal]
                 : await Dns.GetHostAddressesAsync(host, token);
             if (addresses.Length == 0)
+            {
                 throw new WebhookDestinationException($"Webhook host '{host}' did not resolve to any address.");
+            }
+
             if (!options.AllowPrivateNetworks)
-                foreach (var address in addresses) PublicNetworkGuard.EnsureAllowed(address, host);
+            {
+                foreach (var address in addresses)
+                {
+                    PublicNetworkGuard.EnsureAllowed(address, host);
+                }
+            }
 
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
             try
@@ -59,7 +67,9 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
         CancellationToken token)
     {
         if (payload.Targets.Count == 0)
+        {
             throw new AlertDeliveryException("The webhook action has no endpoints.", true);
+        }
 
         var body = BuildBody(tenantId, notification, payload);
         var signature = Sign(body);
@@ -79,7 +89,10 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
             Content = new ByteArrayContent(body) { Headers = { ContentType = new MediaTypeHeaderValue("application/json") } }
         };
         request.Headers.TryAddWithoutValidation(IdempotencyHeader, notification.Id.ToString());
-        if (signature is not null) request.Headers.TryAddWithoutValidation(SignatureHeader, signature);
+        if (signature is not null)
+        {
+            request.Headers.TryAddWithoutValidation(SignatureHeader, signature);
+        }
 
         HttpResponseMessage response;
         try
@@ -102,7 +115,11 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
 
         using (response)
         {
-            if (response.IsSuccessStatusCode) return;
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
             var status = (int)response.StatusCode;
             var retryable = status >= 500 || status is 408 or 429;
             throw new AlertDeliveryException(
@@ -113,7 +130,13 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
     private static WebhookDestinationException? Unwrap(Exception exception)
     {
         for (var current = exception; current is not null; current = current.InnerException)
-            if (current is WebhookDestinationException destination) return destination;
+        {
+            if (current is WebhookDestinationException destination)
+            {
+                return destination;
+            }
+        }
+
         return null;
     }
 
@@ -121,8 +144,11 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
     {
         if (!Uri.TryCreate(target, UriKind.Absolute, out var endpoint) ||
             endpoint.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(endpoint.UserInfo))
+        {
             throw new AlertDeliveryException(
                 "Webhook endpoints must be absolute HTTPS URLs without embedded credentials.", true);
+        }
+
         return endpoint;
     }
 
@@ -131,7 +157,11 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
 
     private string? Sign(byte[] body)
     {
-        if (string.IsNullOrEmpty(options.SigningSecret)) return null;
+        if (string.IsNullOrEmpty(options.SigningSecret))
+        {
+            return null;
+        }
+
         var signature = HMACSHA256.HashData(Encoding.UTF8.GetBytes(options.SigningSecret), body);
         return $"sha256={Convert.ToHexStringLower(signature)}";
     }
@@ -156,7 +186,15 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
             writer.WritePropertyName("threshold");
             writer.WriteRawValue(payload.ThresholdJson);
             writer.WritePropertyName("value");
-            if (payload.ValueJson is null) writer.WriteNullValue(); else writer.WriteRawValue(payload.ValueJson);
+            if (payload.ValueJson is null)
+            {
+                writer.WriteNullValue();
+            }
+            else
+            {
+                writer.WriteRawValue(payload.ValueJson);
+            }
+
             writer.WriteString("evaluatedAt", payload.EvaluatedAt);
             writer.WriteEndObject();
         }

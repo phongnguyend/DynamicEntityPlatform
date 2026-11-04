@@ -16,7 +16,11 @@ public static class SqlFilterExpression
             FilterCondition condition => BuildCondition(condition, fields[condition.FieldId], parameters, allowUnbound, virtualNames),
             _ => throw new InvalidOperationException("Unknown filter node.")
         }).ToArray();
-        if (parts.Length == 0) return group.Logic == FilterLogic.And ? "1 = 1" : "1 = 0";
+        if (parts.Length == 0)
+        {
+            return group.Logic == FilterLogic.And ? "1 = 1" : "1 = 0";
+        }
+
         return $"({string.Join(group.Logic == FilterLogic.And ? " AND " : " OR ", parts)})";
     }
 
@@ -26,7 +30,13 @@ public static class SqlFilterExpression
         var expression = SqlFieldExpression.ForValue(field, virtualNames);
         bool IsUnbound(JsonElement value) => allowUnbound && value.ValueKind == JsonValueKind.Object && value.TryGetProperty("parameter", out _);
         object Value(JsonElement value) => IsUnbound(value)
-            ? new { parameter = value.GetProperty("parameter").GetString(), dataType = field.DataType.ToString(), unbound = true, @operator = condition.Operator.ToString() }
+            ? new
+            {
+                parameter = value.GetProperty("parameter").GetString(),
+                dataType = field.DataType.ToString(),
+                unbound = true,
+                @operator = condition.Operator.ToString()
+            }
             : Scalar(value, field.DataType);
         if (field.DataType == FieldDataType.MultiChoice && condition.Operator == FilterOperator.Contains)
         {
@@ -35,7 +45,10 @@ public static class SqlFilterExpression
             return $"EXISTS (SELECT 1 FROM OPENJSON({source}) AS j WHERE j.[value] = {parameter})";
         }
         if (IsUnbound(condition.Value) && condition.Operator is FilterOperator.Contains or FilterOperator.StartsWith or FilterOperator.EndsWith)
+        {
             return $"{expression} LIKE {Add(parameters, Value(condition.Value))} ESCAPE '\\'";
+        }
+
         return condition.Operator switch
         {
             FilterOperator.IsNull => $"{expression} IS NULL",
@@ -60,7 +73,11 @@ public static class SqlFilterExpression
         string In(bool negate)
         {
             var items = condition.Value.EnumerateArray().Select(value => Add(parameters, Value(value))).ToArray();
-            if (items.Length == 0) return negate ? "1 = 1" : "1 = 0";
+            if (items.Length == 0)
+            {
+                return negate ? "1 = 1" : "1 = 0";
+            }
+
             return $"{expression} {(negate ? "NOT IN" : "IN")} ({string.Join(", ", items)})";
         }
         string Between()

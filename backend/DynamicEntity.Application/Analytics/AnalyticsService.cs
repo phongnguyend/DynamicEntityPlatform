@@ -26,7 +26,10 @@ public sealed class AnalyticsService(
             ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
         var definitions = await fields.ListAsync(tenantId, entityId, storage, cancellationToken);
         validator.Validate(entityId, query, definitions);
-        entity = entity with { Fields = definitions };
+        entity = entity with
+        {
+            Fields = definitions
+        };
         var data = await analytics.ExecuteAsync(new TenantContext(tenantId), entity, query, cancellationToken);
         var byId = definitions.ToDictionary(field => field.Id);
         var columns = query.Dimensions.Select(dimension => new AnalyticsColumn(

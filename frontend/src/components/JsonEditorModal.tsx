@@ -3,7 +3,12 @@ import { Modal } from './Modal'
 import { HighlightedCode } from './HighlightedCode'
 import { Save, X } from 'lucide-react'
 
-export function JsonEditorModal({ title, value, onClose, onSave }: {
+export function JsonEditorModal({
+  title,
+  value,
+  onClose,
+  onSave,
+}: {
   title: string
   value: unknown
   onClose: () => void
@@ -37,24 +42,42 @@ export function JsonEditorModal({ title, value, onClose, onSave }: {
     }
   }
 
-  return <Modal title={title} onClose={onClose}>
-    <div className="json-editor">
-      <p className="field-note">Edit the persisted definition payload. Server-side validation still applies.</p>
-      <HighlightedCode label="JSON" language="json" value={json} onChange={setJson} disabled={saving} />
-      {error && <p className="error">{error}</p>}
-      <div className="modal-footer">
-        <button type="button" disabled={saving} onClick={save}><Save />{saving ? 'Saving…' : 'Save JSON'}</button>
-        <button type="button" className="secondary" disabled={saving} onClick={onClose}><X />Cancel</button>
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="json-editor">
+        <p className="field-note">Edit the persisted definition payload. Server-side validation still applies.</p>
+        <HighlightedCode label="JSON" language="json" value={json} onChange={setJson} disabled={saving} />
+        {error && <p className="error">{error}</p>}
+        <div className="modal-footer">
+          <button type="button" disabled={saving} onClick={save}>
+            <Save />
+            {saving ? 'Saving…' : 'Save JSON'}
+          </button>
+          <button type="button" className="secondary" disabled={saving} onClick={onClose}>
+            <X />
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
-  </Modal>
+    </Modal>
+  )
 }
 
-export function requireJsonObject(value: unknown, fields: Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array'>) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('The definition must be a JSON object.')
+export function requireJsonObject(
+  value: unknown,
+  fields: Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array'>,
+) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('The definition must be a JSON object.')
+  }
   const object = value as Record<string, unknown>
   for (const [field, type] of Object.entries(fields)) {
-    if (type === 'array' ? !Array.isArray(object[field]) : typeof object[field] !== type || type === 'object' && (object[field] === null || Array.isArray(object[field]))) {
+    if (
+      type === 'array'
+        ? !Array.isArray(object[field])
+        : typeof object[field] !== type ||
+          (type === 'object' && (object[field] === null || Array.isArray(object[field])))
+    ) {
       throw new Error(`Property "${field}" must be a ${type}.`)
     }
   }

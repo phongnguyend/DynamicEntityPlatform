@@ -3,10 +3,31 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Entity, Field, FieldDataType } from '../types'
 
-const dataTypes: FieldDataType[] = ['Text', 'LongText', 'Integer', 'Decimal', 'Boolean', 'Date', 'DateTime', 'Email', 'Url', 'Choice', 'MultiChoice', 'Lookup']
+const dataTypes: FieldDataType[] = [
+  'Text',
+  'LongText',
+  'Integer',
+  'Decimal',
+  'Boolean',
+  'Date',
+  'DateTime',
+  'Email',
+  'Url',
+  'Choice',
+  'MultiChoice',
+  'Lookup',
+]
 
-export function EntityDesigner({ tenantId, entity, fields = [], onEntityCreated }: {
-  tenantId: string; entity?: Entity; fields?: Field[]; onEntityCreated?: (entity: Entity) => void
+export function EntityDesigner({
+  tenantId,
+  entity,
+  fields = [],
+  onEntityCreated,
+}: {
+  tenantId: string
+  entity?: Entity
+  fields?: Field[]
+  onEntityCreated?: (entity: Entity) => void
 }) {
   const client = useQueryClient()
   const [name, setName] = useState('')
@@ -22,51 +43,122 @@ export function EntityDesigner({ tenantId, entity, fields = [], onEntityCreated 
 
   const createEntity = useMutation({
     mutationFn: () => api.createEntity(tenantId, { name, displayName }),
-    onSuccess: createdEntity => {
+    onSuccess: (createdEntity) => {
       void client.invalidateQueries({ queryKey: ['entities', tenantId] })
-      setName(''); setDisplayName(''); onEntityCreated?.(createdEntity)
+      setName('')
+      setDisplayName('')
+      onEntityCreated?.(createdEntity)
     },
   })
   const createField = useMutation({
-    mutationFn: () => api.createField(tenantId, entity!.id, {
-      name, displayName, dataType, isRequired: required, isUnique: unique,
-      isFilterable: filterable, isSortable: sortable, isFacetable: facetable, isSearchable: searchable,
-      configuration: dataType === 'Choice' || dataType === 'MultiChoice'
-        ? { allowCustomValues: false, values: choices.split('\n').map(value => value.trim()).filter(Boolean) } : undefined,
-      sortOrder: Math.max(-1, ...fields.map(field => field.sortOrder)) + 1,
-    }),
+    mutationFn: () =>
+      api.createField(tenantId, entity!.id, {
+        name,
+        displayName,
+        dataType,
+        isRequired: required,
+        isUnique: unique,
+        isFilterable: filterable,
+        isSortable: sortable,
+        isFacetable: facetable,
+        isSearchable: searchable,
+        configuration:
+          dataType === 'Choice' || dataType === 'MultiChoice'
+            ? {
+                allowCustomValues: false,
+                values: choices
+                  .split('\n')
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              }
+            : undefined,
+        sortOrder: Math.max(-1, ...fields.map((field) => field.sortOrder)) + 1,
+      }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['fields', tenantId, entity?.id] })
-      setName(''); setDisplayName(''); setDataType('Text'); setRequired(false); setUnique(false)
-      setFilterable(false); setSortable(false); setFacetable(false); setSearchable(false); setChoices('')
+      setName('')
+      setDisplayName('')
+      setDataType('Text')
+      setRequired(false)
+      setUnique(false)
+      setFilterable(false)
+      setSortable(false)
+      setFacetable(false)
+      setSearchable(false)
+      setChoices('')
     },
   })
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (entity) createField.mutate(); else createEntity.mutate()
+    if (entity) {
+      createField.mutate()
+    } else {
+      createEntity.mutate()
+    }
   }
   const mutation = entity ? createField : createEntity
 
-  return <form className="panel-body designer" onSubmit={submit}>
-    {entity && <div className="panel-header"><h3>Add a field to {entity.displayName}</h3></div>}
-    <label className="field"><span>{entity ? 'Field name' : 'Entity name'}</span><input required pattern="[A-Za-z][A-Za-z0-9_]*" value={name} onChange={e => setName(e.target.value)} /></label>
-    <label className="field"><span>Display name</span><input required value={displayName} onChange={e => setDisplayName(e.target.value)} /></label>
-    {entity && <>
-      <label className="field"><span>Data type</span><select value={dataType} onChange={e => setDataType(e.target.value as FieldDataType)}>
-        {dataTypes.map(type => <option key={type}>{type}</option>)}</select></label>
-      <fieldset className="field-options"><legend>Behavior</legend>
-        <label className="check"><input type="checkbox" checked={required} onChange={e => setRequired(e.target.checked)} /> Required</label>
-        <label className="check"><input type="checkbox" checked={unique} onChange={e => setUnique(e.target.checked)} /> Unique</label>
-        <label className="check"><input type="checkbox" checked={filterable} onChange={e => setFilterable(e.target.checked)} /> Filterable</label>
-        <label className="check"><input type="checkbox" checked={sortable} onChange={e => setSortable(e.target.checked)} /> Sortable</label>
-        <label className="check"><input type="checkbox" checked={facetable} onChange={e => setFacetable(e.target.checked)} /> Facetable</label>
-        <label className="check"><input type="checkbox" checked={searchable} onChange={e => setSearchable(e.target.checked)} /> Searchable</label>
-      </fieldset>
-      {(dataType === 'Choice' || dataType === 'MultiChoice') && <label className="field"><span>Choices (one per line)</span>
-        <textarea value={choices} onChange={e => setChoices(e.target.value)} /></label>}
-    </>}
-    {mutation.error && <p className="error">{mutation.error.message}</p>}
-    <div className="panel-footer"><button disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</button></div>
-  </form>
+  return (
+    <form className="panel-body designer" onSubmit={submit}>
+      {entity && (
+        <div className="panel-header">
+          <h3>Add a field to {entity.displayName}</h3>
+        </div>
+      )}
+      <label className="field">
+        <span>{entity ? 'Field name' : 'Entity name'}</span>
+        <input required pattern="[A-Za-z][A-Za-z0-9_]*" value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Display name</span>
+        <input required value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+      </label>
+      {entity && (
+        <>
+          <label className="field">
+            <span>Data type</span>
+            <select value={dataType} onChange={(e) => setDataType(e.target.value as FieldDataType)}>
+              {dataTypes.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <fieldset className="field-options">
+            <legend>Behavior</legend>
+            <label className="check">
+              <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} /> Required
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} /> Unique
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={filterable} onChange={(e) => setFilterable(e.target.checked)} />{' '}
+              Filterable
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={sortable} onChange={(e) => setSortable(e.target.checked)} /> Sortable
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={facetable} onChange={(e) => setFacetable(e.target.checked)} /> Facetable
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={searchable} onChange={(e) => setSearchable(e.target.checked)} />{' '}
+              Searchable
+            </label>
+          </fieldset>
+          {(dataType === 'Choice' || dataType === 'MultiChoice') && (
+            <label className="field">
+              <span>Choices (one per line)</span>
+              <textarea value={choices} onChange={(e) => setChoices(e.target.value)} />
+            </label>
+          )}
+        </>
+      )}
+      {mutation.error && <p className="error">{mutation.error.message}</p>}
+      <div className="panel-footer">
+        <button disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</button>
+      </div>
+    </form>
+  )
 }

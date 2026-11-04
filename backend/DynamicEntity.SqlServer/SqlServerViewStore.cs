@@ -17,7 +17,11 @@ public sealed class SqlServerViewStore : IViewStore
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         Add(command, tenantId, view);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1) throw new InvalidOperationException("Entity ownership changed while creating view.");
+        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        {
+            throw new InvalidOperationException("Entity ownership changed while creating view.");
+        }
+
         return view;
     }
 
@@ -34,7 +38,11 @@ public sealed class SqlServerViewStore : IViewStore
         command.Parameters.AddWithValue("@entityId", entityId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var result = new List<ViewDefinition>();
-        while (await reader.ReadAsync(cancellationToken)) result.Add(Read(reader));
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(Read(reader));
+        }
+
         return result;
     }
 

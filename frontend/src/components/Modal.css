@@ -1,20 +1,55 @@
 @reference "../styles.css";
 
 @layer components {
-  .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center bg-sidebar/45 p-6; }
-  .index-creator > .modal-footer { @apply mt-4; }
-  .modal-body { @apply min-w-0; }
-  .modal-header h3 { @apply m-0; }
-  .modal-header, .modal-footer { margin-inline: calc(var(--surface-pad, 0rem) * -1); padding-inline: var(--surface-pad, 0rem); }
-  .modal-footer { @apply flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4; }
-  .modal-header { @apply mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3; }
-  .modal { --surface-pad: 1.5rem; }
-  .modal { @apply flex max-h-[85vh] w-[min(560px,100%)] flex-col overflow-hidden rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)]; }
-  .modal > .modal-header { @apply shrink-0; }
-  .modal > .modal-body { @apply -mx-6 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-6 py-1; scrollbar-gutter: stable; }
-  .modal.wide { @apply w-[min(720px,100%)]; }
-  .modal .actions { @apply justify-end; }
-  .page .modal:has(.metric-expanded-card) { @apply w-[min(960px,100%)]; }
-  .dashboard-page .modal { @apply w-[min(680px,100%)]; }
-  .dashboard-page .modal:has(.dashboard-card-expanded) { @apply w-[min(1100px,100%)]; }
+  .modal-backdrop {
+    @apply fixed inset-0 z-50 grid place-items-center bg-sidebar/45 p-6;
+  }
+  .index-creator > .modal-footer {
+    @apply mt-4;
+  }
+  .modal-body {
+    @apply min-w-0;
+  }
+  .modal-header h3 {
+    @apply m-0;
+  }
+  .modal-header,
+  .modal-footer {
+    margin-inline: calc(var(--surface-pad, 0rem) * -1);
+    padding-inline: var(--surface-pad, 0rem);
+  }
+  .modal-footer {
+    @apply flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4;
+  }
+  .modal-header {
+    @apply mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3;
+  }
+  .modal {
+    --surface-pad: 1.5rem;
+  }
+  .modal {
+    @apply flex max-h-[85vh] w-[min(560px,100%)] flex-col overflow-hidden rounded-[14px] bg-white p-6 shadow-[0_20px_45px_rgb(22_42_32/20%)];
+  }
+  .modal > .modal-header {
+    @apply shrink-0;
+  }
+  .modal > .modal-body {
+    @apply -mx-6 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-6 py-1;
+    scrollbar-gutter: stable;
+  }
+  .modal.wide {
+    @apply w-[min(720px,100%)];
+  }
+  .modal .actions {
+    @apply justify-end;
+  }
+  .page .modal:has(.metric-expanded-card) {
+    @apply w-[min(960px,100%)];
+  }
+  .dashboard-page .modal {
+    @apply w-[min(680px,100%)];
+  }
+  .dashboard-page .modal:has(.dashboard-card-expanded) {
+    @apply w-[min(1100px,100%)];
+  }
 }

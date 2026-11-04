@@ -1,6 +1,9 @@
 namespace DynamicEntity.Domain.Imports;
 
-public enum ImportStatus { Uploaded, Validating, Ready, Committed, Failed }
+public enum ImportStatus
+{
+    Uploaded, Validating, Ready, Committed, Failed
+}
 
 public sealed record ImportJob(
     Guid Id, Guid EntityId, string FileName, ImportStatus Status, IReadOnlyList<string> Columns,

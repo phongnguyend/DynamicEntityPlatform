@@ -11,10 +11,15 @@ public static class PublicNetworkGuard
 {
     public static bool IsBlocked(IPAddress address)
     {
-        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
 
         if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
+        {
             return true;
+        }
 
         if (address.AddressFamily == AddressFamily.InterNetwork)
         {
@@ -31,9 +36,15 @@ public static class PublicNetworkGuard
             };
         }
 
-        if (address.AddressFamily != AddressFamily.InterNetworkV6) return true;
-        if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast || address.IsIPv6Teredo)
+        if (address.AddressFamily != AddressFamily.InterNetworkV6)
+        {
             return true;
+        }
+
+        if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast || address.IsIPv6Teredo)
+        {
+            return true;
+        }
 
         // fc00::/7 unique local addresses.
         return (address.GetAddressBytes()[0] & 0xFE) == 0xFC;
@@ -42,7 +53,9 @@ public static class PublicNetworkGuard
     public static void EnsureAllowed(IPAddress address, string host)
     {
         if (IsBlocked(address))
+        {
             throw new WebhookDestinationException($"Webhook host '{host}' resolves to a non-public address.");
+        }
     }
 }
 

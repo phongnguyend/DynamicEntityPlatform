@@ -26,7 +26,10 @@ public sealed class AlertNotificationDeliveryWorker(
     public async Task<int> ProcessTenantAsync(Guid tenantId, string owner, CancellationToken token)
     {
         var storage = await controlPlane.GetTenantStorageAsync(tenantId, token);
-        if (storage is null) return 0;
+        if (storage is null)
+        {
+            return 0;
+        }
 
         var delivered = 0;
         while (delivered < MaxDeliveriesPerPass && !token.IsCancellationRequested)
@@ -34,7 +37,10 @@ public sealed class AlertNotificationDeliveryWorker(
             var now = timeProvider.GetUtcNow();
             var notification = await notifications.ClaimPendingAsync(tenantId, owner, now,
                 now + LeaseDuration, storage, token);
-            if (notification is null) break;
+            if (notification is null)
+            {
+                break;
+            }
 
             delivered++;
             await DeliverAsync(tenantId, notification, storage, token);
@@ -53,7 +59,10 @@ public sealed class AlertNotificationDeliveryWorker(
         activity?.SetTag("notification.attempt", notification.Attempts + 1);
 
         var attempts = notification.Attempts + 1;
-        var attempted = notification with { Attempts = attempts };
+        var attempted = notification with
+        {
+            Attempts = attempts
+        };
 
         var payload = AlertNotificationPayloads.Deserialize(notification.PayloadJson);
         if (payload is null)
@@ -78,7 +87,10 @@ public sealed class AlertNotificationDeliveryWorker(
             // LeaseOwner stays set: the store fences the write on it and clears the lease itself.
             await notifications.CompleteAsync(tenantId, attempted with
             {
-                Status = NotificationStatus.Delivered, LastError = null, DeliveredAt = now, NextAttemptAt = null
+                Status = NotificationStatus.Delivered,
+                LastError = null,
+                DeliveredAt = now,
+                NextAttemptAt = null
             }, storage, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -100,7 +112,8 @@ public sealed class AlertNotificationDeliveryWorker(
             activity?.SetTag("notification.status", nameof(NotificationStatus.Pending));
             await notifications.CompleteAsync(tenantId, attempted with
             {
-                Status = NotificationStatus.Pending, LastError = Truncate(exception.Message),
+                Status = NotificationStatus.Pending,
+                LastError = Truncate(exception.Message),
                 NextAttemptAt = timeProvider.GetUtcNow() + delay.Value
             }, storage, CancellationToken.None);
         }
@@ -113,7 +126,9 @@ public sealed class AlertNotificationDeliveryWorker(
         activity?.SetTag("notification.status", nameof(NotificationStatus.Failed));
         return notifications.CompleteAsync(tenantId, notification with
         {
-            Status = NotificationStatus.Failed, LastError = Truncate(error), NextAttemptAt = null
+            Status = NotificationStatus.Failed,
+            LastError = Truncate(error),
+            NextAttemptAt = null
         }, storage, CancellationToken.None);
     }
 

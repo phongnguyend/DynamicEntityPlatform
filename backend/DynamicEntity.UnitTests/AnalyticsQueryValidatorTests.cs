@@ -64,8 +64,14 @@ public sealed class AnalyticsQueryValidatorTests
     [Fact]
     public void Validate_RejectsDeactivatedAndNonFilterableDependencies()
     {
-        var inactive = Field(FieldDataType.Integer) with { IsActive = false };
-        var notFilterable = Field(FieldDataType.Text) with { IsFilterable = false };
+        var inactive = Field(FieldDataType.Integer) with
+        {
+            IsActive = false
+        };
+        var notFilterable = Field(FieldDataType.Text) with
+        {
+            IsFilterable = false
+        };
         using var value = JsonDocument.Parse("\"Ada\"");
         var filter = new FilterGroup(FilterLogic.And,
             [new FilterCondition(notFilterable.Id, FilterOperator.Equal, value.RootElement.Clone())]);

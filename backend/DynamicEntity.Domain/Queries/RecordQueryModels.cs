@@ -3,8 +3,14 @@ using System.Text.Json.Serialization;
 
 namespace DynamicEntity.Domain.Queries;
 
-public enum FilterLogic { And, Or }
-public enum SortDirection { Asc, Desc }
+public enum FilterLogic
+{
+    And, Or
+}
+public enum SortDirection
+{
+    Asc, Desc
+}
 public enum FilterOperator
 {
     Equal, NotEqual, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual,

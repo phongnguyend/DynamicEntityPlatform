@@ -62,10 +62,18 @@ public sealed class SqlServerDashboardStore : IDashboardStore
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@tenantId", tenantId);
-        if (dashboardId is not null) command.Parameters.AddWithValue("@id", dashboardId.Value);
+        if (dashboardId is not null)
+        {
+            command.Parameters.AddWithValue("@id", dashboardId.Value);
+        }
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var result = new List<DashboardDefinition>();
-        while (await reader.ReadAsync(cancellationToken)) result.Add(Read(reader));
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(Read(reader));
+        }
+
         return result;
     }
 

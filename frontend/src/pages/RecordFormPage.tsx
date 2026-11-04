@@ -13,35 +13,63 @@ export function RecordFormPage({ tenantId }: { tenantId: string }) {
   const { entity, fields, isLoading, error } = useEntityContext(tenantId, entityId)
   const passedRecord = (location.state as { record?: DynamicRecord } | null)?.record
   const records = useQuery({
-    queryKey: ['records', tenantId, entityId, null], queryFn: () => api.records(tenantId, entityId),
+    queryKey: ['records', tenantId, entityId, null],
+    queryFn: () => api.records(tenantId, entityId),
     enabled: Boolean(recordId) && !passedRecord,
   })
-  const editing = recordId ? passedRecord ?? records.data?.items.find(item => item.id === recordId) : undefined
+  const editing = recordId ? (passedRecord ?? records.data?.items.find((item) => item.id === recordId)) : undefined
 
   const save = useMutation({
-    mutationFn: (data: Record<string, unknown>) => editing
-      ? api.patchRecord(tenantId, entityId, editing, data)
-      : api.createRecord(tenantId, entityId, data),
+    mutationFn: (data: Record<string, unknown>) =>
+      editing ? api.patchRecord(tenantId, entityId, editing, data) : api.createRecord(tenantId, entityId, data),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['records', tenantId, entityId] })
       navigate(`/entities/${entityId}/records`)
     },
   })
 
-  if (isLoading || (recordId && !passedRecord && records.isLoading)) return <p>Loading…</p>
-  if (error) return <p className="error">{error.message}</p>
-  if (!entity) return <p className="error">Entity not found.</p>
-  if (recordId && !editing) return <p className="error">Record not found.</p>
+  if (isLoading || (recordId && !passedRecord && records.isLoading)) {
+    return <p>Loading…</p>
+  }
+  if (error) {
+    return <p className="error">{error.message}</p>
+  }
+  if (!entity) {
+    return <p className="error">Entity not found.</p>
+  }
+  if (recordId && !editing) {
+    return <p className="error">Record not found.</p>
+  }
 
-  return <section className="page form-page">
-    <header><div><p className="eyebrow">Entity</p><h2>{entity.displayName}</h2></div></header>
-    <div className="panel">
-      <div className="panel-header"><h3>{editing ? 'Edit record' : 'New record'}</h3></div>
-      {fields.length === 0 ? <div className="panel-body"><p className="empty">Add a field before creating records.</p></div> :
-        <DynamicForm fields={fields} record={editing} busy={save.isPending}
-          onSubmit={async data => { await save.mutateAsync(data) }}
-          onCancel={() => navigate(`/entities/${entityId}/records`)} />}
-      {save.error && <p className="error">{save.error.message}</p>}
-    </div>
-  </section>
+  return (
+    <section className="page form-page">
+      <header>
+        <div>
+          <p className="eyebrow">Entity</p>
+          <h2>{entity.displayName}</h2>
+        </div>
+      </header>
+      <div className="panel">
+        <div className="panel-header">
+          <h3>{editing ? 'Edit record' : 'New record'}</h3>
+        </div>
+        {fields.length === 0 ? (
+          <div className="panel-body">
+            <p className="empty">Add a field before creating records.</p>
+          </div>
+        ) : (
+          <DynamicForm
+            fields={fields}
+            record={editing}
+            busy={save.isPending}
+            onSubmit={async (data) => {
+              await save.mutateAsync(data)
+            }}
+            onCancel={() => navigate(`/entities/${entityId}/records`)}
+          />
+        )}
+        {save.error && <p className="error">{save.error.message}</p>}
+      </div>
+    </section>
+  )
 }

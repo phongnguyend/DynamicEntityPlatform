@@ -44,7 +44,10 @@ public sealed class AlertNotificationDeliveryTests
     {
         var store = new FakeNotificationStore();
         var (alert, evaluation) = Fixture();
-        alert = alert with { Actions = [new AlertActionConfiguration(AlertActionType.Email, [], null)] };
+        alert = alert with
+        {
+            Actions = [new AlertActionConfiguration(AlertActionType.Email, [], null)]
+        };
 
         await new QueuedAlertNotifier(store).NotifyAsync(TenantId, alert, evaluation, Storage, CancellationToken.None);
 
@@ -204,7 +207,14 @@ public sealed class AlertNotificationDeliveryTests
     private static async Task QueueAsync(FakeNotificationStore store, AlertActionType? only = null)
     {
         var (alert, evaluation) = Fixture();
-        if (only is not null) alert = alert with { Actions = alert.Actions.Where(a => a.Type == only).ToArray() };
+        if (only is not null)
+        {
+            alert = alert with
+            {
+                Actions = alert.Actions.Where(a => a.Type == only).ToArray()
+            };
+        }
+
         await new QueuedAlertNotifier(store).NotifyAsync(TenantId, alert, evaluation, Storage, CancellationToken.None);
     }
 
@@ -225,6 +235,7 @@ public sealed class AlertNotificationDeliveryTests
     private sealed class FakeSender(string channel) : IAlertChannelSender
     {
         public string Channel => channel;
+
         public List<AlertNotificationPayload> Sent { get; } = [];
         public Task SendAsync(Guid tenantId, AlertNotification notification, AlertNotificationPayload payload, CancellationToken token)
         {
@@ -248,7 +259,10 @@ public sealed class AlertNotificationDeliveryTests
         public Task CreateAsync(Guid tenantId, AlertNotification notification, EntityStorageLocation storage, CancellationToken token)
         {
             if (!Notifications.Any(item => item.EvaluationId == notification.EvaluationId && item.Channel == notification.Channel))
+            {
                 Notifications.Add(notification);
+            }
+
             return Task.CompletedTask;
         }
 
@@ -262,9 +276,16 @@ public sealed class AlertNotificationDeliveryTests
                 && item.Channel != AlertChannels.InApp
                 && (item.NextAttemptAt is null || item.NextAttemptAt <= now)
                 && (item.LeaseExpiresAt is null || item.LeaseExpiresAt <= now));
-            if (index < 0) return Task.FromResult<AlertNotification?>(null);
+            if (index < 0)
+            {
+                return Task.FromResult<AlertNotification?>(null);
+            }
 
-            Notifications[index] = Notifications[index] with { LeaseOwner = owner, LeaseExpiresAt = leaseExpiresAt };
+            Notifications[index] = Notifications[index] with
+            {
+                LeaseOwner = owner,
+                LeaseExpiresAt = leaseExpiresAt
+            };
             return Task.FromResult<AlertNotification?>(Notifications[index]);
         }
 
@@ -272,7 +293,14 @@ public sealed class AlertNotificationDeliveryTests
         {
             var index = Notifications.FindIndex(item => item.Id == notification.Id && item.LeaseOwner == notification.LeaseOwner);
             if (index >= 0)
-                Notifications[index] = notification with { LeaseOwner = null, LeaseExpiresAt = null };
+            {
+                Notifications[index] = notification with
+                {
+                    LeaseOwner = null,
+                    LeaseExpiresAt = null
+                };
+            }
+
             return Task.CompletedTask;
         }
     }

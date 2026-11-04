@@ -31,7 +31,10 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
             if (!aliases.TryGetValue(property.Name, out var field))
             {
                 if (!options.AllowUnknownFields)
+                {
                     errors.Add(new(property.Name, "Unknown field."));
+                }
+
                 continue;
             }
 
@@ -48,7 +51,9 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
         foreach (var field in entity.Fields.Where(static field => field.IsActive && field.IsRequired))
         {
             if (!supplied.Contains(field.Id) || normalized[field.StorageKey].ValueKind == JsonValueKind.Null)
+            {
                 errors.Add(new(field.StorageKey, $"{field.DisplayName} is required."));
+            }
         }
 
         var normalizedJson = errors.Count == 0 ? JsonSerializer.Serialize(normalized) : null;
@@ -72,7 +77,11 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
         JsonElement value,
         ICollection<RecordValidationError> errors)
     {
-        if (value.ValueKind == JsonValueKind.Null) return;
+        if (value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
         var valid = field.DataType switch
         {
             FieldDataType.Text or FieldDataType.LongText or FieldDataType.Choice => value.ValueKind == JsonValueKind.String,
@@ -94,9 +103,14 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
         }
 
         if (value.ValueKind == JsonValueKind.String)
+        {
             ValidateStringConfiguration(field, value.GetString()!, errors);
+        }
+
         if (field.DataType == FieldDataType.Choice)
+        {
             ValidateChoice(field, value.GetString()!, errors);
+        }
     }
 
     private static void ValidateStringConfiguration(
@@ -104,24 +118,43 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
         string value,
         ICollection<RecordValidationError> errors)
     {
-        if (field.ConfigurationJson is null) return;
+        if (field.ConfigurationJson is null)
+        {
+            return;
+        }
+
         using var configuration = JsonDocument.Parse(field.ConfigurationJson);
         var root = configuration.RootElement;
         if (root.TryGetProperty("minLength", out var min) && min.TryGetInt32(out var minLength) && value.Length < minLength)
+        {
             errors.Add(new(field.StorageKey, $"{field.DisplayName} must contain at least {minLength} characters."));
+        }
+
         if (root.TryGetProperty("maxLength", out var max) && max.TryGetInt32(out var maxLength) && value.Length > maxLength)
+        {
             errors.Add(new(field.StorageKey, $"{field.DisplayName} cannot exceed {maxLength} characters."));
+        }
     }
 
     private static void ValidateChoice(FieldDefinition field, string value, ICollection<RecordValidationError> errors)
     {
-        if (field.ConfigurationJson is null) return;
+        if (field.ConfigurationJson is null)
+        {
+            return;
+        }
+
         using var configuration = JsonDocument.Parse(field.ConfigurationJson);
         var root = configuration.RootElement;
         var allowCustom = root.TryGetProperty("allowCustomValues", out var allow) && allow.ValueKind == JsonValueKind.True;
-        if (allowCustom || !root.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array) return;
+        if (allowCustom || !root.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
         if (!values.EnumerateArray().Any(item => item.ValueKind == JsonValueKind.String && item.GetString() == value))
+        {
             errors.Add(new(field.StorageKey, $"{field.DisplayName} contains a value outside its allowed choices."));
+        }
     }
 
     private static bool IsDate(JsonElement value) =>
@@ -131,8 +164,15 @@ public sealed class RecordValidator(RecordValidationOptions options) : IRecordVa
         value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
     private static bool IsEmail(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.String) return false;
-        try { return new MailAddress(value.GetString()!).Address == value.GetString(); }
+        if (value.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        try
+        {
+            return new MailAddress(value.GetString()!).Address == value.GetString();
+        }
         catch (FormatException) { return false; }
     }
     private static bool IsUrl(JsonElement value) =>

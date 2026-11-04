@@ -7,9 +7,16 @@ public static class SqlFieldExpression
 {
     public static string ForValue(FieldDefinition field, bool virtualNames = false)
     {
-        if (virtualNames) return PhysicalName.QuoteSqlIdentifier(field.Name);
+        if (virtualNames)
+        {
+            return PhysicalName.QuoteSqlIdentifier(field.Name);
+        }
+
         if (field.IndexColumnName is not null)
+        {
             return PhysicalName.QuoteSqlIdentifier(field.IndexColumnName);
+        }
+
         var json = $"JSON_VALUE(Data, '$.{field.StorageKey}')";
         return field.DataType switch
         {

@@ -45,12 +45,21 @@ public sealed class ViewService(
     {
         var storage = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, cancellationToken);
         if (!await views.DeleteAsync(tenantId, viewId, storage, cancellationToken))
+        {
             throw new NotFoundException($"View '{viewId}' was not found.");
+        }
     }
 
     private static void Validate(string name, JsonElement definition)
     {
-        if (name.Trim().Length is < 1 or > 200) throw new ValidationException("View name must contain between 1 and 200 characters.");
-        if (definition.ValueKind != JsonValueKind.Object) throw new ValidationException("View definition must be a JSON object.");
+        if (name.Trim().Length is < 1 or > 200)
+        {
+            throw new ValidationException("View name must contain between 1 and 200 characters.");
+        }
+
+        if (definition.ValueKind != JsonValueKind.Object)
+        {
+            throw new ValidationException("View definition must be a JSON object.");
+        }
     }
 }

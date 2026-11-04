@@ -31,9 +31,15 @@ public sealed class FieldService(
         name = name.Trim();
         displayName = displayName.Trim();
         if (!IsMachineName(name))
+        {
             throw new ValidationException("Field name must start with a letter and contain only letters, numbers, or underscores.");
+        }
+
         if (displayName.Length is < 1 or > 200)
+        {
             throw new ValidationException("Field display name must contain between 1 and 200 characters.");
+        }
+
         ValidateJson(defaultValueJson, "Default value");
         ValidateJsonObject(configurationJson, "Field configuration");
 
@@ -86,9 +92,15 @@ public sealed class FieldService(
         var updatedName = name?.Trim() ?? current.Name;
         var updatedDisplayName = displayName?.Trim() ?? current.DisplayName;
         if (!IsMachineName(updatedName))
+        {
             throw new ValidationException("Field name must start with a letter and contain only letters, numbers, or underscores.");
+        }
+
         if (updatedDisplayName.Length is < 1 or > 200)
+        {
             throw new ValidationException("Field display name must contain between 1 and 200 characters.");
+        }
+
         ValidateJsonObject(configurationJson, "Field configuration");
 
         var updated = current with
@@ -116,7 +128,9 @@ public sealed class FieldService(
     {
         var storage = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, cancellationToken);
         if (!await fields.DeactivateAsync(tenantId, entityId, fieldId, storage, cancellationToken))
+        {
             throw new NotFoundException($"Field '{fieldId}' was not found.");
+        }
     }
 
     private static bool IsMachineName(string value) =>
@@ -125,19 +139,32 @@ public sealed class FieldService(
 
     private static void ValidateJson(string? json, string label)
     {
-        if (json is null) return;
-        try { using var _ = JsonDocument.Parse(json); }
+        if (json is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var _ = JsonDocument.Parse(json);
+        }
         catch (JsonException) { throw new ValidationException($"{label} must be valid JSON."); }
     }
 
     private static void ValidateJsonObject(string? json, string label)
     {
-        if (json is null) return;
+        if (json is null)
+        {
+            return;
+        }
+
         try
         {
             using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
                 throw new ValidationException($"{label} must be a JSON object.");
+            }
         }
         catch (JsonException)
         {

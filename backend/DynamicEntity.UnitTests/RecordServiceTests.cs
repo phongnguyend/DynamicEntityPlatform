@@ -59,9 +59,22 @@ public sealed class RecordServiceTests
     private sealed class FakeRepository : IControlPlaneStore, IEntityMetadataStore, IFieldMetadataStore
     {
         public Tenant Tenant { get; } = new(Guid.NewGuid(), "Acme", TenantStatus.Active, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
-        public EntityDefinition Entity { get; }
-        public FieldDefinition NameField { get; }
-        public FieldDefinition AgeField { get; }
+
+        public EntityDefinition Entity
+        {
+            get;
+        }
+
+        public FieldDefinition NameField
+        {
+            get;
+        }
+
+        public FieldDefinition AgeField
+        {
+            get;
+        }
+
         private EntityStorageLocation Storage { get; } = new("tenant", "entity", EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()
@@ -97,7 +110,9 @@ public sealed class RecordServiceTests
     private sealed class FakeRecordStore : IRecordStore
     {
         public Guid RecordId { get; } = Guid.NewGuid();
+
         public byte[] Version { get; } = [0, 0, 0, 0, 0, 0, 0, 1];
+
         public RecordWriteStatus UpdateStatus { get; init; } = RecordWriteStatus.Success;
         private readonly DynamicRecord record;
 
@@ -114,7 +129,10 @@ public sealed class RecordServiceTests
         public Task<DynamicRecord?> GetAsync(TenantContext tenant, EntityDefinition entity, Guid recordId, CancellationToken cancellationToken) => Task.FromResult<DynamicRecord?>(record);
         public Task<RecordWriteResult> UpdateAsync(TenantContext tenant, EntityDefinition entity, Guid recordId, string data, byte[] expectedVersion, Guid? userId, CancellationToken cancellationToken) =>
             Task.FromResult(UpdateStatus == RecordWriteStatus.Success
-                ? new RecordWriteResult(UpdateStatus, record with { Data = data })
+                ? new RecordWriteResult(UpdateStatus, record with
+                {
+                    Data = data
+                })
                 : new RecordWriteResult(UpdateStatus));
         public Task<DynamicRecord> InsertAsync(TenantContext tenant, EntityDefinition entity, Guid recordId, string data, Guid? userId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PagedResult<DynamicRecord>> QueryAsync(TenantContext tenant, EntityDefinition entity, RecordQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();

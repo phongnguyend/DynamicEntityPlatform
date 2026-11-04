@@ -82,7 +82,11 @@ public sealed class SqlServerControlPlaneStore(SqlServerOptions options)
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@id", tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
         return new Tenant(
             reader.GetGuid(0), reader.GetString(1), Enum.Parse<TenantStatus>(reader.GetString(2)),
             reader.GetFieldValue<DateTimeOffset>(3), reader.GetFieldValue<DateTimeOffset>(4));
@@ -137,7 +141,11 @@ public sealed class SqlServerControlPlaneStore(SqlServerOptions options)
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@tenantId", tenantId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
         return new EntityStorageLocation(reader.GetString(0), string.Empty,
             EntityStorageMode.DedicatedTable, false, reader.IsDBNull(1) ? null : reader.GetString(1));
     }

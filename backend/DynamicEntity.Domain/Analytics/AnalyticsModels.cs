@@ -2,16 +2,46 @@ using DynamicEntity.Domain.Queries;
 
 namespace DynamicEntity.Domain.Analytics;
 
-public enum AggregateFunction { Count, CountDistinct, Sum, Average, Min, Max }
-public enum DateBucket { None, Day, Week, Month, Quarter, Year }
-public enum AnalyticsColumnRole { Dimension, Measure }
-public enum VisualizationType { Table, Number, Bar, Line, Donut }
-public enum AlertComparisonOperator { GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Equal, NotEqual }
-public enum AlertInterval { FiveMinutes, Hourly, Daily }
-public enum AlertState { Normal, Firing, Error, Recovered }
-public enum AlertActionType { Email, Webhook }
-public enum NotificationStatus { Pending, Delivered, Failed }
-public enum WebhookEvent { RecordCreated, RecordUpdated, RecordDeleted }
+public enum AggregateFunction
+{
+    Count, CountDistinct, Sum, Average, Min, Max
+}
+public enum DateBucket
+{
+    None, Day, Week, Month, Quarter, Year
+}
+public enum AnalyticsColumnRole
+{
+    Dimension, Measure
+}
+public enum VisualizationType
+{
+    Table, Number, Bar, Line, Donut
+}
+public enum AlertComparisonOperator
+{
+    GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Equal, NotEqual
+}
+public enum AlertInterval
+{
+    FiveMinutes, Hourly, Daily
+}
+public enum AlertState
+{
+    Normal, Firing, Error, Recovered
+}
+public enum AlertActionType
+{
+    Email, Webhook
+}
+public enum NotificationStatus
+{
+    Pending, Delivered, Failed
+}
+public enum WebhookEvent
+{
+    RecordCreated, RecordUpdated, RecordDeleted
+}
 
 public sealed record AnalyticsDimension(Guid FieldId, DateBucket DateBucket, string Alias);
 public sealed record AnalyticsMeasure(AggregateFunction Aggregate, Guid? FieldId, string Alias);

@@ -40,8 +40,12 @@ public sealed class AlertParametersTests
 
     private sealed class Metrics : IMetricStore
     {
-        public MetricDefinition Metric { get; }
-        public Metrics(FakeRepository repo) {
+        public MetricDefinition Metric
+        {
+            get;
+        }
+        public Metrics(FakeRepository repo)
+        {
             var filter = JsonSerializer.Serialize(new DynamicEntity.Domain.Queries.FilterGroup(DynamicEntity.Domain.Queries.FilterLogic.And,
                 [new DynamicEntity.Domain.Queries.FilterCondition(repo.AgeField.Id, DynamicEntity.Domain.Queries.FilterOperator.GreaterThan,
                     JsonSerializer.SerializeToElement(new { parameter = "minimum" }))]),
@@ -56,9 +60,20 @@ public sealed class AlertParametersTests
     }
     private sealed class Alerts : IAlertStore
     {
-        public AlertDefinition? Saved { get; private set; }
-        public Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token) { Saved = alert; return Task.FromResult(alert); }
-        public Task<AlertDefinition?> UpdateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token) { Saved = alert; return Task.FromResult<AlertDefinition?>(alert); }
+        public AlertDefinition? Saved
+        {
+            get; private set;
+        }
+        public Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token)
+        {
+            Saved = alert;
+            return Task.FromResult(alert);
+        }
+        public Task<AlertDefinition?> UpdateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token)
+        {
+            Saved = alert;
+            return Task.FromResult<AlertDefinition?>(alert);
+        }
         public Task<AlertDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(Saved);
         public Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
@@ -68,9 +83,22 @@ public sealed class AlertParametersTests
     private sealed class FakeRepository : IControlPlaneStore, IEntityMetadataStore, IFieldMetadataStore
     {
         public Tenant Tenant { get; } = new(Guid.NewGuid(), "Acme", TenantStatus.Active, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
-        public EntityDefinition Entity { get; }
-        public FieldDefinition NameField { get; }
-        public FieldDefinition AgeField { get; }
+
+        public EntityDefinition Entity
+        {
+            get;
+        }
+
+        public FieldDefinition NameField
+        {
+            get;
+        }
+
+        public FieldDefinition AgeField
+        {
+            get;
+        }
+
         private EntityStorageLocation Storage { get; } = new("tenant", "entity", EntityStorageMode.DedicatedTable, false);
 
         public FakeRepository()
