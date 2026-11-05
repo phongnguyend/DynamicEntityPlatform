@@ -4,7 +4,7 @@ using DynamicEntity.Domain.Tenants;
 
 namespace DynamicEntity.Application.Common;
 
-internal sealed class TenantStorageGuard(IControlPlaneStore controlPlane)
+public sealed class TenantStorageGuard(IControlPlaneStore controlPlane)
 {
     public async Task<EntityStorageLocation> RequireActiveAsync(
         Guid tenantId,

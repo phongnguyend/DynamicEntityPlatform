@@ -89,6 +89,59 @@ dotnet test backend/DynamicEntity.IntegrationTests
 
 CI runs the same integration test against a disposable SQL Server service.
 
+## SQL definitions for metrics and reports
+
+The metric and report editors offer **Builder** and **SQL** modes. Existing definitions
+continue to use Builder. Switching modes preserves the Builder settings and SQL draft;
+save the definition to persist the selected mode. **Generate from Builder** explicitly
+replaces the SQL draft with the Builder's virtual SQL and parameter defaults.
+
+SQL mode accepts one read-only SQL Server `SELECT`, optionally preceded by non-recursive
+CTEs. Use entity **names** (not display names) as tables and field **names** as columns:
+
+```sql
+SELECT c.[firstName], COUNT(*) AS [total]
+FROM [customer] AS c
+WHERE c.[firstName] = @firstName
+GROUP BY c.[firstName]
+```
+
+The schema browser inserts virtual names at the editor cursor. `Id`, `CreatedAt`, and
+`UpdatedAt` are also available on each virtual table. Joins, derived queries, subqueries,
+grouping, unions, expressions, and window functions are supported. Give every output
+column a unique alias. Qualify ambiguous columns with table aliases. CTEs may reference
+earlier CTEs; recursive and forward references are rejected.
+
+Parameter references use `@name` in SQL. The editor detects references outside comments
+and quoted text and exposes their type and optional default. Supported types are Text,
+Integer, Decimal, Boolean, Date, DateTime, and Guid. Missing values are allowed in SQL
+validation/preview, but execution requires a supplied value or default. Values are bound
+as SQL parameters, never interpolated. Use `SYSUTCDATETIME()` for the current UTC time or
+`CAST(SYSUTCDATETIME() AS date)` for today's UTC date.
+
+**Validate SQL** checks syntax, virtual names, output aliases and database compilation
+without running the query. **View SQL** shows the original virtual SQL, compiled physical
+SQL, and parameter values. **Run preview** (metrics) or **Preview** (reports) evaluates
+the definition. SQL metrics must return exactly one row and one column. Reports support
+1–1000 rows, mark truncated results, and infer numeric output columns as measures. Use
+the measure-column setting to choose chart measures explicitly; other outputs become
+dimensions. Existing CSV exports, runtime prompts, dashboard parameter bindings and
+alert evaluations support SQL definitions.
+
+Compilation uses Microsoft's ScriptDom parser. Virtual tables become derived tables
+that expose mapped fields and enforce shared-table entity predicates. Physical table
+names, schema/database qualifiers, writes, multiple statements, procedures, dynamic SQL,
+table/query hints, external table sources and user-defined functions are rejected.
+Built-in scalar and aggregate functions are allowlisted; unsupported constructs return
+validation errors. Queries use the configured analytics timeout and a server-side row cap.
+
+Tenant migration 11 adds metric SQL storage and creates the login-less `VirtualSqlReader`
+database principal with SELECT permission and denied writes. SQL validation and execution
+impersonate this principal. The migration identity needs permission to create users and
+grant permissions; the runtime identity needs permission to impersonate `VirtualSqlReader`
+(database owners already have this). Restart the API to apply the migration before using
+the new definitions. Reports store SQL settings within their existing definition JSON.
+
 ## Formatting
 
 Formatting follows `AGENTS.md`: control-flow bodies use braces and multiple lines,

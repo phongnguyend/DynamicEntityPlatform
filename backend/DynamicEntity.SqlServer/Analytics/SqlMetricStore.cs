@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DynamicEntity.Application.Abstractions;
 using DynamicEntity.Domain.Analytics;
 using DynamicEntity.Domain.Storage;
@@ -9,7 +10,7 @@ public sealed class SqlMetricStore : IMetricStore
 {
     public async Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token)
     {
-        const string sql = "INSERT INTO dbo.MetricDefinitions (Id,EntityId,Name,Description,Aggregate,FieldId,FilterJson,FormatJson,CreatedBy,CreatedAt,UpdatedAt) SELECT @id,@entityId,@name,@description,@aggregate,@fieldId,@filter,@format,@createdBy,@createdAt,@updatedAt WHERE EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
+        const string sql = "INSERT INTO dbo.MetricDefinitions (Id,EntityId,Name,Description,Aggregate,FieldId,FilterJson,FormatJson,CreatedBy,CreatedAt,UpdatedAt,SqlJson) SELECT @id,@entityId,@name,@description,@aggregate,@fieldId,@filter,@format,@createdBy,@createdAt,@updatedAt,@sql WHERE EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
         await using var c = await OpenAsync(storage, token);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, metric);
@@ -20,11 +21,11 @@ public sealed class SqlMetricStore : IMetricStore
 
         return metric;
     }
-    public Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE e.TenantId=@tenantId AND m.EntityId=@entityId ORDER BY m.Name,m.Id;", tenantId, entityId, null, storage, token);
-    public async Task<MetricDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken token) => (await ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE e.TenantId=@tenantId AND m.EntityId=@entityId AND m.Id=@id;", tenantId, entityId, metricId, storage, token)).SingleOrDefault();
+    public Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt,m.SqlJson FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE e.TenantId=@tenantId AND m.EntityId=@entityId ORDER BY m.Name,m.Id;", tenantId, entityId, null, storage, token);
+    public async Task<MetricDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken token) => (await ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt,m.SqlJson FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE e.TenantId=@tenantId AND m.EntityId=@entityId AND m.Id=@id;", tenantId, entityId, metricId, storage, token)).SingleOrDefault();
     public async Task<MetricDefinition?> UpdateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token)
     {
-        const string sql = "UPDATE m SET Name=@name,Description=@description,Aggregate=@aggregate,FieldId=@fieldId,FilterJson=@filter,FormatJson=@format,UpdatedAt=@updatedAt OUTPUT inserted.Id,inserted.EntityId,inserted.Name,inserted.Description,inserted.Aggregate,inserted.FieldId,inserted.FilterJson,inserted.FormatJson,inserted.CreatedBy,inserted.CreatedAt,inserted.UpdatedAt FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE m.Id=@id AND m.EntityId=@entityId AND e.TenantId=@tenantId;";
+        const string sql = "UPDATE m SET Name=@name,Description=@description,Aggregate=@aggregate,FieldId=@fieldId,FilterJson=@filter,FormatJson=@format,UpdatedAt=@updatedAt,SqlJson=@sql OUTPUT inserted.Id,inserted.EntityId,inserted.Name,inserted.Description,inserted.Aggregate,inserted.FieldId,inserted.FilterJson,inserted.FormatJson,inserted.CreatedBy,inserted.CreatedAt,inserted.UpdatedAt,inserted.SqlJson FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE m.Id=@id AND m.EntityId=@entityId AND e.TenantId=@tenantId;";
         await using var c = await OpenAsync(storage, token);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, metric);
@@ -69,6 +70,7 @@ public sealed class SqlMetricStore : IMetricStore
     }
     private static void Add(SqlCommand c, Guid tenantId, MetricDefinition m)
     {
+        c.Parameters.AddWithValue("@sql", m.Sql is null ? DBNull.Value : JsonSerializer.Serialize(m.Sql));
         c.Parameters.AddWithValue("@tenantId", tenantId);
         c.Parameters.AddWithValue("@id", m.Id);
         c.Parameters.AddWithValue("@entityId", m.EntityId);
@@ -82,5 +84,5 @@ public sealed class SqlMetricStore : IMetricStore
         c.Parameters.AddWithValue("@createdAt", m.CreatedAt);
         c.Parameters.AddWithValue("@updatedAt", m.UpdatedAt);
     }
-    private static MetricDefinition Read(SqlDataReader r) => new(r.GetGuid(0), r.GetGuid(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3), Enum.Parse<AggregateFunction>(r.GetString(4)), r.IsDBNull(5) ? null : r.GetGuid(5), r.IsDBNull(6) ? null : r.GetString(6), r.IsDBNull(7) ? null : r.GetString(7), r.IsDBNull(8) ? null : r.GetGuid(8), r.GetFieldValue<DateTimeOffset>(9), r.GetFieldValue<DateTimeOffset>(10));
+    private static MetricDefinition Read(SqlDataReader r) => new(r.GetGuid(0), r.GetGuid(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3), Enum.Parse<AggregateFunction>(r.GetString(4)), r.IsDBNull(5) ? null : r.GetGuid(5), r.IsDBNull(6) ? null : r.GetString(6), r.IsDBNull(7) ? null : r.GetString(7), r.IsDBNull(8) ? null : r.GetGuid(8), r.GetFieldValue<DateTimeOffset>(9), r.GetFieldValue<DateTimeOffset>(10), r.IsDBNull(11) ? null : JsonSerializer.Deserialize<VirtualSqlDefinition>(r.GetString(11)));
 }

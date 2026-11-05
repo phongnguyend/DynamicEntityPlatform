@@ -430,6 +430,15 @@ internal static class SqlServerSchema
             ALTER TABLE dbo.AlertDefinitions ADD ParametersJson NVARCHAR(MAX) NULL;
         """;
 
+    public const string TenantDatabaseV11 = """
+        IF COL_LENGTH(N'dbo.MetricDefinitions', N'SqlJson') IS NULL
+            ALTER TABLE dbo.MetricDefinitions ADD SqlJson NVARCHAR(MAX) NULL;
+        IF DATABASE_PRINCIPAL_ID(N'VirtualSqlReader') IS NULL
+            CREATE USER VirtualSqlReader WITHOUT LOGIN;
+        GRANT SELECT ON SCHEMA::dbo TO VirtualSqlReader;
+        DENY INSERT, UPDATE, DELETE, EXECUTE, ALTER ON SCHEMA::dbo TO VirtualSqlReader;
+        """;
+
     public const string TenantDatabaseV9 = """
         IF COL_LENGTH(N'dbo.EntityDefinitions', N'PinnedOrder') IS NULL
             ALTER TABLE dbo.EntityDefinitions ADD PinnedOrder INT NULL;

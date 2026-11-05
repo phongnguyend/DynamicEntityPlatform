@@ -74,6 +74,7 @@ builder.Services.AddSingleton<IEntityIndexManager, SqlServerEntityIndexManager>(
 builder.Services.AddSingleton<IViewStore, SqlServerViewStore>();
 builder.Services.AddSingleton<IDashboardStore, SqlServerDashboardStore>();
 builder.Services.AddSingleton<IAnalyticsStore, SqlAnalyticsStore>();
+builder.Services.AddScoped<IVirtualSqlService, VirtualSqlService>();
 builder.Services.AddSingleton<IReportStore, SqlReportStore>();
 builder.Services.AddSingleton<IMetricStore, SqlMetricStore>();
 builder.Services.AddSingleton<IAlertStore, SqlAlertStore>();
@@ -397,10 +398,14 @@ entities.MapPost("/{entityId:guid}/reports/preview", async (Guid entityId, Analy
 });
 entities.MapPost("/{entityId:guid}/reports/sql", async (Guid entityId, AnalyticsPreviewRequest request,
     ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service,
-    IEntityStorageResolver storageResolver, CancellationToken token) =>
+    IEntityStorageResolver storageResolver, IVirtualSqlService virtualSql, CancellationToken token) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    if (request.Sql?.Enabled == true)
+    {
+        return Results.Ok(await virtualSql.PreviewAsync(tenant.TenantId, entityId, request.Sql, request.Parameters, token));
+    }
     var prepared = await service.PrepareQueryAsync(tenant.TenantId, entityId,
         AnalyticsRequestFactory.Create(request, fields, allowRuntimeParameters: true), token, request.Parameters, allowUnbound: true);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
@@ -493,7 +498,7 @@ entities.MapPost("/{entityId:guid}/metrics", async (Guid entityId, SaveMetricReq
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
     var metric = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
         request.Aggregate, request.FieldId, RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true),
-        request.Format?.GetRawText(), null, token);
+        request.Format?.GetRawText(), null, token, request.Sql);
     return Results.Created($"/api/entities/{entityId}/metrics/{metric.Id}", ToMetricResponse(metric));
 });
 entities.MapPost("/{entityId:guid}/metrics/preview", async (Guid entityId, SaveMetricRequest request,
@@ -502,7 +507,7 @@ entities.MapPost("/{entityId:guid}/metrics/preview", async (Guid entityId, SaveM
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
     var result = await service.PreviewAsync(tenant.TenantId, entityId, request.Aggregate, request.FieldId,
-        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), token, request.Parameters);
+        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), token, request.Parameters, request.Sql);
     return Results.Ok(new MetricEvaluationResponse(result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt));
 });
 entities.MapPatch("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entityId, Guid metricId,
@@ -513,7 +518,7 @@ entities.MapPatch("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entity
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
     return Results.Ok(ToMetricResponse(await service.UpdateAsync(tenant.TenantId, entityId, metricId,
         request.Name, request.Description, request.Aggregate, request.FieldId,
-        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), request.Format?.GetRawText(), token)));
+        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), request.Format?.GetRawText(), token, request.Sql)));
 });
 entities.MapDelete("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entityId, Guid metricId,
     ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
@@ -524,10 +529,14 @@ entities.MapDelete("/{entityId:guid}/metrics/{metricId:guid}", async (Guid entit
 });
 entities.MapPost("/{entityId:guid}/metrics/sql", async (Guid entityId, SaveMetricRequest request,
     ITenantContextAccessor tenantAccessor, FieldService fieldService, MetricService service,
-    IEntityStorageResolver storageResolver, CancellationToken token) =>
+    IEntityStorageResolver storageResolver, IVirtualSqlService virtualSql, CancellationToken token) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     var fields = await fieldService.ListAsync(tenant.TenantId, entityId, token);
+    if (request.Sql?.Enabled == true)
+    {
+        return Results.Ok(await virtualSql.PreviewAsync(tenant.TenantId, entityId, request.Sql, request.Parameters, token));
+    }
     var prepared = await service.PrepareQueryAsync(tenant.TenantId, entityId, request.Aggregate, request.FieldId,
         RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), token, request.Parameters);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
@@ -543,9 +552,14 @@ entities.MapPost("/{entityId:guid}/metrics/sql", async (Guid entityId, SaveMetri
 });
 entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/sql", async (Guid entityId, Guid metricId,
     EvaluateMetricRequest? request, ITenantContextAccessor tenantAccessor, MetricService service,
-    IEntityStorageResolver storageResolver, CancellationToken token) =>
+    IEntityStorageResolver storageResolver, IVirtualSqlService virtualSql, CancellationToken token) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
+    var metric = await service.GetAsync(tenant.TenantId, entityId, metricId, token);
+    if (metric.Sql?.Enabled == true)
+    {
+        return Results.Ok(await virtualSql.PreviewAsync(tenant.TenantId, entityId, metric.Sql, request?.Parameters, token));
+    }
     var prepared = await service.PrepareQueryAsync(tenant.TenantId, entityId, metricId, token, request?.Parameters);
     var storage = await storageResolver.ResolveAsync(tenant.TenantId, entityId, token);
     var plan = SqlAnalyticsQueryBuilder.Build(prepared.Entity, storage, prepared.Query, allowUnbound: true);
@@ -1004,10 +1018,10 @@ static ReportResponse ToReportResponse(ReportDefinition report)
 static MetricResponse ToMetricResponse(MetricDefinition metric) => new(
     metric.Id, metric.EntityId, metric.Name, metric.Description, metric.Aggregate, metric.FieldId,
     ToFilterRequest(MetricService.DeserializeFilter(metric.FilterJson)), metric.FormatJson is null ? null :
-        JsonSerializer.Deserialize<JsonElement>(metric.FormatJson), metric.CreatedBy, metric.CreatedAt, metric.UpdatedAt);
+        JsonSerializer.Deserialize<JsonElement>(metric.FormatJson), metric.CreatedBy, metric.CreatedAt, metric.UpdatedAt, metric.Sql);
 
 static AnalyticsPreviewRequest ToAnalyticsRequest(AnalyticsQuery query) => new(
-    ToFilterRequest(query.Filter), query.Dimensions, query.Measures, query.Sort, query.Limit);
+    ToFilterRequest(query.Filter), query.Dimensions, query.Measures, query.Sort, query.Limit, Sql: query.Sql);
 
 static FilterNodeRequest? ToFilterRequest(FilterNode? node) => node switch
 {

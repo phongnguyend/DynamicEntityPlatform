@@ -1,4 +1,4 @@
-import { metricParameterNames } from '../components/RuntimeParametersForm'
+import { metricParameterNames, runtimeParameterSource } from '../components/RuntimeParametersForm'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Braces, FlaskConical, History, Pencil, Plus, Save, Send, Trash2, X } from 'lucide-react'
@@ -24,8 +24,8 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
   const [metricId, setMetricId] = useState('')
   const [parameters, setParameters] = useState<Record<string, unknown>>({})
   const selectedMetric = metrics.data?.find((metric) => metric.id === metricId)
-  const parameterNames = metricParameterNames(selectedMetric?.filter)
-  const requiredNames = metricParameterNames(selectedMetric?.filter, true)
+  const parameterNames = metricParameterNames(runtimeParameterSource(selectedMetric))
+  const requiredNames = metricParameterNames(runtimeParameterSource(selectedMetric), true)
   const missingParameters = requiredNames.some((name) => !Object.prototype.hasOwnProperty.call(parameters, name))
   const [comparisonOperator, setComparison] = useState<AlertComparisonOperator>('GreaterThan')
   const [threshold, setThreshold] = useState(0)

@@ -11,13 +11,17 @@ namespace DynamicEntity.Application.Reports;
 public sealed class ReportService(
     IControlPlaneStore controlPlane, IEntityMetadataStore entities, IFieldMetadataStore fields,
     IReportStore reports, AnalyticsService analytics, AnalyticsQueryValidator validator,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider, IVirtualSqlService? virtualSql = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { Converters = { new JsonStringEnumConverter() } };
 
     public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid entityId, AnalyticsQuery query, CancellationToken token,
         IReadOnlyDictionary<string, JsonElement>? parameters = null)
     {
+        if (query.Sql?.Enabled == true)
+        {
+            return await virtualSql!.ExecuteAsync(tenantId, entityId, query.Sql, parameters, query.Limit, false, token);
+        }
         var prepared = await PrepareQueryAsync(tenantId, entityId, query, token, parameters);
         return await analytics.ExecuteAsync(tenantId, entityId, prepared.Query, token);
     }
@@ -53,7 +57,14 @@ public sealed class ReportService(
         ValidateName(name);
         ValidateSpecification(specification);
         var storage = await RequireEntityAsync(tenantId, entityId, token);
-        ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, storage, token));
+        if (specification.Query.Sql?.Enabled == true)
+        {
+            await virtualSql!.PreviewAsync(tenantId, entityId, specification.Query.Sql, null, token);
+        }
+        else
+        {
+            ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, storage, token));
+        }
         var now = timeProvider.GetUtcNow();
         var report = new ReportDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), JsonSerializer.Serialize(specification, JsonOptions), userId, now, now);
         return await reports.CreateAsync(tenantId, report, storage, token);
@@ -73,7 +84,14 @@ public sealed class ReportService(
         ValidateName(name);
         ValidateSpecification(specification);
         var s = await RequireEntityAsync(tenantId, entityId, token);
-        ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, s, token));
+        if (specification.Query.Sql?.Enabled == true)
+        {
+            await virtualSql!.PreviewAsync(tenantId, entityId, specification.Query.Sql, null, token);
+        }
+        else
+        {
+            ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, s, token));
+        }
         var current = await reports.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Report '{id}' was not found.");
         var updated = current with
         {
@@ -117,18 +135,22 @@ public sealed class ReportService(
     }
     private static void ValidateSpecification(ReportSpecification specification)
     {
+        if (specification.Query.Limit is < 1 or > 1000)
+        {
+            throw new ValidationException("Report row limit must be between 1 and 1000.");
+        }
         if (!Enum.IsDefined(specification.Visualization))
         {
             throw new ValidationException("Report visualization is invalid.");
         }
 
-        if (specification.Visualization == VisualizationType.Number &&
+        if (specification.Query.Sql?.Enabled != true && specification.Visualization == VisualizationType.Number &&
             (specification.Query.Dimensions.Count != 0 || specification.Query.Measures.Count != 1))
         {
             throw new ValidationException("Number visualizations require exactly one measure and no dimensions.");
         }
 
-        if (specification.Visualization is VisualizationType.Bar or VisualizationType.Line or VisualizationType.Donut &&
+        if (specification.Query.Sql?.Enabled != true && specification.Visualization is VisualizationType.Bar or VisualizationType.Line or VisualizationType.Donut &&
             (specification.Query.Dimensions.Count == 0 || specification.Query.Measures.Count == 0))
         {
             throw new ValidationException($"{specification.Visualization} visualizations require a dimension and a measure.");

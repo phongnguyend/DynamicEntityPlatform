@@ -88,6 +88,58 @@ public sealed class SqlServerProvisioningAndCrudTests
                 Fields = analyticsFields
             });
 
+            var virtualSql = new VirtualSqlService(control, metadata, fieldStore, resolver, options, TimeProvider.System);
+            var sqlDefinition = new VirtualSqlDefinition(true,
+                "WITH selected AS (SELECT name, amount FROM customer WHERE name = @name) SELECT SUM(amount) AS total FROM selected",
+                [new("name", "Text")]);
+            var sqlParameters = new Dictionary<string, JsonElement> { ["name"] = JsonSerializer.SerializeToElement("Ada") };
+            var sqlPreview = await virtualSql.PreviewAsync(tenant.Id, entity.Id, sqlDefinition, null, CancellationToken.None);
+            Assert.Contains("SELECT", sqlPreview.Sql);
+            var sqlResult = await virtualSql.ExecuteAsync(tenant.Id, entity.Id, sqlDefinition, sqlParameters, 10, true, CancellationToken.None);
+            Assert.Equal(12.5m, sqlResult.Rows.Single()["value"]);
+            await Assert.ThrowsAsync<ValidationException>(() => virtualSql.PreviewAsync(tenant.Id, entity.Id,
+                sqlDefinition with
+                {
+                    Text = "SELECT missing FROM customer"
+                }, null, CancellationToken.None));
+            await Assert.ThrowsAsync<ValidationException>(() => virtualSql.PreviewAsync(tenant.Id, entity.Id,
+                sqlDefinition with
+                {
+                    Text = "SELECT Id FROM customer a JOIN customer b ON a.Id=b.Id"
+                }, null, CancellationToken.None));
+            await Assert.ThrowsAsync<ValidationException>(() => virtualSql.ExecuteAsync(tenant.Id, entity.Id,
+                sqlDefinition with
+                {
+                    Text = "SELECT name, amount FROM customer"
+                }, sqlParameters, 10, true, CancellationToken.None));
+            var metricStore = new SqlMetricStore();
+            var metricDefinition = new MetricDefinition(Guid.NewGuid(), entity.Id, "SQL metric", null, AggregateFunction.Count,
+                null, null, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, sqlDefinition);
+            var tenantStorage = await control.GetTenantStorageAsync(tenant.Id, CancellationToken.None);
+            await metricStore.CreateAsync(tenant.Id, metricDefinition, tenantStorage!, CancellationToken.None);
+            var storedMetric = await metricStore.GetAsync(tenant.Id, entity.Id, metricDefinition.Id, tenantStorage!, CancellationToken.None);
+            Assert.Equal(sqlDefinition.Text, storedMetric!.Sql!.Text);
+            var limited = await virtualSql.ExecuteAsync(tenant.Id, entity.Id,
+                new(true, "SELECT 1 AS value UNION ALL SELECT 2 UNION ALL SELECT 3", []), null, 1, false, CancellationToken.None);
+            Assert.Single(limited.Rows);
+            Assert.True(limited.Truncated);
+            var renamed = metricDefinition with
+            {
+                Name = "Updated SQL metric"
+            };
+            var updatedMetric = await metricStore.UpdateAsync(tenant.Id, renamed, tenantStorage!, CancellationToken.None);
+            Assert.Equal(sqlDefinition.Text, updatedMetric!.Sql!.Text);
+            await using (var restrictedConnection = new SqlConnection(tenantBuilder.ConnectionString))
+            {
+                await restrictedConnection.OpenAsync();
+                await using var restrict = new SqlCommand("EXECUTE AS USER = 'VirtualSqlReader';", restrictedConnection);
+                await restrict.ExecuteNonQueryAsync();
+                await using var forbidden = new SqlCommand("DELETE FROM dbo.MetricDefinitions;", restrictedConnection);
+                await Assert.ThrowsAsync<SqlException>(() => forbidden.ExecuteNonQueryAsync());
+                await using var revert = new SqlCommand("REVERT;", restrictedConnection);
+                await revert.ExecuteNonQueryAsync();
+            }
+
             await Assert.ThrowsAsync<ConflictException>(() => service.UpdateAsync(tenant.Id, entity.Id,
                 created.Id, input.RootElement, new byte[8], null, CancellationToken.None));
             await service.DeleteAsync(tenant.Id, entity.Id, created.Id, created.Version, CancellationToken.None);

@@ -17,7 +17,8 @@ public sealed class SqlServerTenantDatabaseMigrator : ITenantDatabaseMigrator
         (7, "Alert notification delivery queue", SqlServerSchema.TenantDatabaseV7),
         (8, "Entity icons", SqlServerSchema.TenantDatabaseV8),
         (9, "Pinned entities", SqlServerSchema.TenantDatabaseV9),
-        (10, "Alert runtime parameters", SqlServerSchema.TenantDatabaseV10)
+        (10, "Alert runtime parameters", SqlServerSchema.TenantDatabaseV10),
+        (11, "Virtual SQL definitions and reader", SqlServerSchema.TenantDatabaseV11)
     ];
 
     public static int MigrationCount => Migrations.Length;

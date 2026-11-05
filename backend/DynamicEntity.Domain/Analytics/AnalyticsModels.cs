@@ -52,7 +52,7 @@ public sealed record AnalyticsQuery(
     IReadOnlyList<AnalyticsDimension> Dimensions,
     IReadOnlyList<AnalyticsMeasure> Measures,
     IReadOnlyList<AnalyticsSort> Sort,
-    int Limit);
+    int Limit, VirtualSqlDefinition? Sql = null);
 
 public sealed record AnalyticsColumn(
     string Key, string Label, string DataType, AnalyticsColumnRole Role);
@@ -79,7 +79,7 @@ public sealed record ReportDefinition(
 public sealed record MetricDefinition(
     Guid Id, Guid EntityId, string Name, string? Description, AggregateFunction Aggregate,
     Guid? FieldId, string? FilterJson, string? FormatJson, Guid? CreatedBy,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, VirtualSqlDefinition? Sql = null);
 
 public sealed record AlertDefinition(
     Guid Id, Guid EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,

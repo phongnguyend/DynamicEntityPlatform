@@ -13,9 +13,16 @@ import type {
   Report,
   VisualizationType,
 } from '../types'
+import { SqlDefinitionEditor } from './SqlDefinitionEditor'
+import type { VirtualSqlDefinition } from '../types'
 import { ReportViewer } from './ReportViewer'
 import { Modal } from './Modal'
-import { RuntimeParametersForm, metricParameterNames, hasRuntimeParameterReferences } from './RuntimeParametersForm'
+import {
+  RuntimeParametersForm,
+  metricParameterNames,
+  hasRuntimeParameterReferences,
+  runtimeParameterSource,
+} from './RuntimeParametersForm'
 import { SqlPreviewButton } from './SqlPreviewButton'
 import { AnalyticsFilterEditor } from './AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from './JsonEditorModal'
@@ -40,6 +47,7 @@ export function ReportBuilder({
     report?.query.measures ?? [{ aggregate: 'Count', alias: 'count' }],
   )
   const [filter, setFilter] = useState<unknown>(report?.query.filter)
+  const [sql, setSql] = useState<VirtualSqlDefinition | undefined>(report?.query.sql)
   const [sort, setSort] = useState<AnalyticsSort[]>(report?.query.sort ?? [])
   const [visualization, setVisualization] = useState<VisualizationType>(report?.visualization ?? 'Table')
   const [limit, setLimit] = useState(report?.query.limit ?? 100)
@@ -49,8 +57,8 @@ export function ReportBuilder({
   const previewAbort = useRef<AbortController>(undefined)
   useEffect(() => () => previewAbort.current?.abort(), [])
   const query = useMemo<AnalyticsQuery>(
-    () => ({ filter, dimensions, measures, sort, limit }),
-    [filter, dimensions, measures, sort, limit],
+    () => ({ filter, dimensions, measures, sort, limit, sql }),
+    [filter, dimensions, measures, sort, limit, sql],
   )
   const preview = useMutation({
     mutationFn: ({
@@ -85,7 +93,7 @@ export function ReportBuilder({
     setPreviewStale(true)
   }
   useEffect(() => {
-    if (hasRuntimeParameterReferences(query.filter)) {
+    if (sql?.enabled || hasRuntimeParameterReferences(query.filter)) {
       setPreviewStale(true)
       return
     }
@@ -94,7 +102,7 @@ export function ReportBuilder({
       window.clearTimeout(handle)
       previewAbort.current?.abort()
     }
-  }, [dimensions, measures, sort, limit, filter]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dimensions, measures, sort, limit, filter, sql]) // eslint-disable-line react-hooks/exhaustive-deps
   const numeric = fields.filter((field) => field.dataType === 'Integer' || field.dataType === 'Decimal')
   const outputAliases = useMemo(() => [...dimensions, ...measures].map((item) => item.alias), [dimensions, measures])
   useEffect(
@@ -151,7 +159,7 @@ export function ReportBuilder({
       <div className="panel">
         <div className="panel-header">
           <h3>Report definition</h3>
-          <RuntimeParametersBadge filter={filter} />
+          <RuntimeParametersBadge filter={runtimeParameterSource(query)} />
         </div>
         <div className="panel-body builder-controls">
           <label className="field">
@@ -162,227 +170,248 @@ export function ReportBuilder({
             Description
             <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
           </label>
-          <div className="builder-section">
-            <div className="panel-header">
-              <h3>Dimensions</h3>
-              <button className="secondary" disabled={dimensions.length >= 2 || !fields.length} onClick={addDimension}>
-                <Plus />
-                Add
-              </button>
-            </div>
-            {dimensions.map((dimension, index) => (
-              <div
-                className="builder-row"
-                draggable
-                key={index}
-                onDragStart={(event) => event.dataTransfer.setData('dimension-index', String(index))}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) =>
-                  setDimensions(reorder(dimensions, Number(event.dataTransfer.getData('dimension-index')), index))
-                }
-              >
-                <select
-                  value={dimension.fieldId}
-                  onChange={(event) =>
-                    setDimensions(
-                      dimensions.map((item, i) => (i === index ? { ...item, fieldId: event.target.value } : item)),
-                    )
-                  }
-                >
-                  {fields.map((field) => (
-                    <option value={field.id} key={field.id}>
-                      {field.displayName}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={dimension.dateBucket}
-                  onChange={(event) =>
-                    setDimensions(
-                      dimensions.map((item, i) =>
-                        i === index
-                          ? { ...item, dateBucket: event.target.value as AnalyticsDimension['dateBucket'] }
-                          : item,
-                      ),
-                    )
-                  }
-                >
-                  <option>None</option>
-                  <option>Day</option>
-                  <option>Week</option>
-                  <option>Month</option>
-                  <option>Quarter</option>
-                  <option>Year</option>
-                </select>
-                <button
-                  className="link danger icon-only"
-                  aria-label="Remove dimension"
-                  title="Remove"
-                  onClick={() => setDimensions(dimensions.filter((_, i) => i !== index))}
-                >
-                  <Trash2 />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="builder-section">
-            <div className="panel-header">
-              <h3>Measures</h3>
-              <button className="secondary" onClick={addMeasure}>
-                <Plus />
-                Add
-              </button>
-            </div>
-            {measures.map((measure, index) => (
-              <div
-                className="builder-row"
-                draggable
-                key={index}
-                onDragStart={(event) => event.dataTransfer.setData('measure-index', String(index))}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) =>
-                  setMeasures(reorder(measures, Number(event.dataTransfer.getData('measure-index')), index))
-                }
-              >
-                <select
-                  value={measure.aggregate}
-                  onChange={(event) => {
-                    const aggregate = event.target.value as AggregateFunction
-                    setMeasures(
-                      measures.map((item, i) =>
-                        i === index
-                          ? {
-                              ...item,
-                              aggregate,
-                              fieldId: aggregate === 'Count' ? undefined : (item.fieldId ?? numeric[0]?.id),
-                            }
-                          : item,
-                      ),
-                    )
-                  }}
-                >
-                  <option>Count</option>
-                  <option>CountDistinct</option>
-                  <option>Sum</option>
-                  <option>Average</option>
-                  <option>Min</option>
-                  <option>Max</option>
-                </select>
-                <select
-                  disabled={measure.aggregate === 'Count'}
-                  value={measure.fieldId ?? ''}
-                  onChange={(event) =>
-                    setMeasures(
-                      measures.map((item, i) =>
-                        i === index ? { ...item, fieldId: event.target.value || undefined } : item,
-                      ),
-                    )
-                  }
-                >
-                  <option value="">No field</option>
-                  {fields.map((field) => (
-                    <option value={field.id} key={field.id}>
-                      {field.displayName}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="link danger icon-only"
-                  aria-label="Remove measure"
-                  title="Remove"
-                  disabled={measures.length === 1}
-                  onClick={() => setMeasures(measures.filter((_, i) => i !== index))}
-                >
-                  <Trash2 />
-                </button>
-              </div>
-            ))}
-          </div>
-          <AnalyticsFilterEditor allowRuntimeParameters fields={fields} value={filter} onChange={changeFilter} />
-          <div className="builder-section">
-            <div className="panel-header">
-              <h3>Sorting</h3>
-              <button
-                type="button"
-                className="secondary"
-                disabled={!outputAliases.some((alias) => !sort.some((item) => item.alias === alias))}
-                onClick={addSort}
-              >
-                <Plus />
-                Add sort
-              </button>
-            </div>
-            {sort.length === 0 && <p className="empty">Default order</p>}
-            {sort.map((sortItem, index) => (
-              <div className="builder-row sort-row" key={`${sortItem.alias}-${index}`}>
-                <select
-                  aria-label={`Sort ${index + 1} column`}
-                  value={sortItem.alias}
-                  onChange={(event) =>
-                    setSort(
-                      sort.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, alias: event.target.value } : item,
-                      ),
-                    )
-                  }
-                >
-                  {outputAliases
-                    .filter(
-                      (alias) =>
-                        alias === sortItem.alias ||
-                        !sort.some((item, itemIndex) => itemIndex !== index && item.alias === alias),
-                    )
-                    .map((alias) => (
-                      <option key={alias}>{alias}</option>
-                    ))}
-                </select>
-                <select
-                  aria-label={`Sort ${index + 1} direction`}
-                  value={sortItem.direction}
-                  onChange={(event) =>
-                    setSort(
-                      sort.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, direction: event.target.value as AnalyticsSort['direction'] }
-                          : item,
-                      ),
-                    )
-                  }
-                >
-                  <option value="Asc">Ascending</option>
-                  <option value="Desc">Descending</option>
-                </select>
-                <div className="order-actions">
+          <SqlDefinitionEditor
+            tenantId={tenantId}
+            entityId={entityId}
+            value={sql}
+            onChange={(definition) => {
+              previewAbort.current?.abort()
+              preview.reset()
+              setPreviewStale(true)
+              setSql(definition)
+            }}
+            previewSql={() => api.reportSql(tenantId, entityId, query)}
+            generateSql={() => api.reportSql(tenantId, entityId, { ...query, sql: undefined })}
+          />
+          {!sql?.enabled && (
+            <>
+              <div className="builder-section">
+                <div className="panel-header">
+                  <h3>Dimensions</h3>
                   <button
-                    type="button"
-                    className="link icon-only"
-                    aria-label={`Move sort ${index + 1} up`}
-                    disabled={index === 0}
-                    onClick={() => setSort(reorder(sort, index, index - 1))}
+                    className="secondary"
+                    disabled={dimensions.length >= 2 || !fields.length}
+                    onClick={addDimension}
                   >
-                    <ArrowUp />
-                  </button>
-                  <button
-                    type="button"
-                    className="link icon-only"
-                    aria-label={`Move sort ${index + 1} down`}
-                    disabled={index === sort.length - 1}
-                    onClick={() => setSort(reorder(sort, index, index + 1))}
-                  >
-                    <ArrowDown />
-                  </button>
-                  <button
-                    type="button"
-                    className="link danger icon-only"
-                    aria-label={`Remove sort ${index + 1}`}
-                    onClick={() => setSort(sort.filter((_, itemIndex) => itemIndex !== index))}
-                  >
-                    <Trash2 />
+                    <Plus />
+                    Add
                   </button>
                 </div>
+                {dimensions.map((dimension, index) => (
+                  <div
+                    className="builder-row"
+                    draggable
+                    key={index}
+                    onDragStart={(event) => event.dataTransfer.setData('dimension-index', String(index))}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) =>
+                      setDimensions(reorder(dimensions, Number(event.dataTransfer.getData('dimension-index')), index))
+                    }
+                  >
+                    <select
+                      value={dimension.fieldId}
+                      onChange={(event) =>
+                        setDimensions(
+                          dimensions.map((item, i) => (i === index ? { ...item, fieldId: event.target.value } : item)),
+                        )
+                      }
+                    >
+                      {fields.map((field) => (
+                        <option value={field.id} key={field.id}>
+                          {field.displayName}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={dimension.dateBucket}
+                      onChange={(event) =>
+                        setDimensions(
+                          dimensions.map((item, i) =>
+                            i === index
+                              ? { ...item, dateBucket: event.target.value as AnalyticsDimension['dateBucket'] }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      <option>None</option>
+                      <option>Day</option>
+                      <option>Week</option>
+                      <option>Month</option>
+                      <option>Quarter</option>
+                      <option>Year</option>
+                    </select>
+                    <button
+                      className="link danger icon-only"
+                      aria-label="Remove dimension"
+                      title="Remove"
+                      onClick={() => setDimensions(dimensions.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div className="builder-section">
+                <div className="panel-header">
+                  <h3>Measures</h3>
+                  <button className="secondary" onClick={addMeasure}>
+                    <Plus />
+                    Add
+                  </button>
+                </div>
+                {measures.map((measure, index) => (
+                  <div
+                    className="builder-row"
+                    draggable
+                    key={index}
+                    onDragStart={(event) => event.dataTransfer.setData('measure-index', String(index))}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) =>
+                      setMeasures(reorder(measures, Number(event.dataTransfer.getData('measure-index')), index))
+                    }
+                  >
+                    <select
+                      value={measure.aggregate}
+                      onChange={(event) => {
+                        const aggregate = event.target.value as AggregateFunction
+                        setMeasures(
+                          measures.map((item, i) =>
+                            i === index
+                              ? {
+                                  ...item,
+                                  aggregate,
+                                  fieldId: aggregate === 'Count' ? undefined : (item.fieldId ?? numeric[0]?.id),
+                                }
+                              : item,
+                          ),
+                        )
+                      }}
+                    >
+                      <option>Count</option>
+                      <option>CountDistinct</option>
+                      <option>Sum</option>
+                      <option>Average</option>
+                      <option>Min</option>
+                      <option>Max</option>
+                    </select>
+                    <select
+                      disabled={measure.aggregate === 'Count'}
+                      value={measure.fieldId ?? ''}
+                      onChange={(event) =>
+                        setMeasures(
+                          measures.map((item, i) =>
+                            i === index ? { ...item, fieldId: event.target.value || undefined } : item,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="">No field</option>
+                      {fields.map((field) => (
+                        <option value={field.id} key={field.id}>
+                          {field.displayName}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="link danger icon-only"
+                      aria-label="Remove measure"
+                      title="Remove"
+                      disabled={measures.length === 1}
+                      onClick={() => setMeasures(measures.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <AnalyticsFilterEditor allowRuntimeParameters fields={fields} value={filter} onChange={changeFilter} />
+              <div className="builder-section">
+                <div className="panel-header">
+                  <h3>Sorting</h3>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!outputAliases.some((alias) => !sort.some((item) => item.alias === alias))}
+                    onClick={addSort}
+                  >
+                    <Plus />
+                    Add sort
+                  </button>
+                </div>
+                {sort.length === 0 && <p className="empty">Default order</p>}
+                {sort.map((sortItem, index) => (
+                  <div className="builder-row sort-row" key={`${sortItem.alias}-${index}`}>
+                    <select
+                      aria-label={`Sort ${index + 1} column`}
+                      value={sortItem.alias}
+                      onChange={(event) =>
+                        setSort(
+                          sort.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, alias: event.target.value } : item,
+                          ),
+                        )
+                      }
+                    >
+                      {outputAliases
+                        .filter(
+                          (alias) =>
+                            alias === sortItem.alias ||
+                            !sort.some((item, itemIndex) => itemIndex !== index && item.alias === alias),
+                        )
+                        .map((alias) => (
+                          <option key={alias}>{alias}</option>
+                        ))}
+                    </select>
+                    <select
+                      aria-label={`Sort ${index + 1} direction`}
+                      value={sortItem.direction}
+                      onChange={(event) =>
+                        setSort(
+                          sort.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, direction: event.target.value as AnalyticsSort['direction'] }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="Asc">Ascending</option>
+                      <option value="Desc">Descending</option>
+                    </select>
+                    <div className="order-actions">
+                      <button
+                        type="button"
+                        className="link icon-only"
+                        aria-label={`Move sort ${index + 1} up`}
+                        disabled={index === 0}
+                        onClick={() => setSort(reorder(sort, index, index - 1))}
+                      >
+                        <ArrowUp />
+                      </button>
+                      <button
+                        type="button"
+                        className="link icon-only"
+                        aria-label={`Move sort ${index + 1} down`}
+                        disabled={index === sort.length - 1}
+                        onClick={() => setSort(reorder(sort, index, index + 1))}
+                      >
+                        <ArrowDown />
+                      </button>
+                      <button
+                        type="button"
+                        className="link danger icon-only"
+                        aria-label={`Remove sort ${index + 1}`}
+                        onClick={() => setSort(sort.filter((_, itemIndex) => itemIndex !== index))}
+                      >
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <label className="field">
             Visualization
             <select
@@ -421,7 +450,7 @@ export function ReportBuilder({
           </button>
           <SqlPreviewButton
             name={name}
-            filter={filter}
+            filter={runtimeParameterSource(query)}
             load={(parameters) => api.reportSql(tenantId, entityId, query, parameters)}
           />
           <button
@@ -429,7 +458,7 @@ export function ReportBuilder({
             title="Refresh report preview"
             onClick={() => {
               preview.reset()
-              if (metricParameterNames(filter).length) {
+              if (metricParameterNames(runtimeParameterSource(query)).length) {
                 setParametersOpen(true)
               } else {
                 refreshPreview(query)
@@ -454,7 +483,7 @@ export function ReportBuilder({
       {parametersOpen && (
         <Modal title="Run report" onClose={() => setParametersOpen(false)}>
           <RuntimeParametersForm
-            names={metricParameterNames(filter)}
+            names={metricParameterNames(runtimeParameterSource(query))}
             busy={preview.isPending}
             submitLabel="Run report"
             onCancel={() => setParametersOpen(false)}

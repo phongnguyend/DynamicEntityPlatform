@@ -282,7 +282,7 @@ export const api = {
   metricSql: (
     tenantId: string,
     entityId: string,
-    input: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter'>,
+    input: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter' | 'sql'>,
     parameters?: Record<string, unknown>,
   ) =>
     request<SqlPreview>(

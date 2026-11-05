@@ -24,7 +24,7 @@ import { DashboardParametersModal } from '../components/DashboardParametersModal
 import { Modal } from '../components/Modal'
 import { HighlightedCode } from '../components/HighlightedCode'
 import { ReportViewer } from '../components/ReportViewer'
-import { metricParameterNames } from '../components/RuntimeParametersForm'
+import { metricParameterNames, runtimeParameterSource } from '../components/RuntimeParametersForm'
 import { resolveCardParameters } from '../dashboardParameters'
 import './DashboardsPage.css'
 import type {
@@ -309,10 +309,10 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
                         {entityName(item.entityId)} · {item.kind}
                       </small>
                       <h3>{report?.name ?? metric?.name ?? 'Unavailable card'}</h3>
-                      <RuntimeParametersBadge filter={report?.query.filter ?? metric?.filter} />
+                      <RuntimeParametersBadge filter={runtimeParameterSource(report ?? metric)} />
                     </div>
                     <div className="dashboard-card-actions">
-                      {metricParameterNames(report?.query.filter ?? metric?.filter).length > 0 && (
+                      {metricParameterNames(runtimeParameterSource(report ?? metric)).length > 0 && (
                         <button
                           type="button"
                           className="link icon-only"
@@ -347,14 +347,14 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
                     <ReportCard
                       tenantId={tenantId}
                       report={report}
-                      {...resolveCardParameters(item, definition.parameters ?? [], report.query.filter)}
+                      {...resolveCardParameters(item, definition.parameters ?? [], runtimeParameterSource(report))}
                       onConfigure={() => setConfigureKey(key)}
                     />
                   ) : metric ? (
                     <MetricCard
                       tenantId={tenantId}
                       metric={metric}
-                      {...resolveCardParameters(item, definition.parameters ?? [], metric.filter)}
+                      {...resolveCardParameters(item, definition.parameters ?? [], runtimeParameterSource(metric))}
                       onConfigure={() => setConfigureKey(key)}
                     />
                   ) : (
@@ -449,14 +449,22 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
               <ReportCard
                 tenantId={tenantId}
                 report={expandedReport}
-                {...resolveCardParameters(expandedItem, definition.parameters ?? [], expandedReport.query.filter)}
+                {...resolveCardParameters(
+                  expandedItem,
+                  definition.parameters ?? [],
+                  runtimeParameterSource(expandedReport),
+                )}
                 onConfigure={() => setConfigureKey(expandedKey)}
               />
             ) : expandedMetric ? (
               <MetricCard
                 tenantId={tenantId}
                 metric={expandedMetric}
-                {...resolveCardParameters(expandedItem, definition.parameters ?? [], expandedMetric.filter)}
+                {...resolveCardParameters(
+                  expandedItem,
+                  definition.parameters ?? [],
+                  runtimeParameterSource(expandedMetric),
+                )}
                 onConfigure={() => setConfigureKey(expandedKey)}
               />
             ) : (
@@ -529,7 +537,7 @@ function CardParametersModal({
   onClose: () => void
   onSave: (parameters: Record<string, unknown>, bindings: Record<string, string>) => Promise<void>
 }) {
-  const filter = 'query' in source ? source.query.filter : source.filter
+  const filter = runtimeParameterSource(source)
   const names = metricParameterNames(filter)
   const [values, setValues] = useState<Record<string, unknown>>(item.parameters ?? {})
   const [bindings, setBindings] = useState<Record<string, string>>(item.parameterBindings ?? {})
@@ -704,7 +712,7 @@ function ReportCard({
   parameterError,
   onConfigure,
 }: { tenantId: string; report: Report } & CardParameterProps) {
-  const configured = !parameterError && hasCardParameters(report.query.filter, parameters)
+  const configured = !parameterError && hasCardParameters(runtimeParameterSource(report), parameters)
   const result = useQuery({
     queryKey: ['dashboard-report', tenantId, report.entityId, report.id, report.updatedAt, parameters],
     queryFn: () => api.runReport(tenantId, report.entityId, report.id, parameters),
@@ -750,7 +758,7 @@ function MetricCard({
   parameterError,
   onConfigure,
 }: { tenantId: string; metric: Metric } & CardParameterProps) {
-  const configured = !parameterError && hasCardParameters(metric.filter, parameters)
+  const configured = !parameterError && hasCardParameters(runtimeParameterSource(metric), parameters)
   const result = useQuery({
     queryKey: ['dashboard-metric', tenantId, metric.entityId, metric.id, metric.updatedAt, parameters],
     queryFn: () => api.evaluateMetric(tenantId, metric.entityId, metric.id, parameters),
@@ -763,7 +771,9 @@ function MetricCard({
         {configured && result.data
           ? `Updated ${new Date(result.data.evaluatedAt).toLocaleTimeString()}`
           : configured
-            ? `${metric.aggregate} metric`
+            ? metric.sql?.enabled
+              ? 'SQL metric'
+              : `${metric.aggregate} metric`
             : 'Configure runtime parameters to run this metric.'}
       </span>
       {parameterError && <p className="error">{parameterError}</p>}

@@ -1,7 +1,11 @@
 import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useState } from 'react'
 import { Modal } from '../components/Modal'
-import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
+import {
+  RuntimeParametersForm,
+  metricParameterNames,
+  runtimeParameterSource,
+} from '../components/RuntimeParametersForm'
 import type { Report } from '../types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
@@ -72,7 +76,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
                 <li key={report.id}>
                   <div>
                     <strong>{report.name}</strong>
-                    <RuntimeParametersBadge filter={report.query.filter} />
+                    <RuntimeParametersBadge filter={runtimeParameterSource(report)} />
                     <small>{report.description || `${report.visualization} visualization`}</small>
                   </div>
                   <div className="actions">
@@ -85,7 +89,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
                       disabled={exportMutation.isPending}
                       onClick={() => {
                         exportMutation.reset()
-                        if (metricParameterNames(report.query.filter).length) {
+                        if (metricParameterNames(runtimeParameterSource(report)).length) {
                           setExporting(report)
                         } else {
                           exportMutation.mutate({ reportId: report.id })
@@ -112,7 +116,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
       {exporting && (
         <Modal title={`Export ${exporting.name}`} onClose={() => setExporting(undefined)}>
           <RuntimeParametersForm
-            names={metricParameterNames(exporting.query.filter)}
+            names={metricParameterNames(runtimeParameterSource(exporting))}
             busy={exportMutation.isPending}
             submitLabel="Export CSV"
             onCancel={() => setExporting(undefined)}

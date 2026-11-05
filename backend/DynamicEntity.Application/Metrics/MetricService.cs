@@ -7,18 +7,25 @@ using DynamicEntity.Domain.Analytics;
 
 namespace DynamicEntity.Application.Metrics;
 
-public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetadataStore entities, IFieldMetadataStore fields, IMetricStore metrics, AnalyticsService analytics, AnalyticsQueryValidator validator, TimeProvider timeProvider)
+public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetadataStore entities, IFieldMetadataStore fields, IMetricStore metrics, AnalyticsService analytics, AnalyticsQueryValidator validator, TimeProvider timeProvider, IVirtualSqlService? virtualSql = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { Converters = { new JsonStringEnumConverter() } };
-    public async Task<MetricDefinition> CreateAsync(Guid tenantId, Guid entityId, string name, string? description, AggregateFunction aggregate, Guid? fieldId, Domain.Queries.FilterGroup? filter, string? formatJson, Guid? userId, CancellationToken token)
+    public async Task<MetricDefinition> CreateAsync(Guid tenantId, Guid entityId, string name, string? description, AggregateFunction aggregate, Guid? fieldId, Domain.Queries.FilterGroup? filter, string? formatJson, Guid? userId, CancellationToken token, VirtualSqlDefinition? sql = null)
     {
         ValidateName(name);
         var s = await RequireEntityAsync(tenantId, entityId, token);
         ValidateFormat(formatJson);
         var q = Query(aggregate, fieldId, filter);
-        ValidateQuery(entityId, q, await fields.ListAsync(tenantId, entityId, s, token));
+        if (sql?.Enabled == true)
+        {
+            await virtualSql!.PreviewAsync(tenantId, entityId, sql, null, token);
+        }
+        else
+        {
+            ValidateQuery(entityId, q, await fields.ListAsync(tenantId, entityId, s, token));
+        }
         var now = timeProvider.GetUtcNow();
-        var m = new MetricDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), aggregate, fieldId, filter is null ? null : JsonSerializer.Serialize(filter, JsonOptions), formatJson, userId, now, now);
+        var m = new MetricDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), aggregate, fieldId, filter is null ? null : JsonSerializer.Serialize(filter, JsonOptions), formatJson, userId, now, now, sql);
         return await metrics.CreateAsync(tenantId, m, s, token);
     }
     public async Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, CancellationToken token)
@@ -31,12 +38,19 @@ public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetada
         var s = await RequireEntityAsync(tenantId, entityId, token);
         return await metrics.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Metric '{id}' was not found.");
     }
-    public async Task<MetricDefinition> UpdateAsync(Guid tenantId, Guid entityId, Guid id, string name, string? description, AggregateFunction aggregate, Guid? fieldId, Domain.Queries.FilterGroup? filter, string? formatJson, CancellationToken token)
+    public async Task<MetricDefinition> UpdateAsync(Guid tenantId, Guid entityId, Guid id, string name, string? description, AggregateFunction aggregate, Guid? fieldId, Domain.Queries.FilterGroup? filter, string? formatJson, CancellationToken token, VirtualSqlDefinition? sql = null)
     {
         ValidateName(name);
         ValidateFormat(formatJson);
         var s = await RequireEntityAsync(tenantId, entityId, token);
-        ValidateQuery(entityId, Query(aggregate, fieldId, filter), await fields.ListAsync(tenantId, entityId, s, token));
+        if (sql?.Enabled == true)
+        {
+            await virtualSql!.PreviewAsync(tenantId, entityId, sql, null, token);
+        }
+        else
+        {
+            ValidateQuery(entityId, Query(aggregate, fieldId, filter), await fields.ListAsync(tenantId, entityId, s, token));
+        }
         var current = await metrics.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Metric '{id}' was not found.");
         var updated = current with
         {
@@ -46,6 +60,7 @@ public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetada
             FieldId = fieldId,
             FilterJson = filter is null ? null : JsonSerializer.Serialize(filter, JsonOptions),
             FormatJson = formatJson,
+            Sql = sql,
             UpdatedAt = timeProvider.GetUtcNow()
         };
         return await metrics.UpdateAsync(tenantId, updated, s, token) ?? throw new NotFoundException($"Metric '{id}' was not found.");
@@ -66,12 +81,16 @@ public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetada
         activity?.SetTag("entity.id", entityId);
         activity?.SetTag("metric.id", id);
         var metric = await GetAsync(tenantId, entityId, id, token);
-        var result = await PreviewAsync(tenantId, entityId, metric.Aggregate, metric.FieldId, DeserializeFilter(metric.FilterJson), token, parameters);
+        var result = await PreviewAsync(tenantId, entityId, metric.Aggregate, metric.FieldId, DeserializeFilter(metric.FilterJson), token, parameters, metric.Sql);
         return (result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt);
     }
     public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid entityId, AggregateFunction aggregate, Guid? fieldId,
-        Domain.Queries.FilterGroup? filter, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+        Domain.Queries.FilterGroup? filter, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null, VirtualSqlDefinition? sql = null)
     {
+        if (sql?.Enabled == true)
+        {
+            return await virtualSql!.ExecuteAsync(tenantId, entityId, sql, parameters, 2, true, token);
+        }
         var storage = await RequireEntityAsync(tenantId, entityId, token);
         var definitions = await fields.ListAsync(tenantId, entityId, storage, token);
         var resolved = MetricFilterParameters.Resolve(filter, definitions, parameters, timeProvider.GetUtcNow());

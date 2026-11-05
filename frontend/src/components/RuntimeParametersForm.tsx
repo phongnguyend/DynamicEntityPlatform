@@ -1,4 +1,19 @@
 import { useState } from 'react'
+import type { VirtualSqlDefinition } from '../types'
+
+export function runtimeParameterSource(definition?: {
+  filter?: unknown
+  sql?: VirtualSqlDefinition
+  query?: { filter?: unknown; sql?: VirtualSqlDefinition }
+}) {
+  const query = definition?.query ?? definition
+  if (query?.sql?.enabled) {
+    return query.sql.parameters.map((parameter) =>
+      parameter.defaultValue == null ? { parameter: parameter.parameter } : parameter,
+    )
+  }
+  return query?.filter
+}
 
 // A newly added reference has an empty name, but still requires manual evaluation.
 export function hasRuntimeParameterReferences(value: unknown): boolean {

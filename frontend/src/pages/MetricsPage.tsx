@@ -10,7 +10,13 @@ import type { AggregateFunction, Metric, MetricEvaluation, MetricFormat } from '
 import { useEntityContext } from './useEntityContext'
 import { AnalyticsFilterEditor } from '../components/AnalyticsFilterEditor'
 import { JsonEditorModal, requireJsonObject } from '../components/JsonEditorModal'
-import { RuntimeParametersForm, metricParameterNames } from '../components/RuntimeParametersForm'
+import {
+  RuntimeParametersForm,
+  metricParameterNames,
+  runtimeParameterSource,
+} from '../components/RuntimeParametersForm'
+import { SqlDefinitionEditor } from '../components/SqlDefinitionEditor'
+import type { VirtualSqlDefinition } from '../types'
 import { MetricSqlButton } from '../components/MetricSqlButton'
 
 export function MetricsPage({ tenantId }: { tenantId: string }) {
@@ -37,6 +43,17 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
   const [aggregate, setAggregate] = useState<AggregateFunction>('Count')
   const [fieldId, setFieldId] = useState('')
   const [filter, setFilter] = useState<unknown>()
+  const [sql, setSql] = useState<VirtualSqlDefinition>()
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const preview = useMutation({
+    mutationFn: (parameters?: Record<string, unknown>) =>
+      api.previewMetric(
+        tenantId,
+        entityId,
+        { name, aggregate, fieldId: fieldId || undefined, filter, sql },
+        parameters,
+      ),
+  })
   const [formatStyle, setFormatStyle] = useState<NonNullable<MetricFormat['style']>>('integer')
   const [decimalPlaces, setDecimalPlaces] = useState(2)
   const [currencyCode, setCurrencyCode] = useState('USD')
@@ -49,8 +66,9 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
         {
           name,
           aggregate,
-          fieldId: aggregate === 'Count' ? undefined : fieldId,
+          fieldId: aggregate === 'Count' || !fieldId ? undefined : fieldId,
           filter,
+          sql,
           format: {
             style: formatStyle,
             decimalPlaces,
@@ -63,6 +81,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
       setEditing(undefined)
       setName('')
       setFilter(undefined)
+      setSql(undefined)
       client.invalidateQueries({ queryKey: ['metrics', tenantId, entityId] })
     },
   })
@@ -72,7 +91,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
   })
   function evaluate(metric: Metric) {
     evaluation.reset()
-    if (metricParameterNames(metric.filter).length) {
+    if (metricParameterNames(runtimeParameterSource(metric)).length) {
       setParameterMetric(metric)
     } else {
       evaluation.mutate({ metric })
@@ -84,6 +103,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
     setAggregate(metric.aggregate)
     setFieldId(metric.fieldId ?? '')
     setFilter(metric.filter)
+    setSql(metric.sql)
     setFormatStyle(metric.format?.style ?? 'integer')
     setDecimalPlaces(metric.format?.decimalPlaces ?? 2)
     setCurrencyCode(metric.format?.currencyCode ?? 'USD')
@@ -123,33 +143,55 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} />
             </label>
-            <label className="field">
-              Aggregate
-              <select value={aggregate} onChange={(event) => setAggregate(event.target.value as AggregateFunction)}>
-                <option>Count</option>
-                <option>CountDistinct</option>
-                <option>Sum</option>
-                <option>Average</option>
-                <option>Min</option>
-                <option>Max</option>
-              </select>
-            </label>
-            <label className="field">
-              Field
-              <select
-                disabled={aggregate === 'Count'}
-                value={fieldId}
-                onChange={(event) => setFieldId(event.target.value)}
-              >
-                <option value="">Select a field</option>
-                {context.fields.map((field) => (
-                  <option key={field.id} value={field.id}>
-                    {field.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <AnalyticsFilterEditor allowRuntimeParameters fields={context.fields} value={filter} onChange={setFilter} />
+            <SqlDefinitionEditor
+              tenantId={tenantId}
+              entityId={entityId}
+              value={sql}
+              onChange={setSql}
+              metric
+              previewSql={() =>
+                api.metricSql(tenantId, entityId, { name, aggregate, fieldId: fieldId || undefined, filter, sql })
+              }
+              generateSql={() =>
+                api.metricSql(tenantId, entityId, { name, aggregate, fieldId: fieldId || undefined, filter })
+              }
+            />
+            {!sql?.enabled && (
+              <>
+                <label className="field">
+                  Aggregate
+                  <select value={aggregate} onChange={(event) => setAggregate(event.target.value as AggregateFunction)}>
+                    <option>Count</option>
+                    <option>CountDistinct</option>
+                    <option>Sum</option>
+                    <option>Average</option>
+                    <option>Min</option>
+                    <option>Max</option>
+                  </select>
+                </label>
+                <label className="field">
+                  Field
+                  <select
+                    disabled={aggregate === 'Count'}
+                    value={fieldId}
+                    onChange={(event) => setFieldId(event.target.value)}
+                  >
+                    <option value="">Select a field</option>
+                    {context.fields.map((field) => (
+                      <option key={field.id} value={field.id}>
+                        {field.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <AnalyticsFilterEditor
+                  allowRuntimeParameters
+                  fields={context.fields}
+                  value={filter}
+                  onChange={setFilter}
+                />
+              </>
+            )}
             <div className="threshold-row">
               <label className="field">
                 Format
@@ -188,7 +230,10 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
             {save.error && <p className="error">{save.error.message}</p>}
           </div>
           <div className="panel-footer">
-            <button disabled={!name || (aggregate !== 'Count' && !fieldId)} onClick={() => save.mutate()}>
+            <button
+              disabled={!name || (!sql?.enabled && aggregate !== 'Count' && !fieldId)}
+              onClick={() => save.mutate()}
+            >
               <Save />
               Save metric
             </button>
@@ -199,9 +244,28 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
             <MetricSqlButton
               tenantId={tenantId}
               entityId={entityId}
-              metric={{ name, aggregate, fieldId: aggregate === 'Count' ? undefined : fieldId, filter }}
-              disabled={save.isPending || (aggregate !== 'Count' && !fieldId)}
+              metric={{
+                name,
+                aggregate,
+                fieldId: aggregate === 'Count' || !fieldId ? undefined : fieldId,
+                filter,
+                sql,
+              }}
+              disabled={save.isPending || (!sql?.enabled && aggregate !== 'Count' && !fieldId)}
             />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                preview.reset()
+                setPreviewOpen(true)
+                if (!metricParameterNames(runtimeParameterSource({ filter, sql })).length) {
+                  preview.mutate(undefined)
+                }
+              }}
+            >
+              Run preview
+            </button>
             {editing && (
               <button className="secondary" onClick={() => setEditing(undefined)}>
                 <X />
@@ -238,12 +302,14 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
                     </button>
                   </div>
                 </div>
-                <RuntimeParametersBadge filter={metric.filter} />
+                <RuntimeParametersBadge filter={runtimeParameterSource(metric)} />
                 <strong>{values[metric.id] ? formatMetric(values[metric.id].value, metric) : '—'}</strong>
                 <span>
                   {values[metric.id]
                     ? `Updated ${new Date(values[metric.id].evaluatedAt).toLocaleTimeString()}`
-                    : `${metric.aggregate}${metric.fieldId ? ` · ${context.fields.find((field) => field.id === metric.fieldId)?.displayName}` : ''}`}
+                    : metric.sql?.enabled
+                      ? 'SQL metric'
+                      : `${metric.aggregate}${metric.fieldId ? ` · ${context.fields.find((field) => field.id === metric.fieldId)?.displayName}` : ''}`}
                 </span>
                 <div className="actions metric-card-actions">
                   <button
@@ -274,8 +340,9 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
           value={{
             name,
             aggregate,
-            fieldId: aggregate === 'Count' ? undefined : fieldId,
+            fieldId: aggregate === 'Count' || !fieldId ? undefined : fieldId,
             filter,
+            sql,
             format: {
               style: formatStyle,
               decimalPlaces,
@@ -290,14 +357,16 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
       {expanded && (
         <Modal title={expanded.name} onClose={() => setExpanded(undefined)}>
           <div className="metric-expanded-card">
-            <RuntimeParametersBadge filter={expanded.filter} />
+            <RuntimeParametersBadge filter={runtimeParameterSource(expanded)} />
             <strong className={expandedValueSize} title={expandedValue}>
               {expandedValue}
             </strong>
             <span>
               {values[expanded.id]
                 ? `Updated ${new Date(values[expanded.id].evaluatedAt).toLocaleTimeString()}`
-                : `${expanded.aggregate}${expanded.fieldId ? ` · ${context.fields.find((field) => field.id === expanded.fieldId)?.displayName}` : ''}`}
+                : expanded.sql?.enabled
+                  ? 'SQL metric'
+                  : `${expanded.aggregate}${expanded.fieldId ? ` · ${context.fields.find((field) => field.id === expanded.fieldId)?.displayName}` : ''}`}
             </span>
             <button className="secondary" onClick={() => evaluate(expanded)}>
               <RefreshCw />
@@ -306,11 +375,25 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
           </div>
         </Modal>
       )}
+      {previewOpen && (
+        <Modal title="Metric preview" onClose={() => setPreviewOpen(false)}>
+          {metricParameterNames(runtimeParameterSource({ filter, sql })).length > 0 && (
+            <RuntimeParametersForm
+              names={metricParameterNames(runtimeParameterSource({ filter, sql }))}
+              busy={preview.isPending}
+              onEvaluate={(parameters) => preview.mutate(parameters)}
+            />
+          )}
+          {preview.isPending && <p role="status">Running…</p>}
+          {preview.error && <p className="error">{preview.error.message}</p>}
+          {preview.data && <p>Value: {String(preview.data.value ?? 'null')}</p>}
+        </Modal>
+      )}
       {parameterMetric && (
         <Modal title={`Evaluate ${parameterMetric.name}`} onClose={() => setParameterMetric(undefined)}>
           <RuntimeParametersForm
             key={parameterMetric.id}
-            names={metricParameterNames(parameterMetric.filter)}
+            names={metricParameterNames(runtimeParameterSource(parameterMetric))}
             busy={evaluation.isPending}
             onCancel={() => setParameterMetric(undefined)}
             onEvaluate={(parameters) => evaluation.mutate({ metric: parameterMetric, parameters })}

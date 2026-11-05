@@ -144,6 +144,7 @@ export interface AnalyticsSort {
   direction: 'Asc' | 'Desc'
 }
 export interface AnalyticsQuery {
+  sql?: VirtualSqlDefinition
   filter?: unknown
   dimensions: AnalyticsDimension[]
   measures: AnalyticsMeasure[]
@@ -179,6 +180,7 @@ export interface MetricFormat {
   currencyCode?: string
 }
 export interface Metric {
+  sql?: VirtualSqlDefinition
   id: string
   entityId: string
   name: string
@@ -263,4 +265,11 @@ export interface SqlPreview {
   parameters: { name: string; value: unknown }[]
   virtualSql: string
   virtualParameters: { name: string; value: unknown }[]
+}
+
+export interface VirtualSqlDefinition {
+  enabled: boolean
+  text: string
+  parameters: { parameter: string; type: string; defaultValue?: unknown }[]
+  measureColumns?: string[]
 }

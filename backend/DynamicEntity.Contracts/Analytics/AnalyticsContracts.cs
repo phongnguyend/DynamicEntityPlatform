@@ -10,7 +10,7 @@ public sealed record AnalyticsPreviewRequest(
     IReadOnlyList<AnalyticsMeasure>? Measures = null,
     IReadOnlyList<AnalyticsSort>? Sort = null,
     int Limit = 100,
-    IReadOnlyDictionary<string, JsonElement>? Parameters = null);
+    IReadOnlyDictionary<string, JsonElement>? Parameters = null, VirtualSqlDefinition? Sql = null);
 
 public sealed record AnalyticsColumnResponse(string Key, string Label, string DataType, AnalyticsColumnRole Role);
 

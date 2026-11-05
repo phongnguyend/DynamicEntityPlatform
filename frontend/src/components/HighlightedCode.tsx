@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useImperativeHandle, useMemo, useState, type Ref } from 'react'
+import { useCodeHistory, type CodeEditorHandle } from './useCodeHistory'
 import { Check, Copy } from 'lucide-react'
 import './HighlightedCode.css'
 
@@ -14,13 +15,17 @@ export function HighlightedCode({
   language,
   onChange,
   disabled,
+  editorRef,
 }: {
   label: string
   value: string
   language: 'sql' | 'json'
   onChange?: (value: string) => void
   disabled?: boolean
+  editorRef?: Ref<CodeEditorHandle>
 }) {
+  const history = useCodeHistory(value, onChange, disabled)
+  useImperativeHandle(editorRef, () => ({ insertText: history.insertText }))
   const id = useId()
   const [feedback, setFeedback] = useState<{ value: string; success: boolean }>()
   const [copying, setCopying] = useState(false)
@@ -124,9 +129,27 @@ export function HighlightedCode({
             </code>
           </pre>
           <textarea
+            ref={history.input}
             aria-labelledby={id}
             value={value}
-            onChange={(event) => onChange(event.target.value)}
+            onChange={(event) =>
+              history.commit({
+                value: event.target.value,
+                start: event.target.selectionStart,
+                end: event.target.selectionEnd,
+              })
+            }
+            onSelect={history.rememberSelection}
+            onKeyDown={(event) => {
+              if (!(event.ctrlKey || event.metaKey) || event.altKey || event.nativeEvent.isComposing) {
+                return
+              }
+              const key = event.key.toLowerCase()
+              if (key === 'z' || key === 'y') {
+                event.preventDefault()
+                history.move(key === 'y' || event.shiftKey ? 1 : -1)
+              }
+            }}
             disabled={disabled}
             spellCheck={false}
             autoCapitalize="off"
