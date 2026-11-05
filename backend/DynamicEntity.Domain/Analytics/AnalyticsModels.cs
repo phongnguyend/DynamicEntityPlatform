@@ -73,11 +73,11 @@ public sealed record ReportSpecification(
     string? VisualizationConfigurationJson = null);
 
 public sealed record ReportDefinition(
-    Guid Id, Guid EntityId, string Name, string? Description, string DefinitionJson,
+    Guid Id, Guid? EntityId, string Name, string? Description, string DefinitionJson,
     Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
 public sealed record MetricDefinition(
-    Guid Id, Guid EntityId, string Name, string? Description, AggregateFunction Aggregate,
+    Guid Id, Guid? EntityId, string Name, string? Description, AggregateFunction Aggregate,
     Guid? FieldId, string? FilterJson, string? FormatJson, Guid? CreatedBy,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, VirtualSqlDefinition? Sql = null);
 

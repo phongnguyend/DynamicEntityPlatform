@@ -52,11 +52,11 @@ public sealed class AlertParametersTests
                 new JsonSerializerOptions { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } });
             Metric = new(Guid.NewGuid(), repo.Entity.Id, "Count", null, AggregateFunction.Count, null, filter, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
         }
-        public Task<MetricDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult<MetricDefinition?>(Metric);
+        public Task<MetricDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult<MetricDefinition?>(Metric);
         public Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<MetricDefinition?> UpdateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
-        public Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
-        public Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
     }
     private sealed class Alerts : IAlertStore
     {

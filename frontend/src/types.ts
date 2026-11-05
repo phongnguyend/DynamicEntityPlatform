@@ -83,7 +83,7 @@ export interface SavedView {
 }
 export type DashboardItem = {
   kind: 'report' | 'metric'
-  entityId: string
+  entityId: string | null
   id: string
   parameters?: Record<string, unknown>
   parameterBindings?: Record<string, string>
@@ -165,7 +165,7 @@ export interface AnalyticsResult {
 }
 export interface Report {
   id: string
-  entityId: string
+  entityId: string | null
   name: string
   description?: string
   query: AnalyticsQuery
@@ -182,7 +182,7 @@ export interface MetricFormat {
 export interface Metric {
   sql?: VirtualSqlDefinition
   id: string
-  entityId: string
+  entityId: string | null
   name: string
   description?: string
   aggregate: AggregateFunction

@@ -78,10 +78,10 @@ public sealed class ReportParametersTests
             saved = report;
             return Task.FromResult(report);
         }
-        public Task<ReportDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(saved);
-        public Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<ReportDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(saved);
+        public Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<ReportDefinition?> UpdateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
-        public Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
     }
 
     private sealed class FakeRepository : IControlPlaneStore, IEntityMetadataStore, IFieldMetadataStore

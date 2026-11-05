@@ -28,13 +28,13 @@ export function ReportBuilderPage({ tenantId }: { tenantId: string }) {
           <h2>{report.data?.name ?? 'New report'}</h2>
         </div>
       </header>
-      <EntityTabs entityId={entityId} />
+      {entityId && <EntityTabs entityId={entityId} />}
       <ReportBuilder
         tenantId={tenantId}
         entityId={entityId}
         fields={context.fields}
         report={report.data}
-        onSaved={(saved) => navigate(`/entities/${entityId}/reports/${saved.id}`)}
+        onSaved={(saved) => navigate(`${entityId ? `/entities/${entityId}` : ''}/reports/${saved.id}`)}
       />
     </section>
   )

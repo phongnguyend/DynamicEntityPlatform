@@ -14,7 +14,7 @@ public sealed record SaveReportRequest(
 public sealed record RunReportRequest(IReadOnlyDictionary<string, JsonElement>? Parameters = null);
 
 public sealed record ReportResponse(
-    Guid Id, Guid EntityId, string Name, string? Description,
+    Guid Id, Guid? EntityId, string Name, string? Description,
     AnalyticsPreviewRequest Query, VisualizationType Visualization,
     JsonElement? VisualizationConfiguration, Guid? CreatedBy,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);

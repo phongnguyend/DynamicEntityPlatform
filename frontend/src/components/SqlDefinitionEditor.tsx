@@ -77,7 +77,8 @@ export function SqlDefinitionEditor({
   generateSql: () => Promise<SqlPreview>
   metric?: boolean
 }) {
-  const definition = value ?? emptySql
+  const sqlOnly = !entityId
+  const definition = value ?? { ...emptySql, enabled: sqlOnly }
   const editor = useRef<CodeEditorHandle>(null)
   const [tableId, setTableId] = useState(entityId)
   const [search, setSearch] = useState('')
@@ -139,26 +140,28 @@ export function SqlDefinitionEditor({
   const quote = (name: string) => `[${name.replaceAll(']', ']]')}]`
   return (
     <div className="sql-definition-editor">
-      <div className="sql-definition-mode" role="group" aria-label="Definition mode">
-        <button
-          type="button"
-          className={!definition.enabled ? '' : 'secondary'}
-          aria-pressed={!definition.enabled}
-          onClick={() => onChange({ ...definition, enabled: false })}
-        >
-          <SlidersHorizontal aria-hidden="true" />
-          Builder
-        </button>
-        <button
-          type="button"
-          className={definition.enabled ? '' : 'secondary'}
-          aria-pressed={definition.enabled}
-          onClick={() => onChange({ ...definition, enabled: true })}
-        >
-          <Code2 aria-hidden="true" />
-          SQL
-        </button>
-      </div>
+      {!sqlOnly && (
+        <div className="sql-definition-mode" role="group" aria-label="Definition mode">
+          <button
+            type="button"
+            className={!definition.enabled ? '' : 'secondary'}
+            aria-pressed={!definition.enabled}
+            onClick={() => onChange({ ...definition, enabled: false })}
+          >
+            <SlidersHorizontal aria-hidden="true" />
+            Builder
+          </button>
+          <button
+            type="button"
+            className={definition.enabled ? '' : 'secondary'}
+            aria-pressed={definition.enabled}
+            onClick={() => onChange({ ...definition, enabled: true })}
+          >
+            <Code2 aria-hidden="true" />
+            SQL
+          </button>
+        </div>
+      )}
       {definition.enabled && (
         <>
           <p className="field-note">
@@ -385,22 +388,24 @@ export function SqlDefinitionEditor({
             </label>
           )}
           <div className="actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={generate.isPending}
-              onClick={() => {
-                if (
-                  !definition.text.trim() ||
-                  confirm('Replace the SQL text with SQL generated from the Builder definition?')
-                ) {
-                  generate.mutate()
-                }
-              }}
-            >
-              <Wand2 aria-hidden="true" />
-              Generate from Builder
-            </button>
+            {!sqlOnly && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={generate.isPending}
+                onClick={() => {
+                  if (
+                    !definition.text.trim() ||
+                    confirm('Replace the SQL text with SQL generated from the Builder definition?')
+                  ) {
+                    generate.mutate()
+                  }
+                }}
+              >
+                <Wand2 aria-hidden="true" />
+                Generate from Builder
+              </button>
+            )}
             <button
               type="button"
               className="secondary"

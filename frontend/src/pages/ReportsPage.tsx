@@ -16,6 +16,7 @@ import { useEntityContext } from './useEntityContext'
 
 export function ReportsPage({ tenantId }: { tenantId: string }) {
   const { entityId = '' } = useParams()
+  const basePath = entityId ? `/entities/${entityId}/reports` : '/reports'
   const context = useEntityContext(tenantId, entityId)
   const client = useQueryClient()
   const reports = useQuery({
@@ -52,10 +53,10 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
       <header>
         <div>
           <p className="eyebrow">Reports</p>
-          <h2>{context.entity?.displayName}</h2>
+          <h2>{entityId ? context.entity?.displayName : 'Global reports'}</h2>
         </div>
       </header>
-      <EntityTabs entityId={entityId} />
+      {entityId && <EntityTabs entityId={entityId} />}
       <div className="panel">
         <div className="panel-header">
           <h3>Saved reports</h3>
@@ -63,7 +64,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
             <span>
               {reports.data?.length ?? 0} {(reports.data?.length ?? 0) === 1 ? 'report' : 'reports'}
             </span>
-            <Link className="button" to={`/entities/${entityId}/reports/new`}>
+            <Link className="button" to={`${basePath}/new`}>
               <Plus />
               New report
             </Link>
@@ -80,7 +81,7 @@ export function ReportsPage({ tenantId }: { tenantId: string }) {
                     <small>{report.description || `${report.visualization} visualization`}</small>
                   </div>
                   <div className="actions">
-                    <Link className="link" to={`/entities/${entityId}/reports/${report.id}`}>
+                    <Link className="link" to={`${basePath}/${report.id}`}>
                       <FolderOpen />
                       Open
                     </Link>

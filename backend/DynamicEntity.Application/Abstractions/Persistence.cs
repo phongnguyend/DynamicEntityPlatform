@@ -174,19 +174,19 @@ public interface IAnalyticsStore
 public interface IReportStore
 {
     Task<ReportDefinition> CreateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<ReportDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<ReportDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<ReportDefinition?> UpdateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid reportId, EntityStorageLocation storage, CancellationToken cancellationToken);
 }
 
 public interface IMetricStore
 {
     Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<MetricDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<MetricDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<MetricDefinition?> UpdateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
 }
 
 public interface IAlertStore

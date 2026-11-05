@@ -273,6 +273,26 @@ and color are display settings and do not affect SQL. The preview uses
 
 ## Report and metric runtime parameters
 
+### Global reports and metrics
+
+Use **Reports** and **Metrics** in the sidebar below the Entities list to manage
+tenant-wide definitions. Global definitions support SQL mode only and are not owned
+by a specific entity. Use virtual table and column names from the schema browser,
+and `@name` references for runtime parameters.
+
+Global definitions retain the existing editing, JSON, SQL preview, execution, and
+formatting features; reports also support visualization and CSV export. Add them
+to dashboards from the **Global** group, including card parameter configuration
+and dashboard parameter bindings.
+
+Their endpoints use `/api/reports` and `/api/metrics` instead of the entity-prefixed
+paths described below. Tenant migration 12 preserves existing entity definitions
+and adds global storage with tenant isolation. Restart the API to load the changes.
+Global analytics authorization uses the analytics permission policy with
+`Guid.Empty` as the tenant-wide scope.
+
+### Runtime values
+
 Report and metric filter values support fixed literals, named runtime inputs, and server-generated
 `today`/`now` values. Choose the value source in the report or metric filter editor. Running a
 report or metric with named parameters opens a popup asking for values, including on dashboard

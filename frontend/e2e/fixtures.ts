@@ -27,6 +27,8 @@ export const test = base.extend<{
           { id: 'tenant', name: 'Test workspace', status: 'Active', connectionConfigured: true, createdAt: timestamp },
         ],
         '/api/entities': entities,
+        '/api/reports': [],
+        '/api/metrics': [],
         '/api/dashboards': [
           {
             id: 'overview',
@@ -172,7 +174,7 @@ export const test = base.extend<{
           if (method === 'POST' && !id) {
             const created = {
               id: `created-${collection.length}`,
-              entityId,
+              entityId: path === '/api/reports' || path === '/api/metrics' ? null : entityId,
               status: 'Active',
               schemaVersion: 1,
               createdAt: timestamp,

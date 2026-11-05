@@ -12,11 +12,14 @@ public sealed class VirtualSqlService(IControlPlaneStore controlPlane, IEntityMe
     IFieldMetadataStore fields, IEntityStorageResolver storageResolver, SqlServerOptions options,
     TimeProvider timeProvider) : IVirtualSqlService
 {
-    private async Task<(VirtualSqlPreview Plan, EntityStorageLocation Storage)> PrepareAsync(Guid tenantId, Guid entityId,
+    private async Task<(VirtualSqlPreview Plan, EntityStorageLocation Storage)> PrepareAsync(Guid tenantId, Guid? entityId,
         VirtualSqlDefinition definition, IReadOnlyDictionary<string, JsonElement>? parameters, bool allowUnbound, CancellationToken token)
     {
         var storage = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, token);
-        _ = await entities.GetAsync(tenantId, entityId, storage, token) ?? throw new NotFoundException("Entity not found.");
+        if (entityId is not null)
+        {
+            _ = await entities.GetAsync(tenantId, entityId.Value, storage, token) ?? throw new NotFoundException("Entity not found.");
+        }
         var tables = new List<VirtualSqlTable>();
         foreach (var entity in await entities.ListAsync(tenantId, storage, token))
         {
@@ -33,7 +36,7 @@ public sealed class VirtualSqlService(IControlPlaneStore controlPlane, IEntityMe
         return (VirtualSqlCompiler.Compile(definition, tables, parameters, allowUnbound), storage);
     }
 
-    public async Task<VirtualSqlPreview> PreviewAsync(Guid tenantId, Guid entityId, VirtualSqlDefinition definition,
+    public async Task<VirtualSqlPreview> PreviewAsync(Guid tenantId, Guid? entityId, VirtualSqlDefinition definition,
         IReadOnlyDictionary<string, JsonElement>? parameters, CancellationToken token)
     {
         var (plan, storage) = await PrepareAsync(tenantId, entityId, definition, parameters, true, token);
@@ -41,7 +44,7 @@ public sealed class VirtualSqlService(IControlPlaneStore controlPlane, IEntityMe
         return plan;
     }
 
-    public async Task<AnalyticsResult> ExecuteAsync(Guid tenantId, Guid entityId, VirtualSqlDefinition definition,
+    public async Task<AnalyticsResult> ExecuteAsync(Guid tenantId, Guid? entityId, VirtualSqlDefinition definition,
         IReadOnlyDictionary<string, JsonElement>? parameters, int limit, bool metric, CancellationToken token)
     {
         if (limit is < 1 or > 1000)

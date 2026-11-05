@@ -15,15 +15,16 @@ public sealed class ReportService(
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { Converters = { new JsonStringEnumConverter() } };
 
-    public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid entityId, AnalyticsQuery query, CancellationToken token,
+    public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid? entityId, AnalyticsQuery query, CancellationToken token,
         IReadOnlyDictionary<string, JsonElement>? parameters = null)
     {
+        RequireSqlForGlobal(entityId, query.Sql);
         if (query.Sql?.Enabled == true)
         {
             return await virtualSql!.ExecuteAsync(tenantId, entityId, query.Sql, parameters, query.Limit, false, token);
         }
-        var prepared = await PrepareQueryAsync(tenantId, entityId, query, token, parameters);
-        return await analytics.ExecuteAsync(tenantId, entityId, prepared.Query, token);
+        var prepared = await PrepareQueryAsync(tenantId, entityId!.Value, query, token, parameters);
+        return await analytics.ExecuteAsync(tenantId, entityId!.Value, prepared.Query, token);
     }
 
     public async Task<(Domain.Entities.EntityDefinition Entity, AnalyticsQuery Query)> PrepareQueryAsync(
@@ -51,9 +52,10 @@ public sealed class ReportService(
         MetricFilterParameters.Resolve(query.Filter, definitions, null, timeProvider.GetUtcNow(), validateOnly: true);
     }
 
-    public async Task<ReportDefinition> CreateAsync(Guid tenantId, Guid entityId, string name, string? description,
+    public async Task<ReportDefinition> CreateAsync(Guid tenantId, Guid? entityId, string name, string? description,
         ReportSpecification specification, Guid? userId, CancellationToken token)
     {
+        RequireSqlForGlobal(entityId, specification.Query.Sql);
         ValidateName(name);
         ValidateSpecification(specification);
         var storage = await RequireEntityAsync(tenantId, entityId, token);
@@ -63,24 +65,25 @@ public sealed class ReportService(
         }
         else
         {
-            ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, storage, token));
+            ValidateQuery(entityId!.Value, specification.Query, await fields.ListAsync(tenantId, entityId.Value, storage, token));
         }
         var now = timeProvider.GetUtcNow();
         var report = new ReportDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), JsonSerializer.Serialize(specification, JsonOptions), userId, now, now);
         return await reports.CreateAsync(tenantId, report, storage, token);
     }
-    public async Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    public async Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid? entityId, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         return await reports.ListAsync(tenantId, entityId, s, token);
     }
-    public async Task<ReportDefinition> GetAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    public async Task<ReportDefinition> GetAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         return await reports.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Report '{id}' was not found.");
     }
-    public async Task<ReportDefinition> UpdateAsync(Guid tenantId, Guid entityId, Guid id, string name, string? description, ReportSpecification specification, CancellationToken token)
+    public async Task<ReportDefinition> UpdateAsync(Guid tenantId, Guid? entityId, Guid id, string name, string? description, ReportSpecification specification, CancellationToken token)
     {
+        RequireSqlForGlobal(entityId, specification.Query.Sql);
         ValidateName(name);
         ValidateSpecification(specification);
         var s = await RequireEntityAsync(tenantId, entityId, token);
@@ -90,7 +93,7 @@ public sealed class ReportService(
         }
         else
         {
-            ValidateQuery(entityId, specification.Query, await fields.ListAsync(tenantId, entityId, s, token));
+            ValidateQuery(entityId!.Value, specification.Query, await fields.ListAsync(tenantId, entityId.Value, s, token));
         }
         var current = await reports.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Report '{id}' was not found.");
         var updated = current with
@@ -102,7 +105,7 @@ public sealed class ReportService(
         };
         return await reports.UpdateAsync(tenantId, updated, s, token) ?? throw new NotFoundException($"Report '{id}' was not found.");
     }
-    public async Task DeleteAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    public async Task DeleteAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         if (!await reports.DeleteAsync(tenantId, entityId, id, s, token))
@@ -110,7 +113,7 @@ public sealed class ReportService(
             throw new NotFoundException($"Report '{id}' was not found.");
         }
     }
-    public async Task<AnalyticsResult> RunAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    public async Task<AnalyticsResult> RunAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
     {
         using var activity = AnalyticsTelemetry.Source.StartActivity("report.run");
         activity?.SetTag("tenant.id", tenantId);
@@ -120,11 +123,21 @@ public sealed class ReportService(
         return await PreviewAsync(tenantId, entityId, Deserialize(report).Query, token, parameters);
     }
     public static ReportSpecification Deserialize(ReportDefinition report) => JsonSerializer.Deserialize<ReportSpecification>(report.DefinitionJson, JsonOptions) ?? throw new ValidationException($"Report '{report.Id}' has an invalid definition.");
-    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid? entityId, CancellationToken token)
     {
         var s = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, token);
-        _ = await entities.GetAsync(tenantId, entityId, s, token) ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        if (entityId is not null)
+        {
+            _ = await entities.GetAsync(tenantId, entityId.Value, s, token) ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        }
         return s;
+    }
+    private static void RequireSqlForGlobal(Guid? entityId, VirtualSqlDefinition? sql)
+    {
+        if (entityId is null && sql?.Enabled != true)
+        {
+            throw new ValidationException("Global definitions require SQL mode.");
+        }
     }
     private static void ValidateName(string name)
     {

@@ -11,7 +11,17 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
-import { ArrowRight, Building2, Database, LayoutDashboard, Plus, TableProperties, Users } from 'lucide-react'
+import {
+  ArrowRight,
+  Building2,
+  FileChartColumn,
+  Calculator,
+  Database,
+  LayoutDashboard,
+  Plus,
+  TableProperties,
+  Users,
+} from 'lucide-react'
 import { api } from './api'
 import { EntityDesigner } from './components/EntityDesigner'
 import { EntityIcon } from './components/EntityIcon'
@@ -205,6 +215,16 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
           ))}
           {!pinned.length && !entities.isLoading && <p className="nav-empty">Pin an entity to reach it from here.</p>}
         </nav>
+        <nav className="dashboard-nav" aria-label="Global analytics">
+          <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <FileChartColumn aria-hidden="true" />
+            Reports
+          </NavLink>
+          <NavLink to="/metrics" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <Calculator aria-hidden="true" />
+            Metrics
+          </NavLink>
+        </nav>
       </aside>
       <main>
         {!managingTenants && entities.isLoading ? (
@@ -213,6 +233,10 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
           <p className="error">{entities.error.message}</p>
         ) : (
           <Routes>
+            <Route path="/reports" element={<ReportsPage key="global" tenantId={tenantId} />} />
+            <Route path="/reports/new" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />
+            <Route path="/reports/:reportId" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />
+            <Route path="/metrics" element={<MetricsPage key="global" tenantId={tenantId} />} />
             <Route
               path="/"
               element={

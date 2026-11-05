@@ -443,4 +443,18 @@ internal static class SqlServerSchema
         IF COL_LENGTH(N'dbo.EntityDefinitions', N'PinnedOrder') IS NULL
             ALTER TABLE dbo.EntityDefinitions ADD PinnedOrder INT NULL;
         """;
+
+    public const string TenantDatabaseV12 = """
+        ALTER TABLE dbo.ReportDefinitions ADD TenantId UNIQUEIDENTIFIER NULL;
+        ALTER TABLE dbo.MetricDefinitions ADD TenantId UNIQUEIDENTIFIER NULL;
+        EXEC sys.sp_executesql N'
+            UPDATE r SET TenantId=e.TenantId FROM dbo.ReportDefinitions r JOIN dbo.EntityDefinitions e ON e.Id=r.EntityId;
+            UPDATE m SET TenantId=e.TenantId FROM dbo.MetricDefinitions m JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId;
+            ALTER TABLE dbo.ReportDefinitions ALTER COLUMN TenantId UNIQUEIDENTIFIER NOT NULL;
+            ALTER TABLE dbo.MetricDefinitions ALTER COLUMN TenantId UNIQUEIDENTIFIER NOT NULL;
+            ALTER TABLE dbo.ReportDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NULL;
+            ALTER TABLE dbo.MetricDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NULL;
+            CREATE INDEX IX_ReportDefinitions_TenantScope ON dbo.ReportDefinitions(TenantId,EntityId);
+            CREATE INDEX IX_MetricDefinitions_TenantScope ON dbo.MetricDefinitions(TenantId,EntityId);';
+        """;
 }

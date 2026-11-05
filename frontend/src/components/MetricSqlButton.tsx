@@ -10,7 +10,7 @@ export function MetricSqlButton({
   disabled,
 }: {
   tenantId: string
-  entityId: string
+  entityId: string | null
   metric: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter' | 'sql'>
   disabled?: boolean
 }) {

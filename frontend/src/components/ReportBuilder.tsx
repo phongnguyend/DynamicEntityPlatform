@@ -47,7 +47,9 @@ export function ReportBuilder({
     report?.query.measures ?? [{ aggregate: 'Count', alias: 'count' }],
   )
   const [filter, setFilter] = useState<unknown>(report?.query.filter)
-  const [sql, setSql] = useState<VirtualSqlDefinition | undefined>(report?.query.sql)
+  const [sql, setSql] = useState<VirtualSqlDefinition | undefined>(
+    report?.query.sql ?? (entityId ? undefined : { enabled: true, text: '', parameters: [] }),
+  )
   const [sort, setSort] = useState<AnalyticsSort[]>(report?.query.sort ?? [])
   const [visualization, setVisualization] = useState<VisualizationType>(report?.visualization ?? 'Table')
   const [limit, setLimit] = useState(report?.query.limit ?? 100)

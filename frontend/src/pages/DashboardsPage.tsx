@@ -86,6 +86,7 @@ function fitLayouts(
 
 export function DashboardsPage({ tenantId, entities }: { tenantId: string; entities: Entity[] }) {
   const { dashboardId = '' } = useParams()
+  const groups = [{ id: null, displayName: 'Global' }, ...entities]
   const navigate = useNavigate()
   const client = useQueryClient()
   const dashboardQuery = useQuery({
@@ -107,13 +108,13 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
     measureBeforeMount: true,
   })
   const reportQueries = useQueries({
-    queries: entities.map((entity) => ({
+    queries: groups.map((entity) => ({
       queryKey: ['reports', tenantId, entity.id],
       queryFn: () => api.reports(tenantId, entity.id),
     })),
   })
   const metricQueries = useQueries({
-    queries: entities.map((entity) => ({
+    queries: groups.map((entity) => ({
       queryKey: ['metrics', tenantId, entity.id],
       queryFn: () => api.metrics(tenantId, entity.id),
     })),
@@ -190,8 +191,8 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
     }
   }
 
-  const entityName = (entityId: string) =>
-    entities.find((entity) => entity.id === entityId)?.displayName ?? 'Unknown entity'
+  const entityName = (entityId: string | null) =>
+    groups.find((entity) => entity.id === entityId)?.displayName ?? 'Unknown entity'
   const expandedItem = definition.items.find((item) => itemKey(item) === expandedKey)
   const configureItem = definition.items.find((item) => itemKey(item) === configureKey)
   const configureSource =
@@ -378,14 +379,14 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
             {!loading && !reports.length && !metrics.length && (
               <p className="empty">Create a report or metric in an entity to add it here.</p>
             )}
-            {entities.map((entity) => {
+            {groups.map((entity) => {
               const entityReports = reports.filter((report) => report.entityId === entity.id)
               const entityMetrics = metrics.filter((metric) => metric.entityId === entity.id)
               if (!entityReports.length && !entityMetrics.length) {
                 return null
               }
               return (
-                <section className="dashboard-library-group" key={entity.id}>
+                <section className="dashboard-library-group" key={entity.id ?? 'global'}>
                   <h4>{entity.displayName}</h4>
                   {[
                     ...entityMetrics.map((metric) => ({ kind: 'metric' as const, value: metric })),

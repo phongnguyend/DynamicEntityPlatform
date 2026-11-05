@@ -47,6 +47,8 @@ async function request<T>(path: string, init: RequestInit = {}, tenantId?: strin
   return response.json() as Promise<T>
 }
 
+const analyticsBase = (entityId: string | null) => (entityId ? `/api/entities/${entityId}` : '/api')
+
 export const api = {
   tenants: () => request<Tenant[]>('/api/tenants'),
   createTenant: (name: string, connectionString: string) =>
@@ -218,46 +220,52 @@ export const api = {
     ),
   previewReport: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     query: AnalyticsQuery,
     parameters?: Record<string, unknown>,
     signal?: AbortSignal,
   ) =>
     request<AnalyticsResult>(
-      `/api/entities/${entityId}/reports/preview`,
+      `${analyticsBase(entityId)}/reports/preview`,
       { method: 'POST', body: JSON.stringify({ ...query, parameters }), signal },
       tenantId,
     ),
-  reportSql: (tenantId: string, entityId: string, query: AnalyticsQuery, parameters?: Record<string, unknown>) =>
+  reportSql: (tenantId: string, entityId: string | null, query: AnalyticsQuery, parameters?: Record<string, unknown>) =>
     request<SqlPreview>(
-      `/api/entities/${entityId}/reports/sql`,
+      `${analyticsBase(entityId)}/reports/sql`,
       { method: 'POST', body: JSON.stringify({ ...query, parameters }) },
       tenantId,
     ),
-  reports: (tenantId: string, entityId: string) => request<Report[]>(`/api/entities/${entityId}/reports`, {}, tenantId),
-  report: (tenantId: string, entityId: string, reportId: string) =>
-    request<Report>(`/api/entities/${entityId}/reports/${reportId}`, {}, tenantId),
+  reports: (tenantId: string, entityId: string | null) =>
+    request<Report[]>(`${analyticsBase(entityId)}/reports`, {}, tenantId),
+  report: (tenantId: string, entityId: string | null, reportId: string) =>
+    request<Report>(`${analyticsBase(entityId)}/reports/${reportId}`, {}, tenantId),
   saveReport: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     input: Omit<Report, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>,
     reportId?: string,
   ) =>
     request<Report>(
-      `/api/entities/${entityId}/reports${reportId ? `/${reportId}` : ''}`,
+      `${analyticsBase(entityId)}/reports${reportId ? `/${reportId}` : ''}`,
       { method: reportId ? 'PATCH' : 'POST', body: JSON.stringify(input) },
       tenantId,
     ),
-  deleteReport: (tenantId: string, entityId: string, reportId: string) =>
-    request<void>(`/api/entities/${entityId}/reports/${reportId}`, { method: 'DELETE' }, tenantId),
-  runReport: (tenantId: string, entityId: string, reportId: string, parameters?: Record<string, unknown>) =>
+  deleteReport: (tenantId: string, entityId: string | null, reportId: string) =>
+    request<void>(`${analyticsBase(entityId)}/reports/${reportId}`, { method: 'DELETE' }, tenantId),
+  runReport: (tenantId: string, entityId: string | null, reportId: string, parameters?: Record<string, unknown>) =>
     request<AnalyticsResult>(
-      `/api/entities/${entityId}/reports/${reportId}/run`,
+      `${analyticsBase(entityId)}/reports/${reportId}/run`,
       { method: 'POST', body: JSON.stringify({ parameters }) },
       tenantId,
     ),
-  exportReport: async (tenantId: string, entityId: string, reportId: string, parameters?: Record<string, unknown>) => {
-    const response = await fetch(`${baseUrl}/api/entities/${entityId}/reports/${reportId}/export`, {
+  exportReport: async (
+    tenantId: string,
+    entityId: string | null,
+    reportId: string,
+    parameters?: Record<string, unknown>,
+  ) => {
+    const response = await fetch(`${baseUrl}${analyticsBase(entityId)}/reports/${reportId}/export`, {
       method: 'POST',
       headers: { 'X-Tenant-Id': tenantId, 'Content-Type': 'application/json' },
       body: JSON.stringify({ parameters }),
@@ -267,48 +275,49 @@ export const api = {
     }
     return response.blob()
   },
-  metrics: (tenantId: string, entityId: string) => request<Metric[]>(`/api/entities/${entityId}/metrics`, {}, tenantId),
+  metrics: (tenantId: string, entityId: string | null) =>
+    request<Metric[]>(`${analyticsBase(entityId)}/metrics`, {}, tenantId),
   saveMetric: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>,
     metricId?: string,
   ) =>
     request<Metric>(
-      `/api/entities/${entityId}/metrics${metricId ? `/${metricId}` : ''}`,
+      `${analyticsBase(entityId)}/metrics${metricId ? `/${metricId}` : ''}`,
       { method: metricId ? 'PATCH' : 'POST', body: JSON.stringify(input) },
       tenantId,
     ),
   metricSql: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     input: Pick<Metric, 'name' | 'aggregate' | 'fieldId' | 'filter' | 'sql'>,
     parameters?: Record<string, unknown>,
   ) =>
     request<SqlPreview>(
-      `/api/entities/${entityId}/metrics/sql`,
+      `${analyticsBase(entityId)}/metrics/sql`,
       { method: 'POST', body: JSON.stringify({ ...input, parameters }) },
       tenantId,
     ),
-  evaluateMetric: (tenantId: string, entityId: string, metricId: string, parameters?: Record<string, unknown>) =>
+  evaluateMetric: (tenantId: string, entityId: string | null, metricId: string, parameters?: Record<string, unknown>) =>
     request<MetricEvaluation>(
-      `/api/entities/${entityId}/metrics/${metricId}/evaluate`,
+      `${analyticsBase(entityId)}/metrics/${metricId}/evaluate`,
       { method: 'POST', body: parameters ? JSON.stringify({ parameters }) : undefined },
       tenantId,
     ),
   previewMetric: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     input: Omit<Metric, 'id' | 'entityId' | 'createdAt' | 'updatedAt'>,
     parameters?: Record<string, unknown>,
   ) =>
     request<MetricEvaluation>(
-      `/api/entities/${entityId}/metrics/preview`,
+      `${analyticsBase(entityId)}/metrics/preview`,
       { method: 'POST', body: JSON.stringify({ ...input, parameters }) },
       tenantId,
     ),
-  deleteMetric: (tenantId: string, entityId: string, metricId: string) =>
-    request<void>(`/api/entities/${entityId}/metrics/${metricId}`, { method: 'DELETE' }, tenantId),
+  deleteMetric: (tenantId: string, entityId: string | null, metricId: string) =>
+    request<void>(`${analyticsBase(entityId)}/metrics/${metricId}`, { method: 'DELETE' }, tenantId),
   alerts: (tenantId: string, entityId: string) => request<Alert[]>(`/api/entities/${entityId}/alerts`, {}, tenantId),
   saveAlert: (
     tenantId: string,

@@ -43,7 +43,10 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
   const [aggregate, setAggregate] = useState<AggregateFunction>('Count')
   const [fieldId, setFieldId] = useState('')
   const [filter, setFilter] = useState<unknown>()
-  const [sql, setSql] = useState<VirtualSqlDefinition>()
+  const initialSql: VirtualSqlDefinition | undefined = entityId
+    ? undefined
+    : { enabled: true, text: '', parameters: [] }
+  const [sql, setSql] = useState<VirtualSqlDefinition | undefined>(initialSql)
   const [previewOpen, setPreviewOpen] = useState(false)
   const preview = useMutation({
     mutationFn: (parameters?: Record<string, unknown>) =>
@@ -81,7 +84,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
       setEditing(undefined)
       setName('')
       setFilter(undefined)
-      setSql(undefined)
+      setSql(initialSql)
       client.invalidateQueries({ queryKey: ['metrics', tenantId, entityId] })
     },
   })
@@ -129,10 +132,10 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
       <header>
         <div>
           <p className="eyebrow">Reusable metrics</p>
-          <h2>{context.entity?.displayName}</h2>
+          <h2>{entityId ? context.entity?.displayName : 'Global metrics'}</h2>
         </div>
       </header>
-      <EntityTabs entityId={entityId} />
+      {entityId && <EntityTabs entityId={entityId} />}
       <div className="workspace-grid">
         <div className="panel">
           <div className="panel-header">

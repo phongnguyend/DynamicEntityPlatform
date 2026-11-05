@@ -12,7 +12,7 @@ public sealed record SaveMetricRequest(
 public sealed record EvaluateMetricRequest(IReadOnlyDictionary<string, JsonElement>? Parameters = null);
 
 public sealed record MetricResponse(
-    Guid Id, Guid EntityId, string Name, string? Description, AggregateFunction Aggregate,
+    Guid Id, Guid? EntityId, string Name, string? Description, AggregateFunction Aggregate,
     Guid? FieldId, FilterNodeRequest? Filter, JsonElement? Format, Guid? CreatedBy,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, VirtualSqlDefinition? Sql = null);
 

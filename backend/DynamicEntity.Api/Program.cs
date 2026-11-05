@@ -376,6 +376,202 @@ entities.MapPost("/{entityId:guid}/analytics/preview", async (Guid entityId, Ana
         tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields), token)));
 });
 
+// Global analytics are tenant-scoped and have no owning entity.
+var globalAnalytics = app.MapGroup("/api");
+globalAnalytics.AddEndpointFilter(async (context, next) =>
+{
+    var http = context.HttpContext;
+    var tenant = http.RequestServices.GetRequiredService<ITenantContextAccessor>().GetRequiredTenant();
+    var authorization = http.RequestServices.GetRequiredService<IEntityAuthorizationService>();
+    var allowed = http.Request.Method == HttpMethods.Get
+        ? await authorization.CanReadAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted)
+        : await authorization.CanManageAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted);
+    return allowed ? await next(context) : Results.Problem(statusCode: 403, title: "Access denied.");
+});
+globalAnalytics.MapGet("/reports", async (ITenantContextAccessor tenantAccessor,
+    ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToReportResponse));
+});
+
+globalAnalytics.MapGet("/reports/{reportId:guid}", async (Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok(ToReportResponse(await service.GetAsync(tenant.TenantId, entityId, reportId, token)));
+});
+
+globalAnalytics.MapPost("/reports/preview", async (AnalyticsPreviewRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    return Results.Ok(ToAnalyticsResponse(await service.PreviewAsync(
+        tenant.TenantId, entityId, AnalyticsRequestFactory.Create(request, fields, allowRuntimeParameters: true), token, request.Parameters)));
+});
+
+globalAnalytics.MapPost("/reports/{reportId:guid}/export", async (Guid reportId,
+    RunReportRequest? request, ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var result = await service.RunAsync(tenant.TenantId, entityId, reportId, token, request?.Parameters);
+    var csv = new StringBuilder();
+    csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(column.Label))));
+    foreach (var row in result.Rows)
+    {
+        csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(
+        row.TryGetValue(column.Key, out var value) ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) : null))));
+    }
+
+    return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"report-{reportId:D}.csv");
+});
+
+globalAnalytics.MapPost("/reports", async (SaveReportRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields, allowRuntimeParameters: true),
+        request.Visualization, request.VisualizationConfiguration?.GetRawText());
+    var report = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
+        specification, null, token);
+    return Results.Created($"/api/reports/{report.Id}", ToReportResponse(report));
+});
+
+globalAnalytics.MapPatch("/reports/{reportId:guid}", async (Guid reportId,
+    SaveReportRequest request, ITenantContextAccessor tenantAccessor, FieldService fieldService,
+    ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    var specification = new ReportSpecification(AnalyticsRequestFactory.Create(request.Query, fields, allowRuntimeParameters: true),
+        request.Visualization, request.VisualizationConfiguration?.GetRawText());
+    return Results.Ok(ToReportResponse(await service.UpdateAsync(tenant.TenantId, entityId, reportId,
+        request.Name, request.Description, specification, token)));
+});
+
+globalAnalytics.MapDelete("/reports/{reportId:guid}", async (Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    await service.DeleteAsync(tenant.TenantId, entityId, reportId, token);
+    return Results.NoContent();
+});
+
+globalAnalytics.MapPost("/reports/{reportId:guid}/run", async (Guid reportId,
+    RunReportRequest? request, ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok(ToAnalyticsResponse(await service.RunAsync(tenant.TenantId, entityId, reportId, token, request?.Parameters)));
+});
+
+globalAnalytics.MapGet("/reports/{reportId:guid}/export", async (Guid reportId,
+    ITenantContextAccessor tenantAccessor, ReportService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var result = await service.RunAsync(tenant.TenantId, entityId, reportId, token);
+    var csv = new StringBuilder();
+    csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(column.Label))));
+    foreach (var row in result.Rows)
+    {
+        csv.AppendLine(string.Join(',', result.Columns.Select(column => Csv(
+        row.TryGetValue(column.Key, out var value) ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) : null))));
+    }
+
+    return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", $"report-{reportId:D}.csv");
+});
+
+globalAnalytics.MapGet("/metrics", async (ITenantContextAccessor tenantAccessor,
+    MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToMetricResponse));
+});
+
+globalAnalytics.MapPost("/metrics", async (SaveMetricRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    var metric = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Description,
+        request.Aggregate, request.FieldId, RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true),
+        request.Format?.GetRawText(), null, token, request.Sql);
+    return Results.Created($"/api/metrics/{metric.Id}", ToMetricResponse(metric));
+});
+
+globalAnalytics.MapPost("/metrics/preview", async (SaveMetricRequest request,
+    ITenantContextAccessor tenantAccessor, FieldService fieldService, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    var result = await service.PreviewAsync(tenant.TenantId, entityId, request.Aggregate, request.FieldId,
+        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), token, request.Parameters, request.Sql);
+    return Results.Ok(new MetricEvaluationResponse(result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt));
+});
+
+globalAnalytics.MapPatch("/metrics/{metricId:guid}", async (Guid metricId,
+    SaveMetricRequest request, ITenantContextAccessor tenantAccessor, FieldService fieldService,
+    MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var fields = Array.Empty<DynamicEntity.Domain.Entities.FieldDefinition>();
+    return Results.Ok(ToMetricResponse(await service.UpdateAsync(tenant.TenantId, entityId, metricId,
+        request.Name, request.Description, request.Aggregate, request.FieldId,
+        RecordQueryFactory.CreateFilter(request.Filter, fields, allowMetricParameters: true), request.Format?.GetRawText(), token, request.Sql)));
+});
+
+globalAnalytics.MapDelete("/metrics/{metricId:guid}", async (Guid metricId,
+    ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    await service.DeleteAsync(tenant.TenantId, entityId, metricId, token);
+    return Results.NoContent();
+});
+
+globalAnalytics.MapPost("/metrics/{metricId:guid}/evaluate", async (Guid metricId,
+    EvaluateMetricRequest? request, ITenantContextAccessor tenantAccessor, MetricService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var result = await service.EvaluateAsync(tenant.TenantId, entityId, metricId, token, request?.Parameters);
+    return Results.Ok(new MetricEvaluationResponse(result.Value, result.EvaluatedAt));
+});
+
+globalAnalytics.MapPost("/reports/sql", async (AnalyticsPreviewRequest request,
+    ITenantContextAccessor tenantAccessor, IVirtualSqlService service, CancellationToken token) =>
+{
+    return Results.Ok(await service.PreviewAsync(tenantAccessor.GetRequiredTenant().TenantId, null,
+        RequireGlobalSql(request.Sql), request.Parameters, token));
+});
+globalAnalytics.MapPost("/metrics/sql", async (SaveMetricRequest request,
+    ITenantContextAccessor tenantAccessor, IVirtualSqlService service, CancellationToken token) =>
+{
+    return Results.Ok(await service.PreviewAsync(tenantAccessor.GetRequiredTenant().TenantId, null,
+        RequireGlobalSql(request.Sql), request.Parameters, token));
+});
+globalAnalytics.MapPost("/metrics/{metricId:guid}/sql", async (Guid metricId, EvaluateMetricRequest? request,
+    ITenantContextAccessor tenantAccessor, MetricService metrics, IVirtualSqlService service, CancellationToken token) =>
+{
+    var tenantId = tenantAccessor.GetRequiredTenant().TenantId;
+    var metric = await metrics.GetAsync(tenantId, null, metricId, token);
+    return Results.Ok(await service.PreviewAsync(tenantId, null, RequireGlobalSql(metric.Sql), request?.Parameters, token));
+});
+
 entities.MapGet("/{entityId:guid}/reports", async (Guid entityId, ITenantContextAccessor tenantAccessor,
     ReportService service, CancellationToken token) =>
 {
@@ -1057,5 +1253,14 @@ static WebhookSubscriptionResponse ToWebhookResponse(WebhookSubscription subscri
     subscription.Events, subscription.IsEnabled, subscription.CreatedAt, subscription.UpdatedAt);
 
 static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+
+static VirtualSqlDefinition RequireGlobalSql(VirtualSqlDefinition? sql)
+{
+    if (sql?.Enabled != true)
+    {
+        throw new DynamicEntity.Application.Common.ValidationException("Global definitions require SQL mode.");
+    }
+    return sql;
+}
 
 public partial class Program;

@@ -129,6 +129,8 @@ public sealed class SqlServerProvisioningAndCrudTests
             };
             var updatedMetric = await metricStore.UpdateAsync(tenant.Id, renamed, tenantStorage!, CancellationToken.None);
             Assert.Equal(sqlDefinition.Text, updatedMetric!.Sql!.Text);
+            await ExerciseGlobalAnalyticsAsync(options, control, metadata, fieldStore, resolver, virtualSql,
+                tenant.Id, entity.Id, tenantStorage!, sqlDefinition, sqlParameters, metricDefinition.Id);
             await using (var restrictedConnection = new SqlConnection(tenantBuilder.ConnectionString))
             {
                 await restrictedConnection.OpenAsync();
@@ -246,6 +248,79 @@ public sealed class SqlServerProvisioningAndCrudTests
             IsEnabled = false
         }, storage, CancellationToken.None));
         Assert.True(await webhookStore.DeleteAsync(tenantId, entity.Id, webhook.Id, storage, CancellationToken.None));
+    }
+
+    private static async Task ExerciseGlobalAnalyticsAsync(SqlServerOptions options, IControlPlaneStore control,
+        IEntityMetadataStore entities, IFieldMetadataStore fields, IEntityStorageResolver resolver, IVirtualSqlService sql,
+        Guid tenantId, Guid entityId, EntityStorageLocation storage, VirtualSqlDefinition definition,
+        IReadOnlyDictionary<string, JsonElement> parameters, Guid existingMetricId)
+    {
+        // Recreate the v11 shape in this test-owned database to exercise the real data backfill.
+        await using (var connection = new SqlConnection(new SqlConnectionStringBuilder(storage.ConnectionString)
+        {
+            InitialCatalog = storage.DatabaseName
+        }.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new SqlCommand("""
+                DROP INDEX IX_ReportDefinitions_TenantScope ON dbo.ReportDefinitions;
+                DROP INDEX IX_MetricDefinitions_TenantScope ON dbo.MetricDefinitions;
+                ALTER TABLE dbo.ReportDefinitions DROP COLUMN TenantId;
+                ALTER TABLE dbo.MetricDefinitions DROP COLUMN TenantId;
+                DROP INDEX IX_ReportDefinitions_EntityId ON dbo.ReportDefinitions;
+                DROP INDEX IX_MetricDefinitions_EntityId ON dbo.MetricDefinitions;
+                ALTER TABLE dbo.ReportDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NOT NULL;
+                ALTER TABLE dbo.MetricDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NOT NULL;
+                CREATE INDEX IX_ReportDefinitions_EntityId ON dbo.ReportDefinitions(EntityId);
+                CREATE INDEX IX_MetricDefinitions_EntityId ON dbo.MetricDefinitions(EntityId);
+                DELETE FROM dbo.SchemaMigrations WHERE Version=12;
+                """, connection);
+            await command.ExecuteNonQueryAsync();
+        }
+        await new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator().MigrateAsync(storage, CancellationToken.None);
+        var metricStore = new SqlMetricStore();
+        var reportStore = new SqlReportStore();
+        Assert.NotNull(await metricStore.GetAsync(tenantId, entityId, existingMetricId, storage, CancellationToken.None));
+        Assert.Null(await metricStore.GetAsync(tenantId, null, existingMetricId, storage, CancellationToken.None));
+        var validator = new DynamicEntity.Application.Analytics.AnalyticsQueryValidator();
+        var analytics = new DynamicEntity.Application.Analytics.AnalyticsService(control, entities, fields,
+            new SqlAnalyticsStore(options, resolver), validator, TimeProvider.System);
+        var metrics = new DynamicEntity.Application.Metrics.MetricService(control, entities, fields, metricStore,
+            analytics, validator, TimeProvider.System, sql);
+        var reports = new DynamicEntity.Application.Reports.ReportService(control, entities, fields, reportStore,
+            analytics, validator, TimeProvider.System, sql);
+        var metric = await metrics.CreateAsync(tenantId, null, "Global sum", null, AggregateFunction.Count,
+            null, null, null, null, CancellationToken.None, definition);
+        Assert.Null(metric.EntityId);
+        Assert.Single(await metrics.ListAsync(tenantId, null, CancellationToken.None));
+        Assert.DoesNotContain(await metrics.ListAsync(tenantId, entityId, CancellationToken.None), item => item.Id == metric.Id);
+        Assert.Null(await metricStore.GetAsync(Guid.NewGuid(), null, metric.Id, storage, CancellationToken.None));
+        Assert.Null(await metricStore.GetAsync(tenantId, entityId, metric.Id, storage, CancellationToken.None));
+        Assert.Null(await metricStore.UpdateAsync(Guid.NewGuid(), metric, storage, CancellationToken.None));
+        Assert.False(await metricStore.DeleteAsync(Guid.NewGuid(), null, metric.Id, storage, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => metrics.EvaluateAsync(tenantId, null, metric.Id, CancellationToken.None));
+        Assert.Equal(12.5m, (await metrics.EvaluateAsync(tenantId, null, metric.Id, CancellationToken.None, parameters)).Value);
+        await metrics.UpdateAsync(tenantId, null, metric.Id, "Renamed global sum", null, AggregateFunction.Count,
+            null, null, null, CancellationToken.None, definition);
+        Assert.Equal("Renamed global sum", (await metrics.GetAsync(tenantId, null, metric.Id, CancellationToken.None)).Name);
+        var specification = new ReportSpecification(new(null, [], [], [], 100, definition), VisualizationType.Table);
+        var report = await reports.CreateAsync(tenantId, null, "Global report", null, specification, null, CancellationToken.None);
+        Assert.Null(report.EntityId);
+        Assert.Single(await reports.ListAsync(tenantId, null, CancellationToken.None));
+        Assert.DoesNotContain(await reports.ListAsync(tenantId, entityId, CancellationToken.None), item => item.Id == report.Id);
+        Assert.Null(await reportStore.GetAsync(Guid.NewGuid(), null, report.Id, storage, CancellationToken.None));
+        Assert.Null(await reportStore.GetAsync(tenantId, entityId, report.Id, storage, CancellationToken.None));
+        Assert.Null(await reportStore.UpdateAsync(Guid.NewGuid(), report, storage, CancellationToken.None));
+        Assert.False(await reportStore.DeleteAsync(Guid.NewGuid(), null, report.Id, storage, CancellationToken.None));
+        Assert.Equal(12.5m, (await reports.RunAsync(tenantId, null, report.Id, CancellationToken.None, parameters)).Rows.Single()["total"]);
+        await reports.UpdateAsync(tenantId, null, report.Id, "Renamed global report", null, specification, CancellationToken.None);
+        Assert.Equal("Renamed global report", (await reports.GetAsync(tenantId, null, report.Id, CancellationToken.None)).Name);
+        await reports.DeleteAsync(tenantId, null, report.Id, CancellationToken.None);
+        await metrics.DeleteAsync(tenantId, null, metric.Id, CancellationToken.None);
+        Assert.Empty(await reports.ListAsync(tenantId, null, CancellationToken.None));
+        Assert.Empty(await metrics.ListAsync(tenantId, null, CancellationToken.None));
+        // A global constant does not need any entity to be selected or referenced.
+        Assert.Equal(1, (await sql.ExecuteAsync(tenantId, null, new(true, "SELECT 1 AS value", []), null, 1, true, CancellationToken.None)).Rows.Single()["value"]);
     }
 
     private static async Task AssertAnalyticsMigrationsAsync(Guid tenantId, string connectionString)
