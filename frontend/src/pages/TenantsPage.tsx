@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Pencil, Plus, Power, Settings } from 'lucide-react'
+import { ArrowRight, Pencil, Plus, Power, Settings, Save, X } from 'lucide-react'
 import { api } from '../api'
 import type { Tenant } from '../types'
 import { Modal } from '../components/Modal'
@@ -176,8 +176,12 @@ function TenantEditor({
         )}
         {save.error && <p className="error">{save.error.message}</p>}
         <div className="modal-footer">
-          <button disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save tenant'}</button>
+          <button disabled={save.isPending}>
+            <Save aria-hidden="true" />
+            {save.isPending ? 'Saving…' : 'Save tenant'}
+          </button>
           <button type="button" className="secondary" onClick={onClose}>
+            <X aria-hidden="true" />
             Cancel
           </button>
         </div>
@@ -222,8 +226,12 @@ function TenantConnectionEditor({
         </p>
         {save.error && <p className="error">{save.error.message}</p>}
         <div className="modal-footer">
-          <button disabled={save.isPending}>{save.isPending ? 'Configuring…' : 'Save connection'}</button>
+          <button disabled={save.isPending}>
+            <Save aria-hidden="true" />
+            {save.isPending ? 'Configuring…' : 'Save connection'}
+          </button>
           <button type="button" className="secondary" onClick={onClose}>
+            <X aria-hidden="true" />
             Cancel
           </button>
         </div>

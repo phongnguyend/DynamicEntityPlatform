@@ -15,6 +15,14 @@ if (context.User.Identity?.IsAuthenticated != true)
 - In C#, separate each property declaration from the next with one blank line, including auto-properties.
 - Apply convention to new and modified code, including tests.
 
+## Button icons
+
+- Every button must display a meaningful icon, including save/cancel actions, mode selectors, and buttons inside dialogs. Use the existing `lucide-react` icons and shared button sizing/spacing.
+- Keep icons visible in every state, including loading, disabled, selected, and unselected states. Do not add a second icon to buttons that already have one.
+- Keep descriptive text labels for text buttons. Mark decorative icons with `aria-hidden="true"`; icon-only buttons must have a descriptive `aria-label` and a tooltip (`title`).
+- Apply the same convention to links styled as action buttons.
+- Verify icon changes with `frontend/e2e/button-icons.spec.ts`. Reuse `expectButtonIcons` from `frontend/e2e/button-icon-assertions.ts` when adding pages, dialogs, or button states; add targeted checks for the intended symbol when icon choice matters.
+
 ## Frontend regression checks
 
 - Prefer the repeatable Playwright scripts in `frontend/e2e` over ad hoc interactive browser sessions for UI verification.

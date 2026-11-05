@@ -1,3 +1,4 @@
+import { Save, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '../api'
@@ -54,9 +55,11 @@ export function DashboardEditor({
         {save.error && <p className="error">{save.error.message}</p>}
         <div className="modal-footer">
           <button disabled={!trimmedName || duplicate || save.isPending}>
+            <Save aria-hidden="true" />
             {save.isPending ? 'Saving…' : dashboard ? 'Save changes' : 'Create dashboard'}
           </button>
           <button type="button" className="secondary" onClick={onClose}>
+            <X aria-hidden="true" />
             Cancel
           </button>
         </div>

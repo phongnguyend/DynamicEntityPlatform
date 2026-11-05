@@ -11,6 +11,7 @@ import {
   Upload,
   UploadCloud,
   Wand2,
+  ArrowLeft,
 } from 'lucide-react'
 import { api } from '../api'
 import type { Field, ImportJob, ImportPreview } from '../types'
@@ -281,6 +282,7 @@ export function ImportPanel({
                 validate.reset()
               }}
             >
+              <ArrowLeft aria-hidden="true" />
               Back to mapping
             </button>
             <button disabled={preview.validRows === 0 || commit.isPending} onClick={() => commit.mutate()}>

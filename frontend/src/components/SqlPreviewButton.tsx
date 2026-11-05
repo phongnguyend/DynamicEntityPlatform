@@ -2,7 +2,7 @@ import { useState } from 'react'
 import './SqlPreviewButton.css'
 import { createPortal } from 'react-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Code } from 'lucide-react'
+import { Code, Table2, Database, X } from 'lucide-react'
 import type { SqlPreview } from '../types'
 import { Modal } from './Modal'
 import { HighlightedCode } from './HighlightedCode'
@@ -75,6 +75,7 @@ export function SqlPreviewButton({
                       aria-pressed={mode === 'virtual'}
                       onClick={() => setMode('virtual')}
                     >
+                      <Table2 aria-hidden="true" />
                       Virtual names
                     </button>
                     <button
@@ -83,6 +84,7 @@ export function SqlPreviewButton({
                       aria-pressed={mode === 'database'}
                       onClick={() => setMode('database')}
                     >
+                      <Database aria-hidden="true" />
                       Database names
                     </button>
                   </div>
@@ -109,6 +111,7 @@ export function SqlPreviewButton({
               )}
               <div className="modal-footer">
                 <button type="button" className="secondary" onClick={() => setOpen(false)}>
+                  <X aria-hidden="true" />
                   Close
                 </button>
               </div>

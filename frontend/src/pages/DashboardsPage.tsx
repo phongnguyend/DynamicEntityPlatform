@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   Trash2,
   X,
+  Save,
 } from 'lucide-react'
 import { Responsive, useContainerWidth, verticalCompactor, type ResponsiveLayouts } from 'react-grid-layout'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -682,9 +683,11 @@ function CardParametersModal({
         )}
         <div className="modal-footer">
           <button type="button" className="secondary" disabled={saveParameters.isPending} onClick={onClose}>
+            <X aria-hidden="true" />
             Cancel
           </button>
           <button type="submit" disabled={saveParameters.isPending}>
+            <Save aria-hidden="true" />
             {saveParameters.isPending ? 'Saving…' : 'Save parameters'}
           </button>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Ban, Check, Pipette } from 'lucide-react'
+import { Ban, Check, Circle, Pipette } from 'lucide-react'
 import { ColorPicker, isLightColor } from './ColorPicker'
 
 export const VIEW_COLORS = [
@@ -67,7 +67,7 @@ export function ViewColorPicker({ color, onChange }: { color?: string; onChange:
             aria-pressed={color === option.value}
             onClick={() => onChange(option.value)}
           >
-            {color === option.value && <Check />}
+            {color === option.value ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
           </button>
         ))}
         <button

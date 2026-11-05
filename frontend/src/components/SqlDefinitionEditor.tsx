@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Check, Copy, Plus, Search, Table2 } from 'lucide-react'
+import { Check, Copy, Plus, Search, Table2, SlidersHorizontal, Code2, Wand2, CheckCircle2 } from 'lucide-react'
 import { api } from '../api'
 import type { SqlPreview, VirtualSqlDefinition } from '../types'
 import { HighlightedCode } from './HighlightedCode'
@@ -146,6 +146,7 @@ export function SqlDefinitionEditor({
           aria-pressed={!definition.enabled}
           onClick={() => onChange({ ...definition, enabled: false })}
         >
+          <SlidersHorizontal aria-hidden="true" />
           Builder
         </button>
         <button
@@ -154,6 +155,7 @@ export function SqlDefinitionEditor({
           aria-pressed={definition.enabled}
           onClick={() => onChange({ ...definition, enabled: true })}
         >
+          <Code2 aria-hidden="true" />
           SQL
         </button>
       </div>
@@ -319,7 +321,7 @@ export function SqlDefinitionEditor({
                     title="Insert parameter"
                     onClick={() => insert('@' + parameter.parameter)}
                   >
-                    @{parameter.parameter}
+                    <Plus aria-hidden="true" />@{parameter.parameter}
                   </button>
                   <label className="field">
                     Type
@@ -396,6 +398,7 @@ export function SqlDefinitionEditor({
                 }
               }}
             >
+              <Wand2 aria-hidden="true" />
               Generate from Builder
             </button>
             <button
@@ -404,6 +407,7 @@ export function SqlDefinitionEditor({
               disabled={!definition.text.trim() || validation.isPending}
               onClick={() => validation.mutate()}
             >
+              <CheckCircle2 aria-hidden="true" />
               {validation.isPending ? 'Validating…' : 'Validate SQL'}
             </button>
           </div>

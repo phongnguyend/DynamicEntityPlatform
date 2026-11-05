@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Pencil, Plus, SlidersHorizontal, Trash2, X, Save, Check } from 'lucide-react'
 import type { DashboardParameter } from '../types'
 import { Modal } from './Modal'
 import './DashboardParametersModal.css'
@@ -147,6 +147,7 @@ export function DashboardParametersModal({
                     <div className="dashboard-parameter-delete">
                       <span>Delete {parameter.name}?</span>
                       <button type="button" className="secondary" onClick={() => setDeleting(undefined)}>
+                        <X aria-hidden="true" />
                         Cancel
                       </button>
                       <button
@@ -157,6 +158,7 @@ export function DashboardParametersModal({
                           setDeleting(undefined)
                         }}
                       >
+                        <Trash2 aria-hidden="true" />
                         Delete parameter
                       </button>
                     </div>
@@ -172,9 +174,11 @@ export function DashboardParametersModal({
             <p className="field-note">Changes are saved only when you select Save changes.</p>
             <div className="modal-footer">
               <button type="button" className="secondary" disabled={save.isPending} onClick={onClose}>
+                <X aria-hidden="true" />
                 Cancel
               </button>
               <button type="button" disabled={save.isPending || !!deleting} onClick={() => save.mutate()}>
+                <Save aria-hidden="true" />
                 {save.isPending ? 'Saving…' : 'Save changes'}
               </button>
             </div>
@@ -313,9 +317,11 @@ function DashboardParameterForm({
       )}
       <div className="actions">
         <button type="button" className="secondary" onClick={onCancel}>
+          <X aria-hidden="true" />
           Cancel
         </button>
         <button type="submit" disabled={!validName || duplicate}>
+          <Check aria-hidden="true" />
           Apply parameter
         </button>
       </div>

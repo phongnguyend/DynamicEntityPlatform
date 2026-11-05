@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
@@ -157,7 +158,10 @@ export function EntityDesigner({
       )}
       {mutation.error && <p className="error">{mutation.error.message}</p>}
       <div className="panel-footer">
-        <button disabled={mutation.isPending}>{mutation.isPending ? 'Creating…' : 'Create'}</button>
+        <button disabled={mutation.isPending}>
+          <Plus aria-hidden="true" />
+          {mutation.isPending ? 'Creating…' : 'Create'}
+        </button>
       </div>
     </form>
   )

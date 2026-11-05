@@ -2,7 +2,7 @@ import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
-import { Braces, Maximize2, Pencil, RefreshCw, Save, Trash2, X } from 'lucide-react'
+import { Braces, Maximize2, Pencil, RefreshCw, Save, Trash2, X, Play } from 'lucide-react'
 import { api } from '../api'
 import { EntityTabs } from '../components/EntityTabs'
 import { Modal } from '../components/Modal'
@@ -264,6 +264,7 @@ export function MetricsPage({ tenantId }: { tenantId: string }) {
                 }
               }}
             >
+              <Play aria-hidden="true" />
               Run preview
             </button>
             {editing && (

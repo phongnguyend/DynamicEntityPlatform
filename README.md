@@ -220,12 +220,14 @@ The suite covers these frontend workflows:
 | `dashboards.spec.ts` | Dashboard CRUD, duplicate names, backdrop behavior, dashboard parameters, card layout after reload |
 | `sql-editor.spec.ts` | Metric/report SQL editing, schema search/insert/copy, undo/redo, parameter discovery, virtual/database previews, narrow layout |
 | `regressions.spec.ts` | Tenant selection, field editing, index management, filtering, import workflow, JSON validation/editing, report parameters, dashboard card library/binding |
+| `button-icons.spec.ts` | Visible button icons, accessible names and icon-only tooltips, dialog actions, loading/disabled/selection states, and the SQL parameter Plus icon |
 
 Useful commands (from `frontend`):
 
 ```sh
 # Run one feature or matching test names
 npm run test:e2e -- e2e/dashboards.spec.ts
+npm run test:e2e -- e2e/button-icons.spec.ts
 npm run test:e2e -- --grep "runtime"
 # Rerun failures, or debug interactively when needed
 npm run test:e2e -- --last-failed

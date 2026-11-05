@@ -1,3 +1,4 @@
+import { X, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import type { VirtualSqlDefinition } from '../types'
 
@@ -107,10 +108,12 @@ export function RuntimeParametersForm({
       <div className="actions">
         {onCancel && (
           <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
+            <X aria-hidden="true" />
             Cancel
           </button>
         )}
         <button type="submit" disabled={busy}>
+          <ArrowRight aria-hidden="true" />
           {busy ? 'Processing…' : submitLabel}
         </button>
       </div>
