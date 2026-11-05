@@ -16,6 +16,7 @@ import {
   Building2,
   FileChartColumn,
   Calculator,
+  Bell,
   Database,
   LayoutDashboard,
   Plus,
@@ -224,6 +225,10 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
             <Calculator aria-hidden="true" />
             Metrics
           </NavLink>
+          <NavLink to="/alerts" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <Bell aria-hidden="true" />
+            Alerts
+          </NavLink>
         </nav>
       </aside>
       <main>
@@ -236,6 +241,7 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
             <Route path="/reports" element={<ReportsPage key="global" tenantId={tenantId} />} />
             <Route path="/reports/new" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />
             <Route path="/reports/:reportId" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />
+            <Route path="/alerts" element={<AlertsPage key="global" tenantId={tenantId} />} />
             <Route path="/metrics" element={<MetricsPage key="global" tenantId={tenantId} />} />
             <Route
               path="/"

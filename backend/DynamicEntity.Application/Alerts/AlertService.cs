@@ -9,12 +9,12 @@ namespace DynamicEntity.Application.Alerts;
 public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadataStore entities, IMetricStore metrics, IAlertStore alerts,
     IAlertEvaluationStore evaluations, IAlertNotificationStore notifications, TimeProvider timeProvider, IFieldMetadataStore fields, IVirtualSqlService? virtualSql = null)
 {
-    public async Task<AlertDefinition> CreateAsync(Guid tenantId, Guid entityId, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, Guid? userId, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    public async Task<AlertDefinition> CreateAsync(Guid tenantId, Guid? entityId, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, Guid? userId, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
     {
         Validate(name, comparison, thresholdJson, interval, timezone, cooldown);
         var normalizedActions = AlertActionValidator.Normalize(actions);
         var s = await RequireEntityAsync(tenantId, entityId, token);
-        var metric = await metrics.GetAsync(tenantId, entityId, metricId, s, token) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
+        var metric = (entityId is null ? await metrics.GetByIdAsync(tenantId, metricId, s, token) : await metrics.GetAsync(tenantId, entityId, metricId, s, token)) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
         if (metric.Sql?.Enabled == true)
         {
             foreach (var parameter in metric.Sql.Parameters)
@@ -24,32 +24,32 @@ public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadat
                     throw new ValidationException($"Provide a value for parameter '{parameter.Parameter}'.");
                 }
             }
-            await virtualSql!.PreviewAsync(tenantId, entityId, metric.Sql, parameters, token);
+            await virtualSql!.PreviewAsync(tenantId, metric.EntityId, metric.Sql, parameters, token);
         }
         else
         {
-            MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, entityId, s, token), parameters, timeProvider.GetUtcNow());
+            MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, metric.EntityId!.Value, s, token), parameters, timeProvider.GetUtcNow());
         }
         var now = timeProvider.GetUtcNow();
         var a = new AlertDefinition(Guid.NewGuid(), entityId, metricId, name.Trim(), comparison, thresholdJson, interval, timezone, cooldown, recovery, enabled, normalizedActions, null, null, now, null, null, userId, now, now, parameters);
         return await alerts.CreateAsync(tenantId, a, s, token);
     }
-    public async Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    public async Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid? entityId, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         return await alerts.ListAsync(tenantId, entityId, s, token);
     }
-    public async Task<AlertDefinition> GetAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    public async Task<AlertDefinition> GetAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         return await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
     }
-    public async Task<AlertDefinition> UpdateAsync(Guid tenantId, Guid entityId, Guid id, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    public async Task<AlertDefinition> UpdateAsync(Guid tenantId, Guid? entityId, Guid id, Guid metricId, string name, AlertComparisonOperator comparison, string thresholdJson, AlertInterval interval, string timezone, TimeSpan cooldown, bool recovery, bool enabled, IReadOnlyList<AlertActionConfiguration>? actions, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
     {
         Validate(name, comparison, thresholdJson, interval, timezone, cooldown);
         var normalizedActions = AlertActionValidator.Normalize(actions);
         var s = await RequireEntityAsync(tenantId, entityId, token);
-        var metric = await metrics.GetAsync(tenantId, entityId, metricId, s, token) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
+        var metric = (entityId is null ? await metrics.GetByIdAsync(tenantId, metricId, s, token) : await metrics.GetAsync(tenantId, entityId, metricId, s, token)) ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
         if (metric.Sql?.Enabled == true)
         {
             foreach (var parameter in metric.Sql.Parameters)
@@ -59,11 +59,11 @@ public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadat
                     throw new ValidationException($"Provide a value for parameter '{parameter.Parameter}'.");
                 }
             }
-            await virtualSql!.PreviewAsync(tenantId, entityId, metric.Sql, parameters, token);
+            await virtualSql!.PreviewAsync(tenantId, metric.EntityId, metric.Sql, parameters, token);
         }
         else
         {
-            MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, entityId, s, token), parameters, timeProvider.GetUtcNow());
+            MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, metric.EntityId!.Value, s, token), parameters, timeProvider.GetUtcNow());
         }
         var current = await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
         var updated = current with
@@ -84,7 +84,7 @@ public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadat
         };
         return await alerts.UpdateAsync(tenantId, updated, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
     }
-    public async Task DeleteAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    public async Task DeleteAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         if (!await alerts.DeleteAsync(tenantId, entityId, id, s, token))
@@ -92,16 +92,19 @@ public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadat
             throw new NotFoundException($"Alert '{id}' was not found.");
         }
     }
-    public async Task<(IReadOnlyList<AlertEvaluation>, IReadOnlyList<AlertNotification>)> HistoryAsync(Guid tenantId, Guid entityId, Guid id, CancellationToken token)
+    public async Task<(IReadOnlyList<AlertEvaluation>, IReadOnlyList<AlertNotification>)> HistoryAsync(Guid tenantId, Guid? entityId, Guid id, CancellationToken token)
     {
         var s = await RequireEntityAsync(tenantId, entityId, token);
         _ = await alerts.GetAsync(tenantId, entityId, id, s, token) ?? throw new NotFoundException($"Alert '{id}' was not found.");
         return (await evaluations.ListAsync(tenantId, id, s, token), await notifications.ListAsync(tenantId, id, s, token));
     }
-    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid entityId, CancellationToken token)
+    private async Task<Domain.Storage.EntityStorageLocation> RequireEntityAsync(Guid tenantId, Guid? entityId, CancellationToken token)
     {
         var s = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, token);
-        _ = await entities.GetAsync(tenantId, entityId, s, token) ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        if (entityId is not null)
+        {
+            _ = await entities.GetAsync(tenantId, entityId.Value, s, token) ?? throw new NotFoundException($"Entity '{entityId}' was not found.");
+        }
         return s;
     }
     private static void Validate(string name, AlertComparisonOperator comparison, string threshold, AlertInterval interval, string timezone, TimeSpan cooldown)

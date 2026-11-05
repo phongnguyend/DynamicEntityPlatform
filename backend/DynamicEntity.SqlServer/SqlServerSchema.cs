@@ -457,4 +457,12 @@ internal static class SqlServerSchema
             CREATE INDEX IX_ReportDefinitions_TenantScope ON dbo.ReportDefinitions(TenantId,EntityId);
             CREATE INDEX IX_MetricDefinitions_TenantScope ON dbo.MetricDefinitions(TenantId,EntityId);';
         """;
+    public const string TenantDatabaseV13 = """
+        ALTER TABLE dbo.AlertDefinitions ADD TenantId UNIQUEIDENTIFIER NULL;
+        EXEC sys.sp_executesql N'
+            UPDATE a SET TenantId=e.TenantId FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId;
+            ALTER TABLE dbo.AlertDefinitions ALTER COLUMN TenantId UNIQUEIDENTIFIER NOT NULL;
+            ALTER TABLE dbo.AlertDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NULL;
+            CREATE INDEX IX_AlertDefinitions_TenantScope ON dbo.AlertDefinitions(TenantId,EntityId);';
+        """;
 }

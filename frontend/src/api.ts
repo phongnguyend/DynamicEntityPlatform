@@ -318,10 +318,11 @@ export const api = {
     ),
   deleteMetric: (tenantId: string, entityId: string | null, metricId: string) =>
     request<void>(`${analyticsBase(entityId)}/metrics/${metricId}`, { method: 'DELETE' }, tenantId),
-  alerts: (tenantId: string, entityId: string) => request<Alert[]>(`/api/entities/${entityId}/alerts`, {}, tenantId),
+  alerts: (tenantId: string, entityId: string | null) =>
+    request<Alert[]>(`${analyticsBase(entityId)}/alerts`, {}, tenantId),
   saveAlert: (
     tenantId: string,
-    entityId: string,
+    entityId: string | null,
     input: Omit<
       Alert,
       'id' | 'entityId' | 'lastState' | 'lastEvaluatedAt' | 'nextEvaluationAt' | 'createdAt' | 'updatedAt'
@@ -329,17 +330,17 @@ export const api = {
     alertId?: string,
   ) =>
     request<Alert>(
-      `/api/entities/${entityId}/alerts${alertId ? `/${alertId}` : ''}`,
+      `${analyticsBase(entityId)}/alerts${alertId ? `/${alertId}` : ''}`,
       { method: alertId ? 'PATCH' : 'POST', body: JSON.stringify(input) },
       tenantId,
     ),
-  deleteAlert: (tenantId: string, entityId: string, alertId: string) =>
-    request<void>(`/api/entities/${entityId}/alerts/${alertId}`, { method: 'DELETE' }, tenantId),
-  alertHistory: (tenantId: string, entityId: string, alertId: string) =>
-    request<AlertHistory>(`/api/entities/${entityId}/alerts/${alertId}/history`, {}, tenantId),
-  testAlert: (tenantId: string, entityId: string, alertId: string) =>
+  deleteAlert: (tenantId: string, entityId: string | null, alertId: string) =>
+    request<void>(`${analyticsBase(entityId)}/alerts/${alertId}`, { method: 'DELETE' }, tenantId),
+  alertHistory: (tenantId: string, entityId: string | null, alertId: string) =>
+    request<AlertHistory>(`${analyticsBase(entityId)}/alerts/${alertId}/history`, {}, tenantId),
+  testAlert: (tenantId: string, entityId: string | null, alertId: string) =>
     request<import('./types').AlertEvaluation>(
-      `/api/entities/${entityId}/alerts/${alertId}/test`,
+      `${analyticsBase(entityId)}/alerts/${alertId}/test`,
       { method: 'POST' },
       tenantId,
     ),

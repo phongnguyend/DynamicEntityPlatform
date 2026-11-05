@@ -182,6 +182,7 @@ public interface IReportStore
 
 public interface IMetricStore
 {
+    Task<MetricDefinition?> GetByIdAsync(Guid tenantId, Guid metricId, EntityStorageLocation storage, CancellationToken token);
     Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<MetricDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid metricId, EntityStorageLocation storage, CancellationToken cancellationToken);
@@ -192,10 +193,10 @@ public interface IMetricStore
 public interface IAlertStore
 {
     Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);
-    Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token);
-    Task<AlertDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token);
+    Task<AlertDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
     Task<AlertDefinition?> UpdateAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);
-    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
+    Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
     Task<AlertDefinition?> ClaimDueAsync(Guid tenantId, string owner, DateTimeOffset now, DateTimeOffset leaseExpiresAt,
         EntityStorageLocation storage, CancellationToken token);
     Task CompleteAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token);

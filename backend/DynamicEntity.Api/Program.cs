@@ -383,7 +383,15 @@ globalAnalytics.AddEndpointFilter(async (context, next) =>
     var http = context.HttpContext;
     var tenant = http.RequestServices.GetRequiredService<ITenantContextAccessor>().GetRequiredTenant();
     var authorization = http.RequestServices.GetRequiredService<IEntityAuthorizationService>();
-    var allowed = http.Request.Method == HttpMethods.Get
+    var path = http.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+    var isAlert = path.Contains("/alerts", StringComparison.OrdinalIgnoreCase);
+    var allowed = isAlert
+        ? http.Request.Method == HttpMethods.Get && path.EndsWith("/history", StringComparison.OrdinalIgnoreCase)
+            ? await authorization.CanViewAlertHistoryAsync(tenant, Guid.Empty, http.RequestAborted)
+            : http.Request.Method == HttpMethods.Get
+                ? await authorization.CanReadAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted)
+                : await authorization.CanManageAlertsAsync(tenant, Guid.Empty, http.RequestAborted)
+        : http.Request.Method == HttpMethods.Get
         ? await authorization.CanReadAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted)
         : await authorization.CanManageAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted);
     return allowed ? await next(context) : Results.Problem(statusCode: 403, title: "Access denied.");
@@ -774,6 +782,81 @@ entities.MapPost("/{entityId:guid}/metrics/{metricId:guid}/evaluate", async (Gui
     var tenant = tenantAccessor.GetRequiredTenant();
     var result = await service.EvaluateAsync(tenant.TenantId, entityId, metricId, token, request?.Parameters);
     return Results.Ok(new MetricEvaluationResponse(result.Value, result.EvaluatedAt));
+});
+
+globalAnalytics.MapGet("/alerts", async (ITenantContextAccessor tenantAccessor,
+    AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, token)).Select(ToAlertResponse));
+});
+globalAnalytics.MapPost("/alerts", async (SaveAlertRequest request,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var alert = await service.CreateAsync(tenant.TenantId, entityId, request.MetricId, request.Name,
+        request.ComparisonOperator, request.Threshold.GetRawText(), request.Interval, request.Timezone,
+        TimeSpan.FromSeconds(request.CooldownSeconds), request.NotifyOnRecovery, request.IsEnabled,
+        ToAlertActions(request.Actions), null, token, request.Parameters);
+    return Results.Created($"/api/alerts/{alert.Id}", ToAlertResponse(alert));
+});
+globalAnalytics.MapPatch("/alerts/{alertId:guid}", async (Guid alertId,
+    SaveAlertRequest request, ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    return Results.Ok(ToAlertResponse(await service.UpdateAsync(tenant.TenantId, entityId, alertId,
+        request.MetricId, request.Name, request.ComparisonOperator, request.Threshold.GetRawText(),
+        request.Interval, request.Timezone, TimeSpan.FromSeconds(request.CooldownSeconds),
+        request.NotifyOnRecovery, request.IsEnabled, ToAlertActions(request.Actions), token, request.Parameters)));
+});
+globalAnalytics.MapDelete("/alerts/{alertId:guid}", async (Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    await service.DeleteAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.NoContent();
+});
+globalAnalytics.MapGet("/alerts/{alertId:guid}/history", async (Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var history = await service.HistoryAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.Ok(new AlertHistoryResponse(history.Item1.Select(ToAlertEvaluationResponse).ToArray(),
+        history.Item2.Select(ToAlertNotificationResponse).ToArray()));
+});
+globalAnalytics.MapPost("/alerts/{alertId:guid}/test", async (Guid alertId,
+    ITenantContextAccessor tenantAccessor, AlertService service, IAlertStore store, IControlPlaneStore control,
+    AlertEvaluationWorker worker, TimeProvider timeProvider, CancellationToken token) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    Guid? entityId = null;
+    var alert = await service.GetAsync(tenant.TenantId, entityId, alertId, token);
+    var storage = await control.GetTenantStorageAsync(tenant.TenantId, token)
+        ?? throw new DynamicEntity.Application.Common.NotFoundException("Tenant storage was not found.");
+    var now = timeProvider.GetUtcNow();
+    await store.UpdateAsync(tenant.TenantId, alert with
+    {
+        IsEnabled = true,
+        NextEvaluationAt = now,
+        UpdatedAt = now
+    }, storage, token);
+    await worker.ProcessTenantAsync(tenant.TenantId, $"test:{Guid.NewGuid():N}", token);
+    if (!alert.IsEnabled)
+    {
+        var evaluated = await service.GetAsync(tenant.TenantId, entityId, alertId, token);
+        await store.UpdateAsync(tenant.TenantId, evaluated with
+        {
+            IsEnabled = false,
+            UpdatedAt = timeProvider.GetUtcNow()
+        }, storage, token);
+    }
+    var history = await service.HistoryAsync(tenant.TenantId, entityId, alertId, token);
+    return Results.Ok(ToAlertEvaluationResponse(history.Item1.First()));
 });
 
 entities.MapGet("/{entityId:guid}/alerts", async (Guid entityId, ITenantContextAccessor tenantAccessor,

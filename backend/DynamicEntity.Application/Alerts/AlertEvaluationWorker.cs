@@ -35,7 +35,7 @@ public sealed class AlertEvaluationWorker(IControlPlaneStore controlPlane, IAler
             activity?.SetTag("metric.id", alert.MetricId);
             try
             {
-                var result = await metrics.EvaluateAsync(tenantId, alert.EntityId, alert.MetricId, token, alert.Parameters);
+                var result = await metrics.EvaluateForAlertAsync(tenantId, alert.EntityId, alert.MetricId, token, alert.Parameters);
                 var threshold = JsonSerializer.Deserialize<decimal>(alert.ThresholdJson);
                 var firing = thresholdEvaluator.IsMatch(result.Value, threshold, alert.ComparisonOperator);
                 var recovered = alert.LastState == AlertState.Firing && !firing;

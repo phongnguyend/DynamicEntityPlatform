@@ -29,6 +29,7 @@ export const test = base.extend<{
         '/api/entities': entities,
         '/api/reports': [],
         '/api/metrics': [],
+        '/api/alerts': [],
         '/api/dashboards': [
           {
             id: 'overview',
@@ -174,7 +175,7 @@ export const test = base.extend<{
           if (method === 'POST' && !id) {
             const created = {
               id: `created-${collection.length}`,
-              entityId: path === '/api/reports' || path === '/api/metrics' ? null : entityId,
+              entityId: path === '/api/reports' || path === '/api/metrics' || path === '/api/alerts' ? null : entityId,
               status: 'Active',
               schemaVersion: 1,
               createdAt: timestamp,

@@ -82,7 +82,7 @@ public sealed record MetricDefinition(
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, VirtualSqlDefinition? Sql = null);
 
 public sealed record AlertDefinition(
-    Guid Id, Guid EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
+    Guid Id, Guid? EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
     string ThresholdJson, AlertInterval Interval, string Timezone, TimeSpan Cooldown,
     bool NotifyOnRecovery, bool IsEnabled, IReadOnlyList<AlertActionConfiguration> Actions,
     AlertState? LastState, DateTimeOffset? LastEvaluatedAt,
@@ -104,7 +104,7 @@ public sealed record AlertNotification(
     string? LeaseOwner = null, DateTimeOffset? LeaseExpiresAt = null);
 
 public sealed record AlertNotificationPayload(
-    Guid AlertId, Guid EntityId, Guid MetricId, string AlertName,
+    Guid AlertId, Guid? EntityId, Guid MetricId, string AlertName,
     AlertComparisonOperator ComparisonOperator, string ThresholdJson, string? ValueJson,
     AlertState State, DateTimeOffset EvaluatedAt, IReadOnlyList<string> Targets);
 

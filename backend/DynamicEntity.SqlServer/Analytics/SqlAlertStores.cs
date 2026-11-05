@@ -13,9 +13,9 @@ public sealed class SqlAlertStore : IAlertStore
     public async Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition a, EntityStorageLocation s, CancellationToken t)
     {
         const string sql = """
-        INSERT dbo.AlertDefinitions(Id,EntityId,MetricId,Name,ComparisonOperator,ThresholdJson,[Interval],Timezone,CooldownSeconds,NotifyOnRecovery,IsEnabled,LastState,LastEvaluatedAt,NextEvaluationAt,LeaseOwner,LeaseExpiresAt,CreatedBy,CreatedAt,UpdatedAt,ParametersJson)
-        SELECT @id,@entityId,@metricId,@name,@operator,@threshold,@interval,@timezone,@cooldown,@recovery,@enabled,@state,@evaluated,@next,@owner,@lease,@createdBy,@createdAt,@updatedAt,@parameters
-        WHERE EXISTS(SELECT 1 FROM dbo.EntityDefinitions e JOIN dbo.MetricDefinitions m ON m.EntityId=e.Id WHERE e.TenantId=@tenantId AND e.Id=@entityId AND m.Id=@metricId);
+        INSERT dbo.AlertDefinitions(TenantId,Id,EntityId,MetricId,Name,ComparisonOperator,ThresholdJson,[Interval],Timezone,CooldownSeconds,NotifyOnRecovery,IsEnabled,LastState,LastEvaluatedAt,NextEvaluationAt,LeaseOwner,LeaseExpiresAt,CreatedBy,CreatedAt,UpdatedAt,ParametersJson)
+        SELECT @tenantId,@id,@entityId,@metricId,@name,@operator,@threshold,@interval,@timezone,@cooldown,@recovery,@enabled,@state,@evaluated,@next,@owner,@lease,@createdBy,@createdAt,@updatedAt,@parameters
+        WHERE EXISTS(SELECT 1 FROM dbo.MetricDefinitions m WHERE m.TenantId=@tenantId AND m.Id=@metricId AND (@entityId IS NULL OR m.EntityId=@entityId));
         """;
         await using var c = await OpenAsync(s, t);
         await using var tx = (SqlTransaction)await c.BeginTransactionAsync(t);
@@ -30,13 +30,13 @@ public sealed class SqlAlertStore : IAlertStore
         await tx.CommitAsync(t);
         return a;
     }
-    public Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation s, CancellationToken t) => ReadManyAsync($"SELECT {Columns} FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.EntityId=@entityId ORDER BY a.Name,a.Id;", tenantId, entityId, null, s, t);
-    public async Task<AlertDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation s, CancellationToken t) => (await ReadManyAsync($"SELECT {Columns} FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.EntityId=@entityId AND a.Id=@id;", tenantId, entityId, alertId, s, t)).SingleOrDefault();
+    public Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation s, CancellationToken t) => ReadManyAsync($"SELECT {Columns} FROM dbo.AlertDefinitions a WHERE a.TenantId=@tenantId AND (a.EntityId=@entityId OR (a.EntityId IS NULL AND @entityId IS NULL)) ORDER BY a.Name,a.Id;", tenantId, entityId, null, s, t);
+    public async Task<AlertDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid alertId, EntityStorageLocation s, CancellationToken t) => (await ReadManyAsync($"SELECT {Columns} FROM dbo.AlertDefinitions a WHERE a.TenantId=@tenantId AND (a.EntityId=@entityId OR (a.EntityId IS NULL AND @entityId IS NULL)) AND a.Id=@id;", tenantId, entityId, alertId, s, t)).SingleOrDefault();
     public async Task<AlertDefinition?> UpdateAsync(Guid tenantId, AlertDefinition a, EntityStorageLocation s, CancellationToken t)
     {
         const string sql = """
         UPDATE a SET ParametersJson=@parameters,MetricId=@metricId,Name=@name,ComparisonOperator=@operator,ThresholdJson=@threshold,[Interval]=@interval,Timezone=@timezone,CooldownSeconds=@cooldown,NotifyOnRecovery=@recovery,IsEnabled=@enabled,LastState=@state,LastEvaluatedAt=@evaluated,NextEvaluationAt=@next,LeaseOwner=@owner,LeaseExpiresAt=@lease,UpdatedAt=@updatedAt
-        FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.EntityId=@entityId AND a.Id=@id;
+        FROM dbo.AlertDefinitions a WHERE a.TenantId=@tenantId AND (a.EntityId=@entityId OR (a.EntityId IS NULL AND @entityId IS NULL)) AND a.Id=@id AND EXISTS(SELECT 1 FROM dbo.MetricDefinitions m WHERE m.TenantId=@tenantId AND m.Id=@metricId AND (@entityId IS NULL OR m.EntityId=@entityId));
         """;
         await using var c = await OpenAsync(s, t);
         await using var tx = (SqlTransaction)await c.BeginTransactionAsync(t);
@@ -51,10 +51,10 @@ public sealed class SqlAlertStore : IAlertStore
         await tx.CommitAsync(t);
         return a;
     }
-    public async Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid alertId, EntityStorageLocation s, CancellationToken t)
+    public async Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid alertId, EntityStorageLocation s, CancellationToken t)
     {
         const string sql = """
-        IF EXISTS(SELECT 1 FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.EntityId=@entityId AND a.Id=@id)
+        IF EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.TenantId=@tenantId AND (a.EntityId=@entityId OR (a.EntityId IS NULL AND @entityId IS NULL)) AND a.Id=@id)
         BEGIN
           DELETE FROM dbo.AlertActions WHERE AlertId=@id;
           DELETE FROM dbo.AlertNotifications WHERE AlertId=@id;
@@ -67,7 +67,7 @@ public sealed class SqlAlertStore : IAlertStore
         await using var tx = (SqlTransaction)await c.BeginTransactionAsync(t);
         await using var cmd = new SqlCommand(sql, c, tx);
         cmd.Parameters.AddWithValue("@tenantId", tenantId);
-        cmd.Parameters.AddWithValue("@entityId", entityId);
+        cmd.Parameters.Add("@entityId", System.Data.SqlDbType.UniqueIdentifier).Value = (object?)entityId ?? DBNull.Value;
         cmd.Parameters.AddWithValue("@id", alertId);
         var deleted = (bool)(await cmd.ExecuteScalarAsync(t))!;
         await tx.CommitAsync(t);
@@ -76,7 +76,7 @@ public sealed class SqlAlertStore : IAlertStore
     public async Task<AlertDefinition?> ClaimDueAsync(Guid tenantId, string owner, DateTimeOffset now, DateTimeOffset expires, EntityStorageLocation s, CancellationToken t)
     {
         var sql = $"""
-        ;WITH due AS (SELECT TOP(1) a.* FROM dbo.AlertDefinitions a WITH (UPDLOCK,READPAST,ROWLOCK) JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.IsEnabled=1 AND a.NextEvaluationAt<=@now AND (a.LeaseExpiresAt IS NULL OR a.LeaseExpiresAt<=@now) ORDER BY a.NextEvaluationAt,a.Id)
+        ;WITH due AS (SELECT TOP(1) a.* FROM dbo.AlertDefinitions a WITH (UPDLOCK,READPAST,ROWLOCK) WHERE a.TenantId=@tenantId AND a.IsEnabled=1 AND a.NextEvaluationAt<=@now AND (a.LeaseExpiresAt IS NULL OR a.LeaseExpiresAt<=@now) ORDER BY a.NextEvaluationAt,a.Id)
         UPDATE due SET LeaseOwner=@owner,LeaseExpiresAt=@expires OUTPUT {string.Join(',', Columns.Split(',').Select(x => "inserted." + x[(x.IndexOf('.') + 1)..]))};
         """;
         await using var c = await OpenAsync(s, t);
@@ -97,20 +97,20 @@ public sealed class SqlAlertStore : IAlertStore
     }
     public async Task CompleteAsync(Guid tenantId, AlertDefinition a, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "UPDATE a SET LastState=@state,LastEvaluatedAt=@evaluated,NextEvaluationAt=@next,LeaseOwner=NULL,LeaseExpiresAt=NULL,UpdatedAt=@updatedAt FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND a.Id=@id AND a.LeaseOwner=@owner;";
+        const string sql = "UPDATE a SET LastState=@state,LastEvaluatedAt=@evaluated,NextEvaluationAt=@next,LeaseOwner=NULL,LeaseExpiresAt=NULL,UpdatedAt=@updatedAt FROM dbo.AlertDefinitions a WHERE a.TenantId=@tenantId AND a.Id=@id AND a.LeaseOwner=@owner;";
         await using var c = await OpenAsync(s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, a);
         await cmd.ExecuteNonQueryAsync(t);
     }
-    private async Task<IReadOnlyList<AlertDefinition>> ReadManyAsync(string sql, Guid tenantId, Guid entityId, Guid? id, EntityStorageLocation s, CancellationToken t)
+    private async Task<IReadOnlyList<AlertDefinition>> ReadManyAsync(string sql, Guid tenantId, Guid? entityId, Guid? id, EntityStorageLocation s, CancellationToken t)
     {
         await using var c = await OpenAsync(s, t);
         var result = new List<AlertDefinition>();
         await using (var cmd = new SqlCommand(sql, c))
         {
             cmd.Parameters.AddWithValue("@tenantId", tenantId);
-            cmd.Parameters.AddWithValue("@entityId", entityId);
+            cmd.Parameters.Add("@entityId", System.Data.SqlDbType.UniqueIdentifier).Value = (object?)entityId ?? DBNull.Value;
             if (id is not null)
             {
                 cmd.Parameters.AddWithValue("@id", id.Value);
@@ -142,7 +142,7 @@ public sealed class SqlAlertStore : IAlertStore
     {
         c.Parameters.AddWithValue("@tenantId", tenantId);
         c.Parameters.AddWithValue("@id", a.Id);
-        c.Parameters.AddWithValue("@entityId", a.EntityId);
+        c.Parameters.Add("@entityId", System.Data.SqlDbType.UniqueIdentifier).Value = (object?)a.EntityId ?? DBNull.Value;
         c.Parameters.AddWithValue("@metricId", a.MetricId);
         c.Parameters.AddWithValue("@parameters", a.Parameters is null ? (object)DBNull.Value : JsonSerializer.Serialize(a.Parameters));
         c.Parameters.AddWithValue("@name", a.Name);
@@ -162,7 +162,7 @@ public sealed class SqlAlertStore : IAlertStore
         c.Parameters.AddWithValue("@createdAt", a.CreatedAt);
         c.Parameters.AddWithValue("@updatedAt", a.UpdatedAt);
     }
-    private static AlertDefinition Read(SqlDataReader r) => new(r.GetGuid(0), r.GetGuid(1), r.GetGuid(2), r.GetString(3), Enum.Parse<AlertComparisonOperator>(r.GetString(4)), r.GetString(5), Enum.Parse<AlertInterval>(r.GetString(6)), r.GetString(7), TimeSpan.FromSeconds(r.GetInt32(8)), r.GetBoolean(9), r.GetBoolean(10), [], r.IsDBNull(11) ? null : Enum.Parse<AlertState>(r.GetString(11)), r.IsDBNull(12) ? null : r.GetFieldValue<DateTimeOffset>(12), r.GetFieldValue<DateTimeOffset>(13), r.IsDBNull(14) ? null : r.GetString(14), r.IsDBNull(15) ? null : r.GetFieldValue<DateTimeOffset>(15), r.IsDBNull(16) ? null : r.GetGuid(16), r.GetFieldValue<DateTimeOffset>(17), r.GetFieldValue<DateTimeOffset>(18), r.IsDBNull(19) ? null : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(r.GetString(19)));
+    private static AlertDefinition Read(SqlDataReader r) => new(r.GetGuid(0), r.IsDBNull(1) ? null : r.GetGuid(1), r.GetGuid(2), r.GetString(3), Enum.Parse<AlertComparisonOperator>(r.GetString(4)), r.GetString(5), Enum.Parse<AlertInterval>(r.GetString(6)), r.GetString(7), TimeSpan.FromSeconds(r.GetInt32(8)), r.GetBoolean(9), r.GetBoolean(10), [], r.IsDBNull(11) ? null : Enum.Parse<AlertState>(r.GetString(11)), r.IsDBNull(12) ? null : r.GetFieldValue<DateTimeOffset>(12), r.GetFieldValue<DateTimeOffset>(13), r.IsDBNull(14) ? null : r.GetString(14), r.IsDBNull(15) ? null : r.GetFieldValue<DateTimeOffset>(15), r.IsDBNull(16) ? null : r.GetGuid(16), r.GetFieldValue<DateTimeOffset>(17), r.GetFieldValue<DateTimeOffset>(18), r.IsDBNull(19) ? null : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(r.GetString(19)));
     private static async Task ReplaceActionsAsync(SqlConnection c, SqlTransaction tx, AlertDefinition a, CancellationToken t)
     {
         await using (var delete = new SqlCommand("DELETE FROM dbo.AlertActions WHERE AlertId=@alertId;", c, tx))
@@ -183,7 +183,7 @@ public sealed class SqlAlertStore : IAlertStore
     }
     private static async Task<IReadOnlyList<AlertActionConfiguration>> ReadActionsAsync(SqlConnection c, Guid tenantId, Guid alertId, CancellationToken t)
     {
-        const string sql = "SELECT x.ActionType,x.EmailRecipientsJson,x.WebhookUrlsJson FROM dbo.AlertActions x JOIN dbo.AlertDefinitions a ON a.Id=x.AlertId JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenantId AND x.AlertId=@alertId ORDER BY x.ActionType;";
+        const string sql = "SELECT x.ActionType,x.EmailRecipientsJson,x.WebhookUrlsJson FROM dbo.AlertActions x JOIN dbo.AlertDefinitions a ON a.Id=x.AlertId WHERE a.TenantId=@tenantId AND x.AlertId=@alertId ORDER BY x.ActionType;";
         await using var cmd = new SqlCommand(sql, c);
         cmd.Parameters.AddWithValue("@tenantId", tenantId);
         cmd.Parameters.AddWithValue("@alertId", alertId);
@@ -202,7 +202,7 @@ public sealed class SqlAlertEvaluationStore(SqlServerOptions options) : IAlertEv
 {
     public async Task CreateAsync(Guid tenantId, AlertEvaluation e, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "INSERT dbo.AlertEvaluations(Id,AlertId,ValueJson,ThresholdJson,State,Error,EvaluatedAt) SELECT @id,@alert,@value,@threshold,@state,@error,@at WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions d ON d.Id=a.EntityId WHERE a.Id=@alert AND d.TenantId=@tenant);";
+        const string sql = "INSERT dbo.AlertEvaluations(Id,AlertId,ValueJson,ThresholdJson,State,Error,EvaluatedAt) SELECT @id,@alert,@value,@threshold,@state,@error,@at WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, e);
@@ -210,7 +210,7 @@ public sealed class SqlAlertEvaluationStore(SqlServerOptions options) : IAlertEv
     }
     public async Task<IReadOnlyList<AlertEvaluation>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "SELECT TOP(200) v.Id,v.AlertId,v.ValueJson,v.ThresholdJson,v.State,v.Error,v.EvaluatedAt FROM dbo.AlertEvaluations v JOIN dbo.AlertDefinitions a ON a.Id=v.AlertId JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenant AND v.AlertId=@alert ORDER BY v.EvaluatedAt DESC;";
+        const string sql = "SELECT TOP(200) v.Id,v.AlertId,v.ValueJson,v.ThresholdJson,v.State,v.Error,v.EvaluatedAt FROM dbo.AlertEvaluations v JOIN dbo.AlertDefinitions a ON a.Id=v.AlertId WHERE a.TenantId=@tenant AND v.AlertId=@alert ORDER BY v.EvaluatedAt DESC;";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         cmd.Parameters.AddWithValue("@tenant", tenantId);
@@ -242,7 +242,7 @@ public sealed class SqlAlertNotificationStore(SqlServerOptions options) : IAlert
     private const string Columns = "n.Id,n.AlertId,n.EvaluationId,n.Channel,n.Status,n.Attempts,n.LastError,n.CreatedAt,n.DeliveredAt,n.PayloadJson,n.NextAttemptAt,n.LeaseOwner,n.LeaseExpiresAt";
     public async Task CreateAsync(Guid tenantId, AlertNotification n, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "INSERT dbo.AlertNotifications(Id,AlertId,EvaluationId,Channel,Status,Attempts,LastError,CreatedAt,DeliveredAt,PayloadJson,NextAttemptAt) SELECT @id,@alert,@evaluation,@channel,@status,@attempts,@error,@created,@delivered,@payload,@next WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE a.Id=@alert AND e.TenantId=@tenant);";
+        const string sql = "INSERT dbo.AlertNotifications(Id,AlertId,EvaluationId,Channel,Status,Attempts,LastError,CreatedAt,DeliveredAt,PayloadJson,NextAttemptAt) SELECT @id,@alert,@evaluation,@channel,@status,@attempts,@error,@created,@delivered,@payload,@next WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, n);
@@ -254,7 +254,7 @@ public sealed class SqlAlertNotificationStore(SqlServerOptions options) : IAlert
     }
     public async Task<IReadOnlyList<AlertNotification>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = $"SELECT TOP(200) {Columns} FROM dbo.AlertNotifications n JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenant AND n.AlertId=@alert ORDER BY n.CreatedAt DESC;";
+        const string sql = $"SELECT TOP(200) {Columns} FROM dbo.AlertNotifications n JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId WHERE a.TenantId=@tenant AND n.AlertId=@alert ORDER BY n.CreatedAt DESC;";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         cmd.Parameters.AddWithValue("@tenant", tenantId);
@@ -271,7 +271,7 @@ public sealed class SqlAlertNotificationStore(SqlServerOptions options) : IAlert
     public async Task<AlertNotification?> ClaimPendingAsync(Guid tenantId, string owner, DateTimeOffset now, DateTimeOffset expires, EntityStorageLocation s, CancellationToken t)
     {
         var sql = $"""
-        ;WITH due AS (SELECT TOP(1) n.* FROM dbo.AlertNotifications n WITH (UPDLOCK,READPAST,ROWLOCK) JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenant AND n.Status=@pending AND n.Channel<>@inApp AND (n.NextAttemptAt IS NULL OR n.NextAttemptAt<=@now) AND (n.LeaseExpiresAt IS NULL OR n.LeaseExpiresAt<=@now) ORDER BY n.NextAttemptAt,n.CreatedAt,n.Id)
+        ;WITH due AS (SELECT TOP(1) n.* FROM dbo.AlertNotifications n WITH (UPDLOCK,READPAST,ROWLOCK) JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId WHERE a.TenantId=@tenant AND n.Status=@pending AND n.Channel<>@inApp AND (n.NextAttemptAt IS NULL OR n.NextAttemptAt<=@now) AND (n.LeaseExpiresAt IS NULL OR n.LeaseExpiresAt<=@now) ORDER BY n.NextAttemptAt,n.CreatedAt,n.Id)
         UPDATE due SET LeaseOwner=@owner,LeaseExpiresAt=@expires OUTPUT {string.Join(',', Columns.Split(',').Select(x => "inserted." + x[(x.IndexOf('.') + 1)..]))};
         """;
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
@@ -287,7 +287,7 @@ public sealed class SqlAlertNotificationStore(SqlServerOptions options) : IAlert
     }
     public async Task CompleteAsync(Guid tenantId, AlertNotification n, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "UPDATE n SET Status=@status,Attempts=@attempts,LastError=@error,DeliveredAt=@delivered,NextAttemptAt=@next,LeaseOwner=NULL,LeaseExpiresAt=NULL FROM dbo.AlertNotifications n JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId JOIN dbo.EntityDefinitions e ON e.Id=a.EntityId WHERE e.TenantId=@tenant AND n.Id=@id AND (n.LeaseOwner=@owner OR @owner IS NULL);";
+        const string sql = "UPDATE n SET Status=@status,Attempts=@attempts,LastError=@error,DeliveredAt=@delivered,NextAttemptAt=@next,LeaseOwner=NULL,LeaseExpiresAt=NULL FROM dbo.AlertNotifications n JOIN dbo.AlertDefinitions a ON a.Id=n.AlertId WHERE a.TenantId=@tenant AND n.Id=@id AND (n.LeaseOwner=@owner OR @owner IS NULL);";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, n);

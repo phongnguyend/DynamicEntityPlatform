@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DynamicEntity.Application.Common;
+using DynamicEntity.Application.Alerts;
 using DynamicEntity.Application.Abstractions;
 using DynamicEntity.Application.Entities;
 using DynamicEntity.Application.Fields;
@@ -315,12 +316,97 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.Equal(12.5m, (await reports.RunAsync(tenantId, null, report.Id, CancellationToken.None, parameters)).Rows.Single()["total"]);
         await reports.UpdateAsync(tenantId, null, report.Id, "Renamed global report", null, specification, CancellationToken.None);
         Assert.Equal("Renamed global report", (await reports.GetAsync(tenantId, null, report.Id, CancellationToken.None)).Name);
+        await ExerciseGlobalAlertsAsync(options, control, entities, fields, sql, metrics, tenantId, entityId, storage, metric.Id, existingMetricId, parameters);
         await reports.DeleteAsync(tenantId, null, report.Id, CancellationToken.None);
         await metrics.DeleteAsync(tenantId, null, metric.Id, CancellationToken.None);
         Assert.Empty(await reports.ListAsync(tenantId, null, CancellationToken.None));
         Assert.Empty(await metrics.ListAsync(tenantId, null, CancellationToken.None));
         // A global constant does not need any entity to be selected or referenced.
         Assert.Equal(1, (await sql.ExecuteAsync(tenantId, null, new(true, "SELECT 1 AS value", []), null, 1, true, CancellationToken.None)).Rows.Single()["value"]);
+    }
+
+    private static async Task ExerciseGlobalAlertsAsync(SqlServerOptions options, IControlPlaneStore control,
+        IEntityMetadataStore entities, IFieldMetadataStore fields, IVirtualSqlService sql,
+        DynamicEntity.Application.Metrics.MetricService metrics, Guid tenantId, Guid entityId,
+        EntityStorageLocation storage, Guid globalMetricId, Guid entityMetricId, IReadOnlyDictionary<string, JsonElement> parameters)
+    {
+        var store = new SqlAlertStore();
+        var metricStore = new SqlMetricStore();
+        var evaluations = new SqlAlertEvaluationStore(options);
+        var notifications = new SqlAlertNotificationStore(options);
+        var service = new AlertService(control, entities, metricStore, store, evaluations, notifications, TimeProvider.System, fields, sql);
+        var worker = new AlertEvaluationWorker(control, store, evaluations, notifications, new QueuedAlertNotifier(notifications),
+            metrics, new AlertThresholdEvaluator(), TimeProvider.System);
+        var token = CancellationToken.None;
+        var existing = await service.CreateAsync(tenantId, entityId, entityMetricId, "Existing entity alert",
+            AlertComparisonOperator.GreaterThan, "0", AlertInterval.Hourly, "UTC", TimeSpan.Zero, false, false, [], null, token, parameters);
+        // Recreate the previous schema with an existing alert to verify migration 13 backfills ownership.
+        await using (var connection = new SqlConnection(new SqlConnectionStringBuilder(storage.ConnectionString)
+        {
+            InitialCatalog = storage.DatabaseName
+        }.ConnectionString))
+        {
+            await connection.OpenAsync(token);
+            await using var command = new SqlCommand("""
+                DROP INDEX IX_AlertDefinitions_TenantScope ON dbo.AlertDefinitions;
+                DROP INDEX IX_AlertDefinitions_EntityId ON dbo.AlertDefinitions;
+                ALTER TABLE dbo.AlertDefinitions DROP COLUMN TenantId;
+                ALTER TABLE dbo.AlertDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NOT NULL;
+                CREATE INDEX IX_AlertDefinitions_EntityId ON dbo.AlertDefinitions(EntityId);
+                DELETE FROM dbo.SchemaMigrations WHERE Version=13;
+                """, connection);
+            await command.ExecuteNonQueryAsync(token);
+        }
+        await new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator().MigrateAsync(storage, token);
+        Assert.Equal(existing.Id, (await service.GetAsync(tenantId, entityId, existing.Id, token)).Id);
+        Assert.Empty(await service.ListAsync(tenantId, null, token));
+        var builder = await metrics.CreateAsync(tenantId, entityId, "Builder count", null, AggregateFunction.Count,
+            null, null, null, null, token);
+        foreach (var metricId in new[] { globalMetricId, entityMetricId, builder.Id })
+        {
+            if (metricId != builder.Id)
+            {
+                await Assert.ThrowsAsync<ValidationException>(() => service.CreateAsync(tenantId, null, metricId, "Missing input",
+                    AlertComparisonOperator.GreaterThan, "0", AlertInterval.Hourly, "UTC", TimeSpan.Zero, false, true, [], null, token));
+            }
+            var alert = await service.CreateAsync(tenantId, null, metricId, "Global alert", AlertComparisonOperator.GreaterThan,
+                "0", AlertInterval.Hourly, "UTC", TimeSpan.Zero, true, true,
+                [new(AlertActionType.Webhook, null, [new Uri("https://example.test/alerts")])], null, token, parameters);
+            Assert.Null(alert.EntityId);
+            Assert.Single(await service.ListAsync(tenantId, null, token));
+            Assert.Null(await store.GetAsync(tenantId, entityId, alert.Id, storage, token));
+            Assert.Null(await store.GetAsync(Guid.NewGuid(), null, alert.Id, storage, token));
+            Assert.Null(await metricStore.GetByIdAsync(Guid.NewGuid(), metricId, storage, token));
+            Assert.Null(await store.UpdateAsync(Guid.NewGuid(), alert, storage, token));
+            Assert.False(await store.DeleteAsync(Guid.NewGuid(), null, alert.Id, storage, token));
+            Assert.Equal(1, await worker.ProcessTenantAsync(tenantId, "global-test", token));
+            var history = await service.HistoryAsync(tenantId, null, alert.Id, token);
+            Assert.Equal(AlertState.Firing, Assert.Single(history.Item1).State);
+            Assert.Equal(2, history.Item2.Count);
+            var queued = await notifications.ClaimPendingAsync(tenantId, "delivery-test", DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow.AddMinutes(1), storage, token);
+            Assert.NotNull(queued);
+            Assert.Null(AlertNotificationPayloads.Deserialize(queued.PayloadJson)!.EntityId);
+            await notifications.CompleteAsync(tenantId, queued with
+            {
+                Status = NotificationStatus.Delivered,
+                DeliveredAt = DateTimeOffset.UtcNow
+            }, storage, token);
+            Assert.All(await notifications.ListAsync(tenantId, alert.Id, storage, token), item => Assert.Equal(NotificationStatus.Delivered, item.Status));
+            Assert.Empty(await notifications.ListAsync(Guid.NewGuid(), alert.Id, storage, token));
+            Assert.Empty(await evaluations.ListAsync(Guid.NewGuid(), alert.Id, storage, token));
+            await Assert.ThrowsAsync<ConflictException>(() => metrics.DeleteAsync(tenantId, metricId == globalMetricId ? null : entityId, metricId, token));
+            var updated = await service.UpdateAsync(tenantId, null, alert.Id, builder.Id, "Updated global alert",
+                alert.ComparisonOperator, alert.ThresholdJson, alert.Interval, alert.Timezone, alert.Cooldown, true, false, [], token);
+            Assert.Equal(builder.Id, updated.MetricId);
+            Assert.Empty((await service.GetAsync(tenantId, null, alert.Id, token)).Actions);
+            await service.DeleteAsync(tenantId, null, alert.Id, token);
+            Assert.Empty(await service.ListAsync(tenantId, null, token));
+        }
+        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateAsync(tenantId, entityId, globalMetricId, "Wrong scope",
+            AlertComparisonOperator.GreaterThan, "0", AlertInterval.Hourly, "UTC", TimeSpan.Zero, false, true, [], null, token, parameters));
+        await service.DeleteAsync(tenantId, entityId, existing.Id, token);
+        await metrics.DeleteAsync(tenantId, entityId, builder.Id, token);
     }
 
     private static async Task AssertAnalyticsMigrationsAsync(Guid tenantId, string connectionString)

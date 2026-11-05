@@ -15,6 +15,7 @@ test('global navigation follows the entire Entities section', async ({ page, api
     'Companies',
     'Reports',
     'Metrics',
+    'Alerts',
   ])
   await page.locator('aside').getByRole('link', { name: 'Reports', exact: true }).click()
   await expect(page).toHaveURL(/\/reports$/)

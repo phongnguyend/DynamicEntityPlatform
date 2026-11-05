@@ -206,7 +206,7 @@ export type AlertAction =
 export interface Alert {
   parameters?: Record<string, unknown>
   id: string
-  entityId: string
+  entityId: string | null
   metricId: string
   name: string
   comparisonOperator: AlertComparisonOperator

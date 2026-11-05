@@ -11,15 +11,18 @@ namespace DynamicEntity.UnitTests;
 
 public sealed class AlertParametersTests
 {
-    [Fact]
-    public async Task CreateAndUpdateRequireValidInputsAndPersistAlertSpecificValues()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateAndUpdateRequireValidInputsAndPersistAlertSpecificValues(bool global)
     {
         var repo = new FakeRepository();
         var metrics = new Metrics(repo);
         var alerts = new Alerts();
+        Guid? scope = global ? null : repo.Entity.Id;
         var service = new AlertService(repo, repo, metrics, alerts, null!, null!, TimeProvider.System, repo);
         Task<AlertDefinition> Create(IReadOnlyDictionary<string, JsonElement>? parameters) =>
-            service.CreateAsync(repo.Tenant.Id, repo.Entity.Id, metrics.Metric.Id, "Age alert", AlertComparisonOperator.GreaterThan,
+            service.CreateAsync(repo.Tenant.Id, scope, metrics.Metric.Id, "Age alert", AlertComparisonOperator.GreaterThan,
                 "10", AlertInterval.Hourly, "UTC", TimeSpan.Zero, false, true, [], null, CancellationToken.None, parameters);
         await Assert.ThrowsAsync<ValidationException>(() => Create(null));
         await Assert.ThrowsAsync<ValidationException>(() => Create(new Dictionary<string, JsonElement> { ["minimum"] = JsonSerializer.SerializeToElement("invalid") }));
@@ -28,11 +31,11 @@ public sealed class AlertParametersTests
         var saved = await Create(values);
         Assert.Equal("42", alerts.Saved!.Parameters!["minimum"].GetString());
         Assert.Contains("parameter", metrics.Metric.FilterJson!);
-        var updated = await service.UpdateAsync(repo.Tenant.Id, repo.Entity.Id, saved.Id, metrics.Metric.Id, saved.Name,
+        var updated = await service.UpdateAsync(repo.Tenant.Id, scope, saved.Id, metrics.Metric.Id, saved.Name,
             saved.ComparisonOperator, saved.ThresholdJson, saved.Interval, saved.Timezone, saved.Cooldown, false, true, [],
             CancellationToken.None, new Dictionary<string, JsonElement> { ["minimum"] = JsonSerializer.SerializeToElement("75") });
         Assert.Equal("75", updated.Parameters!["minimum"].GetString());
-        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(repo.Tenant.Id, repo.Entity.Id, saved.Id,
+        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(repo.Tenant.Id, scope, saved.Id,
             metrics.Metric.Id, saved.Name, saved.ComparisonOperator, saved.ThresholdJson, saved.Interval, saved.Timezone,
             saved.Cooldown, false, true, [], CancellationToken.None));
         Assert.Equal("75", alerts.Saved!.Parameters!["minimum"].GetString());
@@ -52,6 +55,7 @@ public sealed class AlertParametersTests
                 new JsonSerializerOptions { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } });
             Metric = new(Guid.NewGuid(), repo.Entity.Id, "Count", null, AggregateFunction.Count, null, filter, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
         }
+        public Task<MetricDefinition?> GetByIdAsync(Guid tenantId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult<MetricDefinition?>(Metric);
         public Task<MetricDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult<MetricDefinition?>(Metric);
         public Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<MetricDefinition?> UpdateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
@@ -74,9 +78,9 @@ public sealed class AlertParametersTests
             Saved = alert;
             return Task.FromResult<AlertDefinition?>(alert);
         }
-        public Task<AlertDefinition?> GetAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(Saved);
-        public Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
-        public Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<AlertDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => Task.FromResult(Saved);
+        public Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
+        public Task<bool> DeleteAsync(Guid tenantId, Guid? entityId, Guid id, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task<AlertDefinition?> ClaimDueAsync(Guid tenantId, string owner, DateTimeOffset now, DateTimeOffset expires, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
         public Task CompleteAsync(Guid tenantId, AlertDefinition alert, EntityStorageLocation storage, CancellationToken token) => throw new NotSupportedException();
     }

@@ -14,8 +14,23 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
   const context = useEntityContext(tenantId, entityId)
   const client = useQueryClient()
   const metrics = useQuery({
-    queryKey: ['metrics', tenantId, entityId],
-    queryFn: () => api.metrics(tenantId, entityId),
+    queryKey: ['alert-metrics', tenantId, entityId],
+    queryFn: async () => {
+      const entities = await api.entities(tenantId)
+      const scopes = entityId
+        ? entities.filter((entity) => entity.id === entityId)
+        : [{ id: null, displayName: 'Global' }, ...entities]
+      const groups = await Promise.all(
+        scopes.map(async (scope) => {
+          const items = await api.metrics(tenantId, scope.id)
+          return items.map((metric) => ({
+            ...metric,
+            label: entityId ? metric.name : `${scope.displayName}: ${metric.name}`,
+          }))
+        }),
+      )
+      return groups.flat().sort((left, right) => left.label.localeCompare(right.label))
+    },
   })
   const alerts = useQuery({ queryKey: ['alerts', tenantId, entityId], queryFn: () => api.alerts(tenantId, entityId) })
   const [jsonOpen, setJsonOpen] = useState(false)
@@ -150,10 +165,11 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
       <header>
         <div>
           <p className="eyebrow">Scheduled alerts</p>
-          <h2>{context.entity?.displayName}</h2>
+          <h2>{entityId ? context.entity?.displayName : 'Global alerts'}</h2>
         </div>
       </header>
-      <EntityTabs entityId={entityId} />
+      {entityId && <EntityTabs entityId={entityId} />}
+      {(metrics.error || alerts.error) && <p className="error">{metrics.error?.message ?? alerts.error?.message}</p>}
       <div className="workspace-grid">
         <div className="panel">
           <div className="panel-header">
@@ -174,10 +190,10 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
                   save.reset()
                 }}
               >
-                <option value="">Select a metric</option>
+                <option value="">{metrics.isLoading ? 'Loading metrics?' : 'Select a metric'}</option>
                 {metrics.data?.map((metric) => (
                   <option key={metric.id} value={metric.id}>
-                    {metric.name}
+                    {metric.label}
                   </option>
                 ))}
               </select>
@@ -336,7 +352,9 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
             <button
               disabled={
                 !name ||
-                !metricId ||
+                !selectedMetric ||
+                metrics.isLoading ||
+                Boolean(metrics.error) ||
                 missingParameters ||
                 save.isPending ||
                 (emailEnabled && !emailRecipients.trim()) ||
@@ -369,6 +387,9 @@ export function AlertsPage({ tenantId }: { tenantId: string }) {
                 <li key={alert.id}>
                   <div>
                     <strong>{alert.name}</strong>
+                    <small>
+                      {metrics.data?.find((metric) => metric.id === alert.metricId)?.label ?? 'Metric unavailable'}
+                    </small>
                     <small>
                       <span className={`alert-state ${alert.lastState?.toLowerCase() ?? 'normal'}`}>
                         {alert.lastState ?? 'Not evaluated'}

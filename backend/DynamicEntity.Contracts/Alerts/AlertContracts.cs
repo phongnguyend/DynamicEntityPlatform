@@ -8,7 +8,7 @@ public sealed record AlertActionResponse(AlertActionType Type, IReadOnlyList<str
 public sealed record SaveAlertRequest(Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
     JsonElement Threshold, AlertInterval Interval, string Timezone, int CooldownSeconds, bool NotifyOnRecovery, bool IsEnabled,
     IReadOnlyList<SaveAlertActionRequest>? Actions, IReadOnlyDictionary<string, JsonElement>? Parameters = null);
-public sealed record AlertResponse(Guid Id, Guid EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
+public sealed record AlertResponse(Guid Id, Guid? EntityId, Guid MetricId, string Name, AlertComparisonOperator ComparisonOperator,
     JsonElement Threshold, AlertInterval Interval, string Timezone, int CooldownSeconds, bool NotifyOnRecovery, bool IsEnabled,
     IReadOnlyList<AlertActionResponse> Actions,
     AlertState? LastState, DateTimeOffset? LastEvaluatedAt, DateTimeOffset NextEvaluationAt, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, IReadOnlyDictionary<string, JsonElement>? Parameters = null);

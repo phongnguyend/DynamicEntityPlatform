@@ -291,6 +291,25 @@ and adds global storage with tenant isolation. Restart the API to load the chang
 Global analytics authorization uses the analytics permission policy with
 `Guid.Empty` as the tenant-wide scope.
 
+### Global alerts
+
+Open **Alerts** below Reports and Metrics in the sidebar to manage tenant-wide
+alerts. The metric selector includes global SQL metrics and all entity metrics
+(builder and SQL), with labels such as **Global: Revenue** and **Customer: Count**.
+Entity alert pages show only that entity's metrics, without a name prefix.
+
+Global alerts support saved runtime parameter values, schedules, thresholds,
+cooldowns, recovery notifications, email/webhook actions, JSON editing, **Test now**,
+and evaluation/notification history. Evaluation uses the selected metric's entity
+scope, independently of the alert's global scope. Global alert webhook payloads
+contain `"entityId": null`.
+
+Use `/api/alerts` and `/api/alerts/{alertId}/history` or `/test` for the global
+endpoints. Tenant migration 13 preserves existing entity alerts and adds global
+alert storage. Restart the API to apply the migration. Global alert management
+and history use the corresponding alert authorization policies with `Guid.Empty`
+as the tenant-wide scope.
+
 ### Runtime values
 
 Report and metric filter values support fixed literals, named runtime inputs, and server-generated

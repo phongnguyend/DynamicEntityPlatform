@@ -86,6 +86,18 @@ public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetada
         var result = await PreviewAsync(tenantId, entityId, metric.Aggregate, metric.FieldId, DeserializeFilter(metric.FilterJson), token, parameters, metric.Sql);
         return (result.Rows.SingleOrDefault()?.GetValueOrDefault("value"), result.GeneratedAt);
     }
+    public async Task<(object? Value, DateTimeOffset EvaluatedAt)> EvaluateForAlertAsync(Guid tenantId, Guid? alertEntityId, Guid metricId,
+        CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null)
+    {
+        var storage = await RequireEntityAsync(tenantId, alertEntityId, token);
+        var metric = await metrics.GetByIdAsync(tenantId, metricId, storage, token)
+            ?? throw new NotFoundException($"Metric '{metricId}' was not found.");
+        if (alertEntityId is not null && metric.EntityId != alertEntityId)
+        {
+            throw new NotFoundException($"Metric '{metricId}' was not found.");
+        }
+        return await EvaluateAsync(tenantId, metric.EntityId, metricId, token, parameters);
+    }
     public async Task<AnalyticsResult> PreviewAsync(Guid tenantId, Guid? entityId, AggregateFunction aggregate, Guid? fieldId,
         Domain.Queries.FilterGroup? filter, CancellationToken token, IReadOnlyDictionary<string, JsonElement>? parameters = null, VirtualSqlDefinition? sql = null)
     {

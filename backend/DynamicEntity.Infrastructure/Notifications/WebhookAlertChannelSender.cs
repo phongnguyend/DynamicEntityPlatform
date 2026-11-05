@@ -178,7 +178,14 @@ public sealed class WebhookAlertChannelSender(HttpClient client, WebhookAlertOpt
             writer.WriteString("evaluationId", notification.EvaluationId);
             writer.WriteNumber("attempt", notification.Attempts);
             writer.WriteString("alertId", payload.AlertId);
-            writer.WriteString("entityId", payload.EntityId);
+            if (payload.EntityId is Guid entityId)
+            {
+                writer.WriteString("entityId", entityId);
+            }
+            else
+            {
+                writer.WriteNull("entityId");
+            }
             writer.WriteString("metricId", payload.MetricId);
             writer.WriteString("alertName", payload.AlertName);
             writer.WriteString("state", payload.State.ToString());
