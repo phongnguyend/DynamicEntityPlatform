@@ -14,3 +14,10 @@ if (context.User.Identity?.IsAuthenticated != true)
 
 - In C#, separate each property declaration from the next with one blank line, including auto-properties.
 - Apply convention to new and modified code, including tests.
+
+## Frontend regression checks
+
+- Prefer the repeatable Playwright scripts in `frontend/e2e` over ad hoc interactive browser sessions for UI verification.
+- Run the relevant feature spec with `npm run test:e2e -- e2e/<feature>.spec.ts` from `frontend`. Add or update regression cases when changing user-visible behavior.
+- Use interactive browser inspection when diagnosing failures or assessing visual design; preserve reproducible checks in the test suite.
+- The browser suite uses isolated API fixtures. Keep backend behavior covered by the .NET unit/integration tests; do not describe mocked UI tests as database integration coverage.

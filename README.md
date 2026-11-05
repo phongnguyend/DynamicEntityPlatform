@@ -195,6 +195,57 @@ To add a SQL index, find an eligible field under **Manage fields**, select
 `LongText` and `MultiChoice` fields do not support scalar computed indexes.
 Use **Remove index** beside an indexed field to drop its SQL index and computed column.
 
+## Browser regression tests
+
+Run the headless Playwright suite from `frontend`:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:e2e:check
+npm run test:e2e
+```
+
+Playwright starts and stops a dedicated Vite server at `http://127.0.0.1:5174`.
+Port 5174 must be available. No manually opened browser, running API, SQL Server,
+or existing tenant is required. Each test gets a fresh browser context and isolated,
+stateful API fixtures. Unexpected API calls and uncaught browser errors fail the test.
+
+The suite covers these frontend workflows:
+
+| Spec | Coverage |
+| --- | --- |
+| `workspace.spec.ts` | Tenant creation/rename, entity creation/pinning, field creation, record CRUD, CSV export, views, API errors |
+| `analytics.spec.ts` | Metric CRUD/evaluation, report save/reopen/preview/export, runtime prompts, alert parameters, webhook CRUD/toggle |
+| `dashboards.spec.ts` | Dashboard CRUD, duplicate names, backdrop behavior, dashboard parameters, card layout after reload |
+| `sql-editor.spec.ts` | Metric/report SQL editing, schema search/insert/copy, undo/redo, parameter discovery, virtual/database previews, narrow layout |
+| `regressions.spec.ts` | Tenant selection, field editing, index management, filtering, import workflow, JSON validation/editing, report parameters, dashboard card library/binding |
+
+Useful commands (from `frontend`):
+
+```sh
+# Run one feature or matching test names
+npm run test:e2e -- e2e/dashboards.spec.ts
+npm run test:e2e -- --grep "runtime"
+# Rerun failures, or debug interactively when needed
+npm run test:e2e -- --last-failed
+npm run test:e2e:ui
+# Inspect the most recent HTML report
+npm run test:e2e:report
+```
+
+Failed tests retain screenshots and Playwright traces in `frontend/test-results`.
+Open a trace from the HTML report, or run `npx playwright show-trace <trace.zip>`.
+Generated reports and results are ignored by Git. CI runs Chromium and uploads
+the report and failure artifacts for 14 days.
+
+These are frontend workflow regression tests with mocked HTTP responses, not a
+replacement for the existing .NET tests against SQL Server. They verify UI behavior
+and request payloads; SQL compilation/execution, database persistence, notification
+delivery, and server-side import validation require the backend tests. Extend the
+relevant spec and fixtures when adding features; this is a regression baseline,
+not exhaustive coverage of every field type or chart configuration.
+
 ## API conventions
 
 - Pass the authenticated tenant as `X-Tenant-Id` during development.
