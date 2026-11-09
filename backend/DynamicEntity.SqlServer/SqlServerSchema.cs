@@ -457,6 +457,22 @@ internal static class SqlServerSchema
             CREATE INDEX IX_ReportDefinitions_TenantScope ON dbo.ReportDefinitions(TenantId,EntityId);
             CREATE INDEX IX_MetricDefinitions_TenantScope ON dbo.MetricDefinitions(TenantId,EntityId);';
         """;
+    public const string TenantDatabaseV14 = """
+        CREATE TABLE dbo.GlobalViewDefinitions
+        (
+            Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_GlobalViewDefinitions PRIMARY KEY,
+            TenantId UNIQUEIDENTIFIER NOT NULL,
+            Name NVARCHAR(200) NOT NULL,
+            Description NVARCHAR(MAX) NULL,
+            DefinitionJson NVARCHAR(MAX) NOT NULL,
+            CreatedBy UNIQUEIDENTIFIER NULL,
+            CreatedAt DATETIMEOFFSET(7) NOT NULL,
+            UpdatedAt DATETIMEOFFSET(7) NOT NULL,
+            CONSTRAINT CK_GlobalViewDefinitions_Json CHECK (ISJSON(DefinitionJson)=1)
+        );
+        CREATE INDEX IX_GlobalViewDefinitions_Tenant ON dbo.GlobalViewDefinitions(TenantId);
+        """;
+
     public const string TenantDatabaseV13 = """
         ALTER TABLE dbo.AlertDefinitions ADD TenantId UNIQUEIDENTIFIER NULL;
         EXEC sys.sp_executesql N'

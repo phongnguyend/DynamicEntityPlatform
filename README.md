@@ -221,6 +221,8 @@ The suite covers these frontend workflows:
 | `sql-editor.spec.ts` | Metric/report SQL editing, schema search/insert/copy, undo/redo, parameter discovery, virtual/database previews, narrow layout |
 | `regressions.spec.ts` | Tenant selection, field editing, index management, filtering, import workflow, JSON validation/editing, report parameters, dashboard card library/binding |
 | `button-icons.spec.ts` | Visible button icons, accessible names and icon-only tooltips, dialog actions, loading/disabled/selection states, and the SQL parameter Plus icon |
+| `global-views.spec.ts` | Global SQL view CRUD, read-only results, saved column settings, parameters, JSON editing, empty workspaces, and error handling |
+| `view-csv.spec.ts` | View CSV downloads, visible column order, runtime results, Unicode/quoting, and empty or stale results |
 
 Useful commands (from `frontend`):
 
@@ -258,6 +260,46 @@ not exhaustive coverage of every field type or chart configuration.
 - Import files may be `.csv` or `.xlsx`; multi-choice cells use semicolon-delimited values.
 
 ## View SQL preview
+
+### Global SQL views
+
+Open **Views** in the sidebar below the complete Entities section to manage saved
+queries across entities. Create a view using virtual table and column names from
+the schema browser, including joins and `@parameter` references. Global views use
+SQL mode only and display read-only results; entity views retain their existing
+record editing behavior.
+
+Use **New view**, **Open**, **Edit**, and **Delete** to manage definitions. The editor
+includes SQL validation, explicit result preview, JSON editing, a color, and a row
+limit from 1 to 1,000. **Column settings** saves result column order and visibility.
+When a query reaches the row limit, the results show that more rows are available;
+this is a bounded result preview, not paginated access to the entire dataset.
+
+Views with required runtime parameters wait for **Run view** and prompt for values.
+Views without required inputs load automatically, applying declared defaults.
+SQL preview supports virtual/database names and optional parameter values without
+running the result query. Parameters entered for execution are not persisted in
+the view definition.
+
+Entity view updates and deletes use `/api/entities/{entityId}/views/{viewId}`.
+The API uses `/api/views` for global view CRUD, `/api/views/{viewId}/run` for
+execution, and `/api/views/preview` and `/api/views/sql` for unsaved
+definitions. A definition contains `sql`, `rowLimit`, optional `columnOrder`,
+`hiddenColumns`, and `color`. Tenant migration 14 adds separate global view storage.
+Restart the API to apply it. Global views use the tenant-wide analytics authorization
+policies with `Guid.Empty` as the scope.
+
+### View CSV exports
+
+Both entity and global view detail pages offer **Export CSV**. This exports the
+currently displayed rows with visible columns in their configured order, including
+unsaved column settings. Entity exports include Created/Updated timestamps in ISO
+format. Filters and global runtime parameters are reflected in the loaded results.
+Exports respect the entity view's page size or global view's row limit; they do not
+fetch all matching rows. Global editor previews can also be exported after running
+the query. Changing the SQL or row limit requires a fresh preview before export.
+
+### SQL representations
 
 All SQL previews (views, reports, and metrics) offer **Virtual names** and **Database
 names**. Virtual SQL uses the entity and field machine names as a logical table and

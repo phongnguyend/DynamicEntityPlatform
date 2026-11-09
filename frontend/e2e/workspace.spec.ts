@@ -71,7 +71,7 @@ test('records: CSV export and import dialog', async ({ page }) => {
   await expect(page.locator('input[type=file]')).toHaveCount(1)
 })
 
-test('views: rename, inspect JSON, open, and delete', async ({ page }) => {
+test('views: rename, inspect JSON, open, and delete', async ({ page, api }) => {
   await page.goto(`${entityPath}/views`)
   await page.getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill('Renamed view')
@@ -82,10 +82,24 @@ test('views: rename, inspect JSON, open, and delete', async ({ page }) => {
   await page.locator('.modal').getByRole('button', { name: 'Close', exact: true }).last().click()
   await page.getByRole('link', { name: 'Open', exact: true }).click()
   await expect(page.getByRole('cell', { name: 'Alice' })).toBeVisible()
+  await page.getByRole('button', { name: 'Column Settings', exact: true }).click()
+  const visibility = page.locator('.modal').getByRole('checkbox').first()
+  await visibility.uncheck()
+  await expect(page.locator('.modal .column-hidden')).toContainText('Hidden')
+  await page.locator('.modal').getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Column Settings', exact: true }).click()
+  await expect(visibility).toBeChecked()
+  await page.locator('.modal').getByRole('button', { name: 'Apply settings', exact: true }).click()
   await page.goto(`${entityPath}/views`)
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByText('Renamed view', { exact: true })).toHaveCount(0)
+  expect(
+    api.requests
+      .filter((request) => request.method === 'PATCH' || request.method === 'DELETE')
+      .map((request) => request.path),
+  ).toEqual(['/api/entities/customer/views/view-customer', '/api/entities/customer/views/view-customer'])
+  expect(api.collections['/api/views']).toHaveLength(0)
 })
 
 test('API errors are visible to users', async ({ page }) => {

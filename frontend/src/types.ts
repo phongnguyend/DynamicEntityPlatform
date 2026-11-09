@@ -75,6 +75,22 @@ export interface RecordPage {
   items: DynamicRecord[]
   nextCursor?: string
 }
+export interface GlobalViewSpecification {
+  sql: VirtualSqlDefinition
+  rowLimit: number
+  columnOrder?: string[]
+  hiddenColumns?: string[]
+  color?: string
+}
+export interface GlobalView {
+  id: string
+  name: string
+  description?: string
+  definition: GlobalViewSpecification
+  createdAt: string
+  updatedAt: string
+}
+
 export interface SavedView {
   id: string
   entityId: string

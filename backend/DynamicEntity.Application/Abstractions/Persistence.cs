@@ -124,12 +124,21 @@ public interface IEntityIndexManager
         CancellationToken cancellationToken);
 }
 
+public interface IGlobalViewStore
+{
+    Task<GlobalViewDefinition> CreateAsync(Guid tenantId, GlobalViewDefinition view, EntityStorageLocation storage, CancellationToken token);
+    Task<IReadOnlyList<GlobalViewDefinition>> ListAsync(Guid tenantId, EntityStorageLocation storage, CancellationToken token);
+    Task<GlobalViewDefinition?> GetAsync(Guid tenantId, Guid viewId, EntityStorageLocation storage, CancellationToken token);
+    Task<GlobalViewDefinition?> UpdateAsync(Guid tenantId, GlobalViewDefinition view, EntityStorageLocation storage, CancellationToken token);
+    Task<bool> DeleteAsync(Guid tenantId, Guid viewId, EntityStorageLocation storage, CancellationToken token);
+}
+
 public interface IViewStore
 {
     Task<ViewDefinition> CreateAsync(Guid tenantId, ViewDefinition view, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<IReadOnlyList<ViewDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<ViewDefinition?> UpdateAsync(Guid tenantId, ViewDefinition view, EntityStorageLocation storage, CancellationToken cancellationToken);
-    Task<bool> DeleteAsync(Guid tenantId, Guid viewId, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid viewId, EntityStorageLocation storage, CancellationToken cancellationToken);
 }
 
 public interface IDashboardStore

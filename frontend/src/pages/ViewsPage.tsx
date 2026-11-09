@@ -19,7 +19,7 @@ export function ViewsPage({ tenantId }: { tenantId: string }) {
   const [viewingJson, setViewingJson] = useState<SavedView>()
   const views = useQuery({ queryKey: ['views', tenantId, entityId], queryFn: () => api.views(tenantId, entityId) })
   const remove = useMutation({
-    mutationFn: (viewId: string) => api.deleteView(tenantId, viewId),
+    mutationFn: (viewId: string) => api.deleteView(tenantId, entityId, viewId),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['views', tenantId, entityId] }),
   })
 

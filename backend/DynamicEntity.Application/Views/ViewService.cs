@@ -41,10 +41,10 @@ public sealed class ViewService(
             ?? throw new NotFoundException($"View '{viewId}' was not found.");
     }
 
-    public async Task DeleteAsync(Guid tenantId, Guid viewId, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid tenantId, Guid entityId, Guid viewId, CancellationToken cancellationToken)
     {
         var storage = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, cancellationToken);
-        if (!await views.DeleteAsync(tenantId, viewId, storage, cancellationToken))
+        if (!await views.DeleteAsync(tenantId, entityId, viewId, storage, cancellationToken))
         {
             throw new NotFoundException($"View '{viewId}' was not found.");
         }

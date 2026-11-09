@@ -1,12 +1,14 @@
-import { useState, type DragEvent, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Columns3, CopyPlus, GripVertical, Save, X } from 'lucide-react'
+import { Columns3, CopyPlus, Save, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { DynamicGrid } from '../components/DynamicGrid'
+import { CsvExportButton } from '../components/CsvExportButton'
 import { EntityTabs } from '../components/EntityTabs'
 import { FilterPanel } from '../components/FilterPanel'
 import { Modal } from '../components/Modal'
+import { ColumnSettingsModal, type ViewColumnSettings } from '../components/ColumnSettingsModal'
 import { ViewSqlButton, toRecordQuery } from '../components/ViewSqlButton'
 import { ViewColorDot, ViewColorPicker, getViewColor, withViewColor } from '../components/ViewColorPicker'
 import type { DynamicRecord, Field, SavedView } from '../types'
@@ -95,6 +97,20 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
         <div className="panel-header">
           <h3>Records</h3>
           <div className="page-actions">
+            <CsvExportButton
+              filename={view?.name ?? 'New view'}
+              disabled={!records.data || records.isFetching || Boolean(records.error)}
+              columns={[
+                ...visibleFields.map((field) => ({ key: field.id, label: field.displayName })),
+                { key: 'createdAt', label: 'Created' },
+                { key: 'updatedAt', label: 'Updated' },
+              ]}
+              rows={(records.data?.items ?? []).map((record) => ({
+                ...Object.fromEntries(visibleFields.map((field) => [field.id, record.data[field.storageKey]])),
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+              }))}
+            />
             <ViewSqlButton
               tenantId={tenantId}
               entityId={entityId}
@@ -148,6 +164,9 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
               <p className="record-count">
                 {records.data?.items.length ?? 0} record{records.data?.items.length === 1 ? '' : 's'}
               </p>
+              <p className="field-note">
+                CSV exports the displayed rows and visible columns, within this view's page size.
+              </p>
             </>
           )}
           {save.error && <p className="error">{save.error.message}</p>}
@@ -184,7 +203,7 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
       )}
       {columnSettingsOpen && (
         <ColumnSettingsModal
-          fields={fields}
+          columns={fields}
           settings={columnSettings}
           onClose={() => setColumnSettingsOpen(false)}
           onApply={(settings) => {
@@ -194,116 +213,6 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
         />
       )}
     </section>
-  )
-}
-
-interface ViewColumnSettings {
-  order: string[]
-  hidden: string[]
-}
-
-function ColumnSettingsModal({
-  fields,
-  settings,
-  onClose,
-  onApply,
-}: {
-  fields: Field[]
-  settings: ViewColumnSettings
-  onClose: () => void
-  onApply: (settings: ViewColumnSettings) => void
-}) {
-  const fieldsById = new Map(fields.map((field) => [field.id, field]))
-  const [order, setOrder] = useState(settings.order)
-  const [hidden, setHidden] = useState(() => new Set(settings.hidden))
-  const [draggedId, setDraggedId] = useState<string>()
-
-  function dragOver(event: DragEvent<HTMLLIElement>, targetId: string) {
-    event.preventDefault()
-    if (!draggedId || draggedId === targetId) {
-      return
-    }
-    setOrder((current) => {
-      const from = current.indexOf(draggedId)
-      const to = current.indexOf(targetId)
-      if (from < 0 || to < 0) {
-        return current
-      }
-      const next = current.slice()
-      const [fieldId] = next.splice(from, 1)
-      next.splice(to, 0, fieldId)
-      return next
-    })
-  }
-
-  function toggle(fieldId: string) {
-    setHidden((current) => {
-      const next = new Set(current)
-      if (next.has(fieldId)) {
-        next.delete(fieldId)
-      } else {
-        next.add(fieldId)
-      }
-      return next
-    })
-  }
-
-  return (
-    <Modal title="Column settings" onClose={onClose}>
-      <div className="column-settings">
-        <p className="field-note">
-          Drag columns into display order and choose which columns are visible. Use Save to persist the changes.
-        </p>
-        <ol className="field-order-list">
-          {order.map((fieldId) => {
-            const field = fieldsById.get(fieldId)
-            if (!field) {
-              return null
-            }
-            return (
-              <li
-                key={fieldId}
-                draggable
-                className={draggedId === fieldId ? 'dragging' : ''}
-                onDragStart={(event) => {
-                  setDraggedId(fieldId)
-                  event.dataTransfer.effectAllowed = 'move'
-                  event.dataTransfer.setData('text/plain', fieldId)
-                }}
-                onDragOver={(event) => dragOver(event, fieldId)}
-                onDragEnd={() => setDraggedId(undefined)}
-              >
-                <span className="drag-handle" aria-hidden="true">
-                  <GripVertical />
-                </span>
-                <label className="check">
-                  <input type="checkbox" checked={!hidden.has(fieldId)} onChange={() => toggle(fieldId)} />
-                  <span>
-                    <strong>{field.displayName}</strong>
-                    <small>
-                      {field.name} · {field.dataType}
-                    </small>
-                  </span>
-                </label>
-                <span className={hidden.has(fieldId) ? 'column-hidden' : 'index-status'}>
-                  {hidden.has(fieldId) ? 'Hidden' : 'Visible'}
-                </span>
-              </li>
-            )
-          })}
-        </ol>
-        <div className="modal-footer">
-          <button type="button" onClick={() => onApply({ order, hidden: [...hidden] })}>
-            <Columns3 />
-            Apply settings
-          </button>
-          <button type="button" className="secondary" onClick={onClose}>
-            <X />
-            Cancel
-          </button>
-        </div>
-      </div>
-    </Modal>
   )
 }
 

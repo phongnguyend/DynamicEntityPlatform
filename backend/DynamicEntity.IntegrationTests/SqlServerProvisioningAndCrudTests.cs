@@ -130,6 +130,7 @@ public sealed class SqlServerProvisioningAndCrudTests
             };
             var updatedMetric = await metricStore.UpdateAsync(tenant.Id, renamed, tenantStorage!, CancellationToken.None);
             Assert.Equal(sqlDefinition.Text, updatedMetric!.Sql!.Text);
+            await ExerciseGlobalViewsAsync(control, metadata, virtualSql, tenant.Id, tenantStorage!);
             await ExerciseGlobalAnalyticsAsync(options, control, metadata, fieldStore, resolver, virtualSql,
                 tenant.Id, entity.Id, tenantStorage!, sqlDefinition, sqlParameters, metricDefinition.Id);
             await using (var restrictedConnection = new SqlConnection(tenantBuilder.ConnectionString))
@@ -323,6 +324,63 @@ public sealed class SqlServerProvisioningAndCrudTests
         Assert.Empty(await metrics.ListAsync(tenantId, null, CancellationToken.None));
         // A global constant does not need any entity to be selected or referenced.
         Assert.Equal(1, (await sql.ExecuteAsync(tenantId, null, new(true, "SELECT 1 AS value", []), null, 1, true, CancellationToken.None)).Rows.Single()["value"]);
+    }
+
+    private static async Task ExerciseGlobalViewsAsync(IControlPlaneStore control, IEntityMetadataStore entities,
+        IVirtualSqlService sql, Guid tenantId, EntityStorageLocation storage)
+    {
+        var token = CancellationToken.None;
+        var company = await new EntityService(control, entities, TimeProvider.System).CreateAsync(tenantId, "company", "Company", null, token);
+        var customer = (await entities.ListAsync(tenantId, storage, token)).Single(entity => entity.Name == "customer");
+        var entityViews = new DynamicEntity.Application.Views.ViewService(control, entities, new SqlServerViewStore(), TimeProvider.System);
+        var entityDefinition = JsonSerializer.SerializeToElement(new { pageSize = 100 });
+        var entityView = await entityViews.CreateAsync(tenantId, customer.Id, "Entity view", entityDefinition, null, token);
+        await Assert.ThrowsAsync<NotFoundException>(() => entityViews.DeleteAsync(tenantId, company.Id, entityView.Id, token));
+        await Assert.ThrowsAsync<NotFoundException>(() => entityViews.UpdateAsync(tenantId, entityView.Id, company.Id, "Wrong entity", entityDefinition, token));
+        Assert.Single(await entityViews.ListAsync(tenantId, customer.Id, token));
+        await entityViews.UpdateAsync(tenantId, entityView.Id, customer.Id, "Renamed entity view", entityDefinition, token);
+        await entityViews.DeleteAsync(tenantId, customer.Id, entityView.Id, token);
+        Assert.Empty(await entityViews.ListAsync(tenantId, customer.Id, token));
+        var store = new SqlGlobalViewStore();
+        var service = new DynamicEntity.Application.Views.GlobalViewService(control, store, sql, TimeProvider.System);
+        var definition = new DynamicEntity.Domain.Views.GlobalViewSpecification(new(true,
+            "SELECT c.name AS customerName, c.amount, co.Id AS companyId FROM customer c LEFT JOIN company co ON c.Id=co.Id WHERE c.name=@name",
+            [new("name", "Text")]), 10, ["amount", "customerName", "companyId"], ["companyId"], "#176b4d");
+        var saved = await service.CreateAsync(tenantId, "Cross entity view", "Read only", definition, token);
+        var loaded = await service.GetAsync(tenantId, saved.Id, token);
+        Assert.Equal(definition.Sql.Text, loaded.Definition.Sql.Text);
+        Assert.Equal(definition.ColumnOrder, loaded.Definition.ColumnOrder);
+        Assert.Equal(definition.HiddenColumns, loaded.Definition.HiddenColumns);
+        Assert.Equal(definition.Color, loaded.Definition.Color);
+        Assert.Single(await service.ListAsync(tenantId, token));
+        Assert.Null(await store.GetAsync(Guid.NewGuid(), saved.Id, storage, token));
+        Assert.Empty(await store.ListAsync(Guid.NewGuid(), storage, token));
+        Assert.Null(await store.UpdateAsync(Guid.NewGuid(), saved, storage, token));
+        Assert.False(await store.DeleteAsync(Guid.NewGuid(), saved.Id, storage, token));
+        await Assert.ThrowsAsync<ValidationException>(() => service.RunAsync(tenantId, saved.Id, null, token));
+        var parameters = new Dictionary<string, JsonElement> { ["name"] = JsonSerializer.SerializeToElement("Ada") };
+        var preview = await service.PreviewSqlAsync(tenantId, definition, null, token);
+        Assert.Contains("customer", preview.VirtualSql, StringComparison.OrdinalIgnoreCase);
+        var result = await service.RunAsync(tenantId, saved.Id, parameters, token);
+        Assert.Equal("Ada", Assert.Single(result.Rows)["customerName"]);
+        Assert.Equal(12.5m, result.Rows[0]["amount"]);
+        Assert.Null(result.Rows[0]["companyId"]);
+        await Assert.ThrowsAsync<ValidationException>(() => service.CreateAsync(tenantId, "Write query", null,
+            definition with { Sql = new(true, "DELETE FROM customer", []) }, token));
+        var changed = definition with
+        {
+            Sql = new(true, "SELECT 1 AS value UNION ALL SELECT 2", []),
+            RowLimit = 1
+        };
+        var updated = await service.UpdateAsync(tenantId, saved.Id, "Renamed", null, changed, token);
+        Assert.Equal(saved.CreatedAt, updated.CreatedAt);
+        Assert.Equal("Renamed", (await service.GetAsync(tenantId, saved.Id, token)).Name);
+        var limited = await service.RunAsync(tenantId, saved.Id, null, token);
+        Assert.Single(limited.Rows);
+        Assert.True(limited.Truncated);
+        await service.DeleteAsync(tenantId, saved.Id, token);
+        Assert.Empty(await service.ListAsync(tenantId, token));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetAsync(tenantId, saved.Id, token));
     }
 
     private static async Task ExerciseGlobalAlertsAsync(SqlServerOptions options, IControlPlaneStore control,

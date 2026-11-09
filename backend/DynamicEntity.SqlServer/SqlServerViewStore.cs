@@ -59,15 +59,16 @@ public sealed class SqlServerViewStore : IViewStore
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1 ? view : null;
     }
 
-    public async Task<bool> DeleteAsync(Guid tenantId, Guid viewId, EntityStorageLocation storage, CancellationToken cancellationToken)
+    public async Task<bool> DeleteAsync(Guid tenantId, Guid entityId, Guid viewId, EntityStorageLocation storage, CancellationToken cancellationToken)
     {
         const string sql = """
             DELETE v FROM dbo.ViewDefinitions v INNER JOIN dbo.EntityDefinitions e ON e.Id = v.EntityId
-            WHERE v.Id = @id AND e.TenantId = @tenantId;
+            WHERE v.Id = @id AND v.EntityId = @entityId AND e.TenantId = @tenantId;
             """;
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@id", viewId);
+        command.Parameters.AddWithValue("@entityId", entityId);
         command.Parameters.AddWithValue("@tenantId", tenantId);
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }

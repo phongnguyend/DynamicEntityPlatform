@@ -1,5 +1,7 @@
 import type {
   SqlPreview,
+  GlobalView,
+  GlobalViewSpecification,
   Alert,
   AlertHistory,
   AnalyticsQuery,
@@ -50,6 +52,34 @@ async function request<T>(path: string, init: RequestInit = {}, tenantId?: strin
 const analyticsBase = (entityId: string | null) => (entityId ? `/api/entities/${entityId}` : '/api')
 
 export const api = {
+  globalViews: (tenantId: string) => request<GlobalView[]>('/api/views', {}, tenantId),
+  globalView: (tenantId: string, id: string) => request<GlobalView>(`/api/views/${id}`, {}, tenantId),
+  saveGlobalView: (tenantId: string, input: Pick<GlobalView, 'name' | 'description' | 'definition'>, id?: string) =>
+    request<GlobalView>(
+      `/api/views${id ? `/${id}` : ''}`,
+      { method: id ? 'PATCH' : 'POST', body: JSON.stringify(input) },
+      tenantId,
+    ),
+  deleteGlobalView: (tenantId: string, id: string) =>
+    request<void>(`/api/views/${id}`, { method: 'DELETE' }, tenantId),
+  globalViewSql: (tenantId: string, definition: GlobalViewSpecification, parameters?: Record<string, unknown>) =>
+    request<SqlPreview>(
+      '/api/views/sql',
+      { method: 'POST', body: JSON.stringify({ definition, parameters }) },
+      tenantId,
+    ),
+  previewGlobalView: (tenantId: string, definition: GlobalViewSpecification, parameters?: Record<string, unknown>) =>
+    request<AnalyticsResult>(
+      '/api/views/preview',
+      { method: 'POST', body: JSON.stringify({ definition, parameters }) },
+      tenantId,
+    ),
+  runGlobalView: (tenantId: string, id: string, parameters?: Record<string, unknown>) =>
+    request<AnalyticsResult>(
+      `/api/views/${id}/run`,
+      { method: 'POST', body: JSON.stringify({ parameters }) },
+      tenantId,
+    ),
   tenants: () => request<Tenant[]>('/api/tenants'),
   createTenant: (name: string, connectionString: string) =>
     request<Tenant>('/api/tenants', { method: 'POST', body: JSON.stringify({ name, connectionString }) }),
@@ -167,12 +197,12 @@ export const api = {
     ),
   updateView: (tenantId: string, viewId: string, entityId: string, name: string, definition: Record<string, unknown>) =>
     request<SavedView>(
-      `/api/views/${viewId}`,
-      { method: 'PATCH', body: JSON.stringify({ entityId, name, definition }) },
+      `/api/entities/${entityId}/views/${viewId}`,
+      { method: 'PATCH', body: JSON.stringify({ name, definition }) },
       tenantId,
     ),
-  deleteView: (tenantId: string, viewId: string) =>
-    request<void>(`/api/views/${viewId}`, { method: 'DELETE' }, tenantId),
+  deleteView: (tenantId: string, entityId: string, viewId: string) =>
+    request<void>(`/api/entities/${entityId}/views/${viewId}`, { method: 'DELETE' }, tenantId),
   dashboards: (tenantId: string) => request<Dashboard[]>('/api/dashboards', {}, tenantId),
   dashboard: (tenantId: string, dashboardId: string) =>
     request<Dashboard>(`/api/dashboards/${dashboardId}`, {}, tenantId),

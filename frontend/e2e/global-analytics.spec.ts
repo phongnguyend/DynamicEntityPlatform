@@ -13,6 +13,7 @@ test('global navigation follows the entire Entities section', async ({ page, api
     'Entities',
     'Customers',
     'Companies',
+    'Views',
     'Reports',
     'Metrics',
     'Alerts',

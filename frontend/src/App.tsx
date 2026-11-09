@@ -33,6 +33,8 @@ import { RecordsListPage } from './pages/RecordsListPage'
 import { RecordFormPage } from './pages/RecordFormPage'
 import { FieldsPage } from './pages/FieldsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { GlobalViewsPage } from './pages/GlobalViewsPage'
+import { GlobalViewPage } from './pages/GlobalViewPage'
 import { ReportBuilderPage } from './pages/ReportBuilderPage'
 import { MetricsPage } from './pages/MetricsPage'
 import { AlertsPage } from './pages/AlertsPage'
@@ -217,6 +219,10 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
           {!pinned.length && !entities.isLoading && <p className="nav-empty">Pin an entity to reach it from here.</p>}
         </nav>
         <nav className="dashboard-nav" aria-label="Global analytics">
+          <NavLink to="/views" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <TableProperties aria-hidden="true" />
+            Views
+          </NavLink>
           <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')}>
             <FileChartColumn aria-hidden="true" />
             Reports
@@ -238,6 +244,10 @@ function Shell({ tenantId, onSwitchTenant }: { tenantId: string; onSwitchTenant:
           <p className="error">{entities.error.message}</p>
         ) : (
           <Routes>
+            <Route path="/views" element={<GlobalViewsPage tenantId={tenantId} />} />
+            <Route path="/views/new" element={<GlobalViewPage tenantId={tenantId} editing />} />
+            <Route path="/views/:viewId" element={<GlobalViewPage tenantId={tenantId} />} />
+            <Route path="/views/:viewId/edit" element={<GlobalViewPage tenantId={tenantId} editing />} />
             <Route path="/reports" element={<ReportsPage key="global" tenantId={tenantId} />} />
             <Route path="/reports/new" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />
             <Route path="/reports/:reportId" element={<ReportBuilderPage key="global" tenantId={tenantId} />} />

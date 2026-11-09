@@ -28,6 +28,7 @@ export const test = base.extend<{
         ],
         '/api/entities': entities,
         '/api/reports': [],
+        '/api/views': [],
         '/api/metrics': [],
         '/api/alerts': [],
         '/api/dashboards': [
@@ -135,6 +136,17 @@ export const test = base.extend<{
         if (/\/metrics\/(preview|[^/]+\/evaluate)$/.test(path)) {
           return respond({ value: 42, evaluatedAt: timestamp })
         }
+        if (/\/views\/(preview|[^/]+\/run)$/.test(path)) {
+          return respond({
+            columns: [
+              { key: 'name', label: 'Name', dataType: 'Text', role: 'Dimension' },
+              { key: 'count', label: 'Count', dataType: 'Integer', role: 'Measure' },
+            ],
+            rows: [{ name: 'Alice', count: 42 }],
+            generatedAt: timestamp,
+            truncated: false,
+          })
+        }
         if (/\/(reports|analytics)\/(preview|[^/]+\/run)$/.test(path)) {
           return respond({
             columns: [{ key: 'count', label: 'Count', dataType: 'Integer', role: 'Measure' }],
@@ -159,12 +171,9 @@ export const test = base.extend<{
           })
           return respond(collections['/api/entities'])
         }
-        let collectionPath = Object.keys(collections).find(
+        const collectionPath = Object.keys(collections).find(
           (key) => path === key || (path.startsWith(key + '/') && !path.slice(key.length + 1).includes('/')),
         )
-        if (path.startsWith('/api/views/')) {
-          collectionPath = `/api/entities/${entityId}/views`
-        }
         const collection = collectionPath && collections[collectionPath]
         if (collection && collectionPath) {
           const id = path === collectionPath ? undefined : path.split('/').at(-1)

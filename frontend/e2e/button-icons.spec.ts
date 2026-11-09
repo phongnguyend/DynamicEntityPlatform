@@ -7,6 +7,7 @@ const pages = [
   ['/dashboards', 'New dashboard'],
   ['/dashboards/overview', 'Add cards'],
   ['/alerts', 'Save alert'],
+  ['/views/new', 'Save view'],
   [`${entityPath}/records`, 'New record'],
   [`${entityPath}/records/new`, 'Save'],
   [`${entityPath}/fields`, 'Create index'],

@@ -72,6 +72,7 @@ builder.Services.AddSingleton<IRecordConstraintValidator, SqlServerRecordConstra
 builder.Services.AddSingleton<IFacetStore, SqlServerFacetStore>();
 builder.Services.AddSingleton<IEntityIndexManager, SqlServerEntityIndexManager>();
 builder.Services.AddSingleton<IViewStore, SqlServerViewStore>();
+builder.Services.AddSingleton<IGlobalViewStore, SqlGlobalViewStore>();
 builder.Services.AddSingleton<IDashboardStore, SqlServerDashboardStore>();
 builder.Services.AddSingleton<IAnalyticsStore, SqlAnalyticsStore>();
 builder.Services.AddScoped<IVirtualSqlService, VirtualSqlService>();
@@ -109,6 +110,7 @@ builder.Services.AddScoped<RecordService>();
 builder.Services.AddScoped<FacetService>();
 builder.Services.AddScoped<EntityIndexService>();
 builder.Services.AddScoped<ViewService>();
+builder.Services.AddScoped<GlobalViewService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ImportService>();
 builder.Services.AddScoped<BulkRecordService>();
@@ -396,6 +398,29 @@ globalAnalytics.AddEndpointFilter(async (context, next) =>
         : await authorization.CanManageAnalyticsAsync(tenant, Guid.Empty, http.RequestAborted);
     return allowed ? await next(context) : Results.Problem(statusCode: 403, title: "Access denied.");
 });
+globalAnalytics.MapGet("/views", async (ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(await service.ListAsync(tenant.GetRequiredTenant().TenantId, token)));
+globalAnalytics.MapGet("/views/{viewId:guid}", async (Guid viewId, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(await service.GetAsync(tenant.GetRequiredTenant().TenantId, viewId, token)));
+globalAnalytics.MapPost("/views", async (SaveGlobalViewRequest request, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+{
+    var view = await service.CreateAsync(tenant.GetRequiredTenant().TenantId, request.Name, request.Description, request.Definition, token);
+    return Results.Created($"/api/views/{view.Id}", view);
+});
+globalAnalytics.MapPatch("/views/{viewId:guid}", async (Guid viewId, SaveGlobalViewRequest request, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(await service.UpdateAsync(tenant.GetRequiredTenant().TenantId, viewId, request.Name, request.Description, request.Definition, token)));
+globalAnalytics.MapDelete("/views/{viewId:guid}", async (Guid viewId, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+{
+    await service.DeleteAsync(tenant.GetRequiredTenant().TenantId, viewId, token);
+    return Results.NoContent();
+});
+globalAnalytics.MapPost("/views/sql", async (PreviewGlobalViewRequest request, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(await service.PreviewSqlAsync(tenant.GetRequiredTenant().TenantId, request.Definition, request.Parameters, token)));
+globalAnalytics.MapPost("/views/preview", async (PreviewGlobalViewRequest request, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(ToAnalyticsResponse(await service.PreviewAsync(tenant.GetRequiredTenant().TenantId, request.Definition, request.Parameters, token))));
+globalAnalytics.MapPost("/views/{viewId:guid}/run", async (Guid viewId, RunGlobalViewRequest? request, ITenantContextAccessor tenant, GlobalViewService service, CancellationToken token) =>
+    Results.Ok(ToAnalyticsResponse(await service.RunAsync(tenant.GetRequiredTenant().TenantId, viewId, request?.Parameters, token))));
+
 globalAnalytics.MapGet("/reports", async (ITenantContextAccessor tenantAccessor,
     ReportService service, CancellationToken token) =>
 {
@@ -1092,7 +1117,7 @@ entities.MapPost("/{entityId:guid}/views", async (Guid entityId, CreateViewReque
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     var view = await service.CreateAsync(tenant.TenantId, entityId, request.Name, request.Definition, null, cancellationToken);
-    return Results.Created($"/api/views/{view.Id}", ToViewResponse(view));
+    return Results.Created($"/api/entities/{entityId}/views/{view.Id}", ToViewResponse(view));
 });
 
 entities.MapGet("/{entityId:guid}/views", async (Guid entityId, ITenantContextAccessor tenantAccessor,
@@ -1102,19 +1127,19 @@ entities.MapGet("/{entityId:guid}/views", async (Guid entityId, ITenantContextAc
     return Results.Ok((await service.ListAsync(tenant.TenantId, entityId, cancellationToken)).Select(ToViewResponse));
 });
 
-app.MapPatch("/api/views/{viewId:guid}", async (Guid viewId, UpdateViewRequest request,
+entities.MapPatch("/{entityId:guid}/views/{viewId:guid}", async (Guid entityId, Guid viewId, UpdateViewRequest request,
     ITenantContextAccessor tenantAccessor, ViewService service, CancellationToken cancellationToken) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     return Results.Ok(ToViewResponse(await service.UpdateAsync(
-        tenant.TenantId, viewId, request.EntityId, request.Name, request.Definition, cancellationToken)));
+        tenant.TenantId, viewId, entityId, request.Name, request.Definition, cancellationToken)));
 });
 
-app.MapDelete("/api/views/{viewId:guid}", async (Guid viewId, ITenantContextAccessor tenantAccessor,
+entities.MapDelete("/{entityId:guid}/views/{viewId:guid}", async (Guid entityId, Guid viewId, ITenantContextAccessor tenantAccessor,
     ViewService service, CancellationToken cancellationToken) =>
 {
     var tenant = tenantAccessor.GetRequiredTenant();
-    await service.DeleteAsync(tenant.TenantId, viewId, cancellationToken);
+    await service.DeleteAsync(tenant.TenantId, entityId, viewId, cancellationToken);
     return Results.NoContent();
 });
 
