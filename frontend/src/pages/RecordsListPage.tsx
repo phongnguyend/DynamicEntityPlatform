@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -12,6 +13,7 @@ import { EntityTabs } from '../components/EntityTabs'
 import { useEntityContext } from './useEntityContext'
 
 export function RecordsListPage({ tenantId }: { tenantId: string }) {
+  const confirm = useConfirm()
   const { entityId = '' } = useParams()
   const navigate = useNavigate()
   const client = useQueryClient()
@@ -109,8 +111,14 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
                   />
                 )}
                 onEdit={(record) => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
-                onDelete={(record) => {
-                  if (confirm('Delete this record?')) {
+                onDelete={async (record) => {
+                  if (
+                    await confirm({
+                      title: 'Delete record',
+                      message: 'Delete this record?',
+                      confirmLabel: 'Delete record',
+                    })
+                  ) {
                     remove.mutate(record)
                   }
                 }}

@@ -33,8 +33,8 @@ test('indexes: create and remove an index', async ({ page, api }) => {
   expect(
     api.requests.find((request) => request.method === 'POST' && request.path.endsWith('/indexes'))?.body.columns,
   ).toEqual([{ fieldId: 'first-name', descending: false }])
-  page.once('dialog', (dialog) => dialog.accept())
   await page.locator('.index-list').getByRole('button', { name: 'Remove', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove index', exact: true }).click()
   await expect(page.getByText('No indexes have been created.')).toBeVisible()
 })
 

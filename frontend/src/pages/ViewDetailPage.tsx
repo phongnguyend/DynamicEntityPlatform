@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Columns3, CopyPlus, Save, X } from 'lucide-react'
@@ -16,6 +17,7 @@ import { getAppliedFilterCondition, getAppliedFilterFieldId } from './RecordsLis
 import { useEntityContext } from './useEntityContext'
 
 export function ViewDetailPage({ tenantId }: { tenantId: string }) {
+  const confirm = useConfirm()
   const { entityId = '', viewId = '' } = useParams()
   const isNew = viewId === 'new'
   const navigate = useNavigate()
@@ -155,8 +157,14 @@ export function ViewDetailPage({ tenantId }: { tenantId: string }) {
                   />
                 )}
                 onEdit={(record) => navigate(`/entities/${entityId}/records/${record.id}/edit`, { state: { record } })}
-                onDelete={(record) => {
-                  if (confirm('Delete this record?')) {
+                onDelete={async (record) => {
+                  if (
+                    await confirm({
+                      title: 'Delete record',
+                      message: 'Delete this record?',
+                      confirmLabel: 'Delete record',
+                    })
+                  ) {
                     removeRecord.mutate(record)
                   }
                 }}

@@ -51,12 +51,12 @@ test('records: create, edit, and delete a record', async ({ page, api }) => {
   await page.getByLabel('First name').fill('Bobby')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('row').filter({ hasText: 'Bobby' })).toBeVisible()
-  page.once('dialog', (dialog) => dialog.accept())
   await page
     .getByRole('row')
     .filter({ hasText: 'Bobby' })
     .getByRole('button', { name: 'Delete record', exact: true })
     .click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete record', exact: true }).click()
   await expect(page.getByRole('cell', { name: 'Bobby', exact: true })).toHaveCount(0)
   expect(api.collections['/api/entities/customer/records']).toHaveLength(1)
 })
@@ -91,8 +91,8 @@ test('views: rename, inspect JSON, open, and delete', async ({ page, api }) => {
   await expect(visibility).toBeChecked()
   await page.locator('.modal').getByRole('button', { name: 'Apply settings', exact: true }).click()
   await page.goto(`${entityPath}/views`)
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete view', exact: true }).click()
   await expect(page.getByText('Renamed view', { exact: true })).toHaveCount(0)
   expect(
     api.requests

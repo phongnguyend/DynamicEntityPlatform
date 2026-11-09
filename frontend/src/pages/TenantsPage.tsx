@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Pencil, Plus, Power, Settings, Save, X } from 'lucide-react'
@@ -12,6 +13,7 @@ export function TenantsPage({
   activeTenantId: string
   onSwitch: (tenantId: string) => void
 }) {
+  const confirm = useConfirm()
   const client = useQueryClient()
   const tenants = useQuery({ queryKey: ['tenants'], queryFn: api.tenants })
   const [editing, setEditing] = useState<Tenant | null | undefined>(undefined)
@@ -87,8 +89,14 @@ export function TenantsPage({
                           type="button"
                           className="link danger"
                           disabled={disable.isPending}
-                          onClick={() => {
-                            if (confirm(`Disable ${tenant.name}? Users will no longer be able to open it.`)) {
+                          onClick={async () => {
+                            if (
+                              await confirm({
+                                title: 'Disable tenant',
+                                message: `Disable ${tenant.name}? Users will no longer be able to open it.`,
+                                confirmLabel: 'Disable tenant',
+                              })
+                            ) {
                               disable.mutate(tenant.id)
                             }
                           }}

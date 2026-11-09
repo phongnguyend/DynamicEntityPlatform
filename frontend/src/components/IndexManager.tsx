@@ -1,3 +1,4 @@
+import { useConfirm } from './ConfirmProvider'
 import { useState, type DragEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, X } from 'lucide-react'
@@ -14,6 +15,7 @@ interface Props {
 const UNINDEXABLE_TYPES = new Set(['LongText', 'MultiChoice'])
 
 export function IndexManager({ tenantId, entityId, fields }: Props) {
+  const confirm = useConfirm()
   const [creating, setCreating] = useState(false)
   const client = useQueryClient()
   const indexes = useQuery({
@@ -29,8 +31,14 @@ export function IndexManager({ tenantId, entityId, fields }: Props) {
   })
   const fieldsById = new Map(fields.map((field) => [field.id, field]))
 
-  function confirmRemoval(indexId: string, indexName: string) {
-    if (confirm(`Remove index ${indexName}? Queries relying on it may become slower.`)) {
+  async function confirmRemoval(indexId: string, indexName: string) {
+    if (
+      await confirm({
+        title: 'Remove index',
+        message: `Remove index ${indexName}? Queries relying on it may become slower.`,
+        confirmLabel: 'Remove index',
+      })
+    ) {
       deleteIndex.mutate(indexId)
     }
   }

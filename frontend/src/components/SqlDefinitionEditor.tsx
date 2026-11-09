@@ -1,3 +1,4 @@
+import { useConfirm } from './ConfirmProvider'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Check, Copy, Plus, Search, Table2, SlidersHorizontal, Code2, Wand2, CheckCircle2 } from 'lucide-react'
@@ -77,6 +78,7 @@ export function SqlDefinitionEditor({
   generateSql: () => Promise<SqlPreview>
   metric?: boolean
 }) {
+  const confirm = useConfirm()
   const sqlOnly = !entityId
   const definition = value ?? { ...emptySql, enabled: sqlOnly }
   const editor = useRef<CodeEditorHandle>(null)
@@ -393,10 +395,14 @@ export function SqlDefinitionEditor({
                 type="button"
                 className="secondary"
                 disabled={generate.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (
                     !definition.text.trim() ||
-                    confirm('Replace the SQL text with SQL generated from the Builder definition?')
+                    (await confirm({
+                      title: 'Replace SQL',
+                      message: 'Replace the SQL text with SQL generated from the Builder definition?',
+                      confirmLabel: 'Replace SQL',
+                    }))
                   ) {
                     generate.mutate()
                   }

@@ -54,7 +54,6 @@ test('global metrics: SQL-only create, preview, parameters, edit, JSON and delet
   await page.locator('.modal').getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill('Renamed global metric')
   await page.getByRole('button', { name: 'Save metric', exact: true }).click()
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Delete Renamed global metric', exact: true }).click()
   await expect.poll(() => api.collections['/api/metrics'].length).toBe(0)
 })

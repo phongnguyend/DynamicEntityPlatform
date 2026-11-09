@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { RuntimeParametersBadge } from '../components/RuntimeParametersBadge'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -85,6 +86,7 @@ function fitLayouts(
 }
 
 export function DashboardsPage({ tenantId, entities }: { tenantId: string; entities: Entity[] }) {
+  const confirm = useConfirm()
   const { dashboardId = '' } = useParams()
   const groups = [{ id: null, displayName: 'Global' }, ...entities]
   const navigate = useNavigate()
@@ -185,8 +187,15 @@ export function DashboardsPage({ tenantId, entities }: { tenantId: string; entit
   function saveLayouts(next: ResponsiveLayouts<GridBreakpoint>) {
     updateDashboard((current) => ({ ...current, layouts: fitLayouts(current.items, next) }))
   }
-  function removeDashboard() {
-    if (dashboard && confirm(`Delete the dashboard "${dashboard.name}"?`)) {
+  async function removeDashboard() {
+    if (
+      dashboard &&
+      (await confirm({
+        title: 'Delete dashboard',
+        message: `Delete the dashboard "${dashboard.name}"?`,
+        confirmLabel: 'Delete dashboard',
+      }))
+    ) {
       deleteDashboard.mutate()
     }
   }

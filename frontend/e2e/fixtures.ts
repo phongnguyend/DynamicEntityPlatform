@@ -122,6 +122,10 @@ export const test = base.extend<{
           })
           return respond({ importedRows: 1 })
         }
+        if (method === 'POST' && path === '/api/tenants/tenant/disable') {
+          collections['/api/tenants'][0].status = 'Disabled'
+          return route.fulfill({ status: 204 })
+        }
         if (path.endsWith('/sql')) {
           return respond({
             sql: 'SELECT COUNT(*) FROM [dbo].[Records]',

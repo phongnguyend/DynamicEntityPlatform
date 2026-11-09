@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -7,6 +8,7 @@ import { DashboardEditor } from '../components/DashboardEditor'
 import type { Dashboard } from '../types'
 
 export function DashboardsListPage({ tenantId }: { tenantId: string }) {
+  const confirm = useConfirm()
   const client = useQueryClient()
   const navigate = useNavigate()
   const dashboards = useQuery({ queryKey: ['dashboards', tenantId], queryFn: () => api.dashboards(tenantId) })
@@ -16,8 +18,14 @@ export function DashboardsListPage({ tenantId }: { tenantId: string }) {
     onSuccess: () => void client.invalidateQueries({ queryKey: ['dashboards', tenantId] }),
   })
 
-  function remove(id: string, name: string) {
-    if (confirm(`Delete the dashboard "${name}"?`)) {
+  async function remove(id: string, name: string) {
+    if (
+      await confirm({
+        title: 'Delete dashboard',
+        message: `Delete the dashboard "${name}"?`,
+        confirmLabel: 'Delete dashboard',
+      })
+    ) {
       deleteDashboard.mutate(id)
     }
   }

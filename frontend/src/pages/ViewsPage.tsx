@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Braces, FolderOpen, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
@@ -12,6 +13,7 @@ import type { SavedView } from '../types'
 import { useEntityContext } from './useEntityContext'
 
 export function ViewsPage({ tenantId }: { tenantId: string }) {
+  const confirm = useConfirm()
   const { entityId = '' } = useParams()
   const context = useEntityContext(tenantId, entityId)
   const client = useQueryClient()
@@ -83,8 +85,14 @@ export function ViewsPage({ tenantId }: { tenantId: string }) {
                       type="button"
                       className="link danger"
                       disabled={remove.isPending}
-                      onClick={() => {
-                        if (confirm(`Delete the saved view "${view.name}"?`)) {
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: 'Delete saved view',
+                            message: `Delete the saved view "${view.name}"?`,
+                            confirmLabel: 'Delete view',
+                          })
+                        ) {
                           remove.mutate(view.id)
                         }
                       }}

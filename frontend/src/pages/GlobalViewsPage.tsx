@@ -1,3 +1,4 @@
+import { useConfirm } from '../components/ConfirmProvider'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -12,6 +13,7 @@ import { runtimeParameterSource } from '../components/RuntimeParametersForm'
 import { ViewColorDot, getViewColor } from '../components/ViewColorPicker'
 
 export function GlobalViewsPage({ tenantId }: { tenantId: string }) {
+  const confirm = useConfirm()
   const client = useQueryClient()
   const views = useQuery({ queryKey: ['global-views', tenantId], queryFn: () => api.globalViews(tenantId) })
   const [jsonView, setJsonView] = useState<GlobalView>()
@@ -78,8 +80,14 @@ export function GlobalViewsPage({ tenantId }: { tenantId: string }) {
                     type="button"
                     className="link danger"
                     disabled={remove.isPending}
-                    onClick={() => {
-                      if (confirm(`Delete the global view "${view.name}"?`)) {
+                    onClick={async () => {
+                      if (
+                        await confirm({
+                          title: 'Delete global view',
+                          message: `Delete the global view "${view.name}"?`,
+                          confirmLabel: 'Delete view',
+                        })
+                      ) {
                         remove.mutate(view.id)
                       }
                     }}

@@ -30,6 +30,8 @@ if (context.User.Identity?.IsAuthenticated != true)
 
 ## Frontend regression checks
 
+- Use the shared `Modal` through `useConfirm` for confirmation prompts; do not use browser `confirm()` dialogs. Cover both cancellation and confirmation in Playwright tests.
+
 - Prefer the repeatable Playwright scripts in `frontend/e2e` over ad hoc interactive browser sessions for UI verification.
 - Run the relevant feature spec with `npm run test:e2e -- e2e/<feature>.spec.ts` from `frontend`. Add or update regression cases when changing user-visible behavior.
 - Use interactive browser inspection when diagnosing failures or assessing visual design; preserve reproducible checks in the test suite.
