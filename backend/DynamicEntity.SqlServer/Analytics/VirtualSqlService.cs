@@ -78,7 +78,12 @@ public sealed class VirtualSqlService(IControlPlaneStore controlPlane, IEntityMe
         await restrict.ExecuteNonQueryAsync(token);
         try
         {
-            await using var command = new SqlCommand(plan.Sql, connection) { CommandTimeout = options.AnalyticsCommandTimeoutSeconds };
+            // SqlClient appends session-option commands for SchemaOnly. End the user SQL's
+            // last line so a trailing -- comment cannot swallow those commands.
+            await using var command = new SqlCommand(plan.Sql + Environment.NewLine, connection)
+            {
+                CommandTimeout = options.AnalyticsCommandTimeoutSeconds
+            };
             foreach (var value in plan.Parameters)
             {
                 var definitionParameter = definition.Parameters.Single(parameter => ("@" + parameter.Parameter).Equals(value.Name, StringComparison.OrdinalIgnoreCase));

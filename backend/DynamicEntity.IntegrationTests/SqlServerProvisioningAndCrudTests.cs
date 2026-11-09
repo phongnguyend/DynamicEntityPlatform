@@ -471,6 +471,24 @@ public sealed class SqlServerProvisioningAndCrudTests
         await service.DeleteAsync(tenantId, saved.Id, token);
         Assert.Empty(await service.ListAsync(tenantId, token));
         await Assert.ThrowsAsync<NotFoundException>(() => service.GetAsync(tenantId, saved.Id, token));
+        foreach (var query in new[]
+        {
+            "-- Customer names\nSELECT name FROM customer",
+            "SELECT name -- output column\nFROM customer",
+            "SELECT name FROM customer -- trailing comment",
+            "SELECT name FROM customer -- trailing comment\n",
+            "SELECT c.name FROM customer -- table comment\n AS c",
+            "-- Header\r\nWITH names AS (SELECT name FROM customer)\r\nSELECT name FROM names -- end",
+            "SELECT '-- literal' AS marker, name FROM customer /* block comment */"
+        })
+        {
+            var commented = new DynamicEntity.Domain.Views.GlobalViewSpecification(new(true, query, []), 10);
+            var commentView = await service.CreateAsync(tenantId, "Commented SQL", null, commented, token);
+            Assert.Equal(query, (await service.GetAsync(tenantId, commentView.Id, token)).Definition.Sql.Text);
+            var commentResult = await service.RunAsync(tenantId, commentView.Id, null, token);
+            Assert.Equal("Ada", Assert.Single(commentResult.Rows)["name"]);
+            await service.DeleteAsync(tenantId, commentView.Id, token);
+        }
     }
 
     private static async Task ExerciseGlobalAlertsAsync(SqlServerOptions options, IControlPlaneStore control,
