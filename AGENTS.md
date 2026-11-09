@@ -15,6 +15,11 @@ if (context.User.Identity?.IsAuthenticated != true)
 - In C#, separate each property declaration from the next with one blank line, including auto-properties.
 - Apply convention to new and modified code, including tests.
 
+## Database primary keys
+
+- Generate persistent primary keys in the database using defaults (SQL Server `NEWSEQUENTIALID()` for GUID IDs), and return generated IDs from inserts. Do not use `Guid.NewGuid()` or `NEWID()` for primary keys.
+- Use the returned ID for dependent records and physical names. Keep creation of metadata and related storage in the same transaction.
+
 ## Button icons
 
 - Every button must display a meaningful icon, including save/cancel actions, mode selectors, and buttons inside dialogs. Use the existing `lucide-react` icons and shared button sizing/spacing.

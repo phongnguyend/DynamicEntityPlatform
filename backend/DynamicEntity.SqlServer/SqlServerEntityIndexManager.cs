@@ -22,11 +22,8 @@ public sealed class SqlServerEntityIndexManager(
             throw new NotSupportedException("Computed indexes currently require dedicated table storage.");
         }
 
-        var indexId = Guid.NewGuid();
-        var indexName = $"IX_{indexId:N}";
         var createdAt = DateTimeOffset.UtcNow;
         var table = PhysicalName.QuoteSqlIdentifier(storage.TableName);
-        var index = PhysicalName.QuoteSqlIdentifier(indexName);
         var indexColumns = columns.Select((entry, position) => new EntityIndexColumn(
             entry.Field.Id, $"F_{entry.Field.Id:N}", position, entry.Descending)).ToArray();
 
@@ -35,6 +32,25 @@ public sealed class SqlServerEntityIndexManager(
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try
         {
+            const string insertIndexSql = """
+                DECLARE @created TABLE (Id UNIQUEIDENTIFIER);
+                INSERT INTO dbo.EntityIndexDefinitions (EntityId, IndexName, Status, CreatedAt)
+                OUTPUT inserted.Id INTO @created
+                VALUES (@entityId, N'pending', N'Active', @createdAt);
+                UPDATE i SET IndexName = 'IX_' + LOWER(REPLACE(CONVERT(VARCHAR(36), i.Id), '-', ''))
+                FROM dbo.EntityIndexDefinitions i INNER JOIN @created c ON c.Id = i.Id;
+                SELECT Id FROM @created;
+                """;
+            Guid indexId;
+            await using (var insertIndexCommand = new SqlCommand(insertIndexSql, connection, transaction))
+            {
+                insertIndexCommand.Parameters.AddWithValue("@entityId", entity.Id);
+                insertIndexCommand.Parameters.AddWithValue("@createdAt", createdAt);
+                indexId = (Guid)(await insertIndexCommand.ExecuteScalarAsync(cancellationToken))!;
+            }
+
+            var indexName = $"IX_{indexId:N}";
+            var index = PhysicalName.QuoteSqlIdentifier(indexName);
             for (var i = 0; i < indexColumns.Length; i++)
             {
                 var column = indexColumns[i];
@@ -57,27 +73,13 @@ public sealed class SqlServerEntityIndexManager(
                 await createIndexCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            const string insertIndexSql = """
-                INSERT INTO dbo.EntityIndexDefinitions (Id, EntityId, IndexName, Status, CreatedAt)
-                VALUES (@id, @entityId, @indexName, N'Active', @createdAt);
-                """;
-            await using (var insertIndexCommand = new SqlCommand(insertIndexSql, connection, transaction))
-            {
-                insertIndexCommand.Parameters.AddWithValue("@id", indexId);
-                insertIndexCommand.Parameters.AddWithValue("@entityId", entity.Id);
-                insertIndexCommand.Parameters.AddWithValue("@indexName", indexName);
-                insertIndexCommand.Parameters.AddWithValue("@createdAt", createdAt);
-                await insertIndexCommand.ExecuteNonQueryAsync(cancellationToken);
-            }
-
             const string insertColumnSql = """
-                INSERT INTO dbo.EntityIndexColumns (Id, IndexId, FieldId, PhysicalColumnName, SortOrder, IsDescending)
-                VALUES (@id, @indexId, @fieldId, @columnName, @sortOrder, @isDescending);
+                INSERT INTO dbo.EntityIndexColumns (IndexId, FieldId, PhysicalColumnName, SortOrder, IsDescending)
+                VALUES (@indexId, @fieldId, @columnName, @sortOrder, @isDescending);
                 """;
             foreach (var column in indexColumns)
             {
                 await using var insertColumnCommand = new SqlCommand(insertColumnSql, connection, transaction);
-                insertColumnCommand.Parameters.AddWithValue("@id", Guid.NewGuid());
                 insertColumnCommand.Parameters.AddWithValue("@indexId", indexId);
                 insertColumnCommand.Parameters.AddWithValue("@fieldId", column.FieldId);
                 insertColumnCommand.Parameters.AddWithValue("@columnName", column.PhysicalColumnName);

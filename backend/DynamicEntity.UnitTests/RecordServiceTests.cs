@@ -92,7 +92,7 @@ public sealed class RecordServiceTests
         public Task<EntityStorageLocation?> GetTenantStorageAsync(Guid tenantId, CancellationToken cancellationToken) => Task.FromResult<EntityStorageLocation?>(Storage);
         public Task<EntityDefinition?> GetAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => Task.FromResult<EntityDefinition?>(Entity);
         public Task<IReadOnlyList<FieldDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation tenantStorage, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FieldDefinition>>([NameField, AgeField]);
-        public Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Tenant> CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SaveTenantStorageAsync(Guid tenantId, EntityStorageLocation location, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -134,7 +134,7 @@ public sealed class RecordServiceTests
                     Data = data
                 })
                 : new RecordWriteResult(UpdateStatus));
-        public Task<DynamicRecord> InsertAsync(TenantContext tenant, EntityDefinition entity, Guid recordId, string data, Guid? userId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<DynamicRecord> InsertAsync(TenantContext tenant, EntityDefinition entity, string data, Guid? userId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PagedResult<DynamicRecord>> QueryAsync(TenantContext tenant, EntityDefinition entity, RecordQuery query, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<RecordWriteStatus> DeleteAsync(TenantContext tenant, EntityDefinition entity, Guid recordId, byte[] expectedVersion, CancellationToken cancellationToken) => throw new NotSupportedException();
     }

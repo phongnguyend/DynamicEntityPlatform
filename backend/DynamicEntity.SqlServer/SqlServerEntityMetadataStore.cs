@@ -20,37 +20,45 @@ public sealed class SqlServerEntityMetadataStore : IEntityMetadataStore
         EntityStorageLocation tenantStorage,
         CancellationToken cancellationToken)
     {
-        var tableName = PhysicalName.ForEntityTable(entity.Id);
-        var quotedTable = PhysicalName.QuoteSqlIdentifier(tableName);
-        var sql = $$"""
-            INSERT INTO dbo.EntityDefinitions
-                (Id, TenantId, Name, DisplayName, Description, Icon, SchemaVersion, Status, CreatedAt, UpdatedAt)
-            VALUES
-                (@id, @tenantId, @name, @displayName, @description, @icon, @schemaVersion, @status, @createdAt, @updatedAt);
-
-            CREATE TABLE dbo.{{quotedTable}}
-            (
-                Id UNIQUEIDENTIFIER NOT NULL,
-                Data NVARCHAR(MAX) NOT NULL,
-                CreatedAt DATETIME2(7) NOT NULL,
-                CreatedBy UNIQUEIDENTIFIER NULL,
-                UpdatedAt DATETIME2(7) NOT NULL,
-                UpdatedBy UNIQUEIDENTIFIER NULL,
-                Version ROWVERSION NOT NULL,
-                CONSTRAINT {{PhysicalName.QuoteSqlIdentifier($"PK_{tableName}")}} PRIMARY KEY (Id),
-                CONSTRAINT {{PhysicalName.QuoteSqlIdentifier($"CK_{tableName}_Data_IsJson")}} CHECK (ISJSON(Data) = 1)
-            );
-
-            INSERT INTO dbo.EntityStorageMappings
-                (EntityId, TableName, StorageMode, RequiresEntityPredicate, Status, CreatedAt, UpdatedAt)
-            VALUES
-                (@id, @tableName, @storageMode, 0, N'Active', @createdAt, @updatedAt);
-            """;
-
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
         try
         {
+            const string insertSql = """
+                INSERT INTO dbo.EntityDefinitions
+                    (TenantId, Name, DisplayName, Description, Icon, SchemaVersion, Status, CreatedAt, UpdatedAt)
+                OUTPUT inserted.Id
+                VALUES
+                    (@tenantId, @name, @displayName, @description, @icon, @schemaVersion, @status, @createdAt, @updatedAt);
+                """;
+            await using (var insert = new SqlCommand(insertSql, connection, transaction))
+            {
+                AddEntityParameters(insert, entity);
+                entity = entity with { Id = (Guid)(await insert.ExecuteScalarAsync(cancellationToken))! };
+            }
+
+            var tableName = PhysicalName.ForEntityTable(entity.Id);
+            var quotedTable = PhysicalName.QuoteSqlIdentifier(tableName);
+            var sql = $$"""
+                CREATE TABLE dbo.{{quotedTable}}
+                (
+                    Id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+                    Data NVARCHAR(MAX) NOT NULL,
+                    CreatedAt DATETIME2(7) NOT NULL,
+                    CreatedBy UNIQUEIDENTIFIER NULL,
+                    UpdatedAt DATETIME2(7) NOT NULL,
+                    UpdatedBy UNIQUEIDENTIFIER NULL,
+                    Version ROWVERSION NOT NULL,
+                    CONSTRAINT {{PhysicalName.QuoteSqlIdentifier($"PK_{tableName}")}} PRIMARY KEY (Id),
+                    CONSTRAINT {{PhysicalName.QuoteSqlIdentifier($"CK_{tableName}_Data_IsJson")}} CHECK (ISJSON(Data) = 1)
+                );
+
+                INSERT INTO dbo.EntityStorageMappings
+                    (EntityId, TableName, StorageMode, RequiresEntityPredicate, Status, CreatedAt, UpdatedAt)
+                VALUES
+                    (@id, @tableName, @storageMode, 0, N'Active', @createdAt, @updatedAt);
+                """;
+
             await using var command = new SqlCommand(sql, connection, transaction);
             AddEntityParameters(command, entity);
             command.Parameters.AddWithValue("@tableName", tableName);

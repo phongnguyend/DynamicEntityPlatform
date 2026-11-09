@@ -16,7 +16,7 @@ public interface IControlPlaneInitializer
 
 public interface IControlPlaneStore
 {
-    Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken);
+    Task<Tenant> CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken);
     Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken);
     Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken);
     Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken);
@@ -163,7 +163,7 @@ public interface ITabularFileParser
 
 public interface IImportStore
 {
-    Task CreateAsync(Guid tenantId, ImportJob job, EntityStorageLocation storage, CancellationToken cancellationToken);
+    Task<ImportJob> CreateAsync(Guid tenantId, ImportJob job, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task SetColumnsAsync(Guid tenantId, Guid importId, IReadOnlyList<string> columns, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task StageRowsAsync(Guid tenantId, Guid importId, IReadOnlyList<ImportSourceRow> rows, EntityStorageLocation storage, CancellationToken cancellationToken);
     Task<ImportJob?> GetAsync(Guid tenantId, Guid importId, EntityStorageLocation storage, CancellationToken cancellationToken);
@@ -213,7 +213,7 @@ public interface IAlertStore
 
 public interface IAlertEvaluationStore
 {
-    Task CreateAsync(Guid tenantId, AlertEvaluation evaluation, EntityStorageLocation storage, CancellationToken token);
+    Task<AlertEvaluation> CreateAsync(Guid tenantId, AlertEvaluation evaluation, EntityStorageLocation storage, CancellationToken token);
     Task<IReadOnlyList<AlertEvaluation>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation storage, CancellationToken token);
 }
 

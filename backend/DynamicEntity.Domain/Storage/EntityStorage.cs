@@ -42,7 +42,6 @@ public interface IRecordStore
     Task<DynamicRecord> InsertAsync(
         TenantContext tenant,
         EntityDefinition entity,
-        Guid recordId,
         string data,
         Guid? userId,
         CancellationToken cancellationToken);

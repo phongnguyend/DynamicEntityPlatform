@@ -32,7 +32,7 @@ public sealed class EntityService(
         var storage = await RequireActiveTenantStorageAsync(tenantId, cancellationToken);
         var now = timeProvider.GetUtcNow();
         var entity = new EntityDefinition(
-            Guid.NewGuid(), tenantId, name, displayName, description?.Trim(), 1,
+            Guid.Empty, tenantId, name, displayName, description?.Trim(), 1,
             EntityStatus.Active, now, now);
 
         return await metadataStore.CreateAsync(entity, storage, cancellationToken);

@@ -40,7 +40,7 @@ public sealed class InAppAlertNotifier(IAlertNotificationStore notifications) : 
         EntityStorageLocation storage, CancellationToken token)
     {
         var now = evaluation.EvaluatedAt;
-        return notifications.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id,
+        return notifications.CreateAsync(tenantId, new AlertNotification(Guid.Empty, alert.Id,
             evaluation.Id, AlertChannels.InApp, NotificationStatus.Delivered, 1, null, now, now), storage, token);
     }
 }
@@ -55,7 +55,7 @@ public sealed class QueuedAlertNotifier(IAlertNotificationStore notifications) :
         EntityStorageLocation storage, CancellationToken token)
     {
         var now = evaluation.EvaluatedAt;
-        await notifications.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id,
+        await notifications.CreateAsync(tenantId, new AlertNotification(Guid.Empty, alert.Id,
             evaluation.Id, AlertChannels.InApp, NotificationStatus.Delivered, 1, null, now, now), storage, token);
 
         foreach (var action in alert.Actions)
@@ -67,7 +67,7 @@ public sealed class QueuedAlertNotifier(IAlertNotificationStore notifications) :
             }
 
             // (EvaluationId, Channel) is unique, so a replayed evaluation enqueues the delivery at most once.
-            await notifications.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id,
+            await notifications.CreateAsync(tenantId, new AlertNotification(Guid.Empty, alert.Id,
                 evaluation.Id, AlertChannels.For(action.Type), NotificationStatus.Pending, 0, null, now, null,
                 AlertNotificationPayloads.Serialize(AlertNotificationPayloads.Create(alert, evaluation, targets)),
                 now), storage, token);

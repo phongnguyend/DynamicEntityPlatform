@@ -39,20 +39,20 @@ public sealed class SqlServerControlPlaneStore(SqlServerOptions options)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken)
+    public async Task<Tenant> CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken)
     {
         const string sql = """
-            INSERT INTO dbo.Tenants (Id, Name, Status, CreatedAt, UpdatedAt)
-            VALUES (@id, @name, @status, @createdAt, @updatedAt);
+            INSERT INTO dbo.Tenants (Name, Status, CreatedAt, UpdatedAt)
+            OUTPUT inserted.Id
+            VALUES (@name, @status, @createdAt, @updatedAt);
             """;
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@id", tenant.Id);
         command.Parameters.AddWithValue("@name", tenant.Name);
         command.Parameters.AddWithValue("@status", tenant.Status.ToString());
         command.Parameters.AddWithValue("@createdAt", tenant.CreatedAt);
         command.Parameters.AddWithValue("@updatedAt", tenant.UpdatedAt);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        return tenant with { Id = (Guid)(await command.ExecuteScalarAsync(cancellationToken))! };
     }
 
     public async Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken)

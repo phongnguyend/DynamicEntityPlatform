@@ -14,16 +14,16 @@ public sealed class SqlWebhookSubscriptionStore : IWebhookSubscriptionStore
 
     public async Task<WebhookSubscription> CreateAsync(Guid tenantId, WebhookSubscription value, EntityStorageLocation storage, CancellationToken token)
     {
-        const string sql = "INSERT dbo.WebhookSubscriptions(Id,EntityId,Name,EndpointUrl,EventsJson,IsEnabled,CreatedBy,CreatedAt,UpdatedAt) SELECT @id,@entityId,@name,@endpoint,@events,@enabled,@createdBy,@createdAt,@updatedAt WHERE EXISTS(SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
+        const string sql = "INSERT dbo.WebhookSubscriptions(EntityId,Name,EndpointUrl,EventsJson,IsEnabled,CreatedBy,CreatedAt,UpdatedAt) OUTPUT inserted.Id SELECT @entityId,@name,@endpoint,@events,@enabled,@createdBy,@createdAt,@updatedAt WHERE EXISTS(SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
         await using var connection = await OpenAsync(storage, token);
         await using var command = new SqlCommand(sql, connection);
         Add(command, tenantId, value);
-        if (await command.ExecuteNonQueryAsync(token) != 1)
+        if (await command.ExecuteScalarAsync(token) is not Guid id)
         {
             throw new InvalidOperationException("Entity ownership changed while creating webhook subscription.");
         }
 
-        return value;
+        return value with { Id = id };
     }
 
     public Task<IReadOnlyList<WebhookSubscription>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken token) =>

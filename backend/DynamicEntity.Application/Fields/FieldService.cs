@@ -49,7 +49,7 @@ public sealed class FieldService(
 
         var now = timeProvider.GetUtcNow();
         var field = new FieldDefinition(
-            Guid.NewGuid(), entityId, name, displayName, dataType, isRequired, isUnique,
+            Guid.Empty, entityId, name, displayName, dataType, isRequired, isUnique,
             isFilterable, isSortable, isFacetable, isSearchable, defaultValueJson,
             configurationJson, sortOrder, true, now, now);
         return await fields.CreateAsync(tenantId, field, storage, cancellationToken);

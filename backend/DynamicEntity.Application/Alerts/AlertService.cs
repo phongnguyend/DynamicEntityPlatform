@@ -31,7 +31,7 @@ public sealed class AlertService(IControlPlaneStore controlPlane, IEntityMetadat
             MetricFilterParameters.Resolve(MetricService.DeserializeFilter(metric.FilterJson), await fields.ListAsync(tenantId, metric.EntityId!.Value, s, token), parameters, timeProvider.GetUtcNow());
         }
         var now = timeProvider.GetUtcNow();
-        var a = new AlertDefinition(Guid.NewGuid(), entityId, metricId, name.Trim(), comparison, thresholdJson, interval, timezone, cooldown, recovery, enabled, normalizedActions, null, null, now, null, null, userId, now, now, parameters);
+        var a = new AlertDefinition(Guid.Empty, entityId, metricId, name.Trim(), comparison, thresholdJson, interval, timezone, cooldown, recovery, enabled, normalizedActions, null, null, now, null, null, userId, now, now, parameters);
         return await alerts.CreateAsync(tenantId, a, s, token);
     }
     public async Task<IReadOnlyList<AlertDefinition>> ListAsync(Guid tenantId, Guid? entityId, CancellationToken token)

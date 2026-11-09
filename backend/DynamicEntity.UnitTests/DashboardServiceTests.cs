@@ -51,6 +51,11 @@ public sealed class DashboardServiceTests
 
         public Task<DashboardDefinition> CreateAsync(DashboardDefinition dashboard, EntityStorageLocation storage, CancellationToken cancellationToken)
         {
+            Assert.Equal(Guid.Empty, dashboard.Id);
+            dashboard = dashboard with
+            {
+                Id = Guid.NewGuid()
+            };
             dashboards.Add(dashboard);
             return Task.FromResult(dashboard);
         }
@@ -89,7 +94,7 @@ public sealed class DashboardServiceTests
         public Task<Tenant?> GetTenantAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<Tenant?>(id == tenant.Id ? tenant : null);
         public Task<EntityStorageLocation?> GetTenantStorageAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<EntityStorageLocation?>(id == tenant.Id ? storage : null);
         public Task<IReadOnlyList<Tenant>> ListTenantsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Tenant>>([tenant]);
-        public Task CreateTenantAsync(Tenant value, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<Tenant> CreateTenantAsync(Tenant value, CancellationToken cancellationToken) => Task.FromResult(value);
         public Task UpdateTenantNameAsync(Guid id, string name, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SetTenantStatusAsync(Guid id, TenantStatus status, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SaveTenantStorageAsync(Guid id, EntityStorageLocation location, CancellationToken cancellationToken) => Task.CompletedTask;

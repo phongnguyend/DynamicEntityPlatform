@@ -22,7 +22,7 @@ public sealed class DashboardService(
 
         var now = timeProvider.GetUtcNow();
         return await dashboards.CreateAsync(new DashboardDefinition(
-            Guid.NewGuid(), tenantId, name.Trim(), definition.GetRawText(), userId, now, now), storage, cancellationToken);
+            Guid.Empty, tenantId, name.Trim(), definition.GetRawText(), userId, now, now), storage, cancellationToken);
     }
 
     public async Task<IReadOnlyList<DashboardDefinition>> ListAsync(Guid tenantId, CancellationToken cancellationToken)

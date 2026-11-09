@@ -10,19 +10,20 @@ public sealed class SqlReportStore : IReportStore
     public async Task<ReportDefinition> CreateAsync(Guid tenantId, ReportDefinition report, EntityStorageLocation storage, CancellationToken token)
     {
         const string sql = """
-            INSERT INTO dbo.ReportDefinitions (TenantId,Id, EntityId, Name, Description, DefinitionJson, CreatedBy, CreatedAt, UpdatedAt)
-            SELECT @tenantId,@id, @entityId, @name, @description, @json, @createdBy, @createdAt, @updatedAt
+            INSERT INTO dbo.ReportDefinitions (TenantId,EntityId, Name, Description, DefinitionJson, CreatedBy, CreatedAt, UpdatedAt)
+            OUTPUT inserted.Id
+            SELECT @tenantId,@entityId, @name, @description, @json, @createdBy, @createdAt, @updatedAt
             WHERE @entityId IS NULL OR EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);
             """;
         await using var connection = await OpenAsync(storage, token);
         await using var command = new SqlCommand(sql, connection);
         Add(command, tenantId, report);
-        if (await command.ExecuteNonQueryAsync(token) != 1)
+        if (await command.ExecuteScalarAsync(token) is not Guid id)
         {
             throw new InvalidOperationException("Entity ownership changed while creating report.");
         }
 
-        return report;
+        return report with { Id = id };
     }
 
     public async Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token)

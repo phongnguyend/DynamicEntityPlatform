@@ -12,12 +12,12 @@ public sealed class SqlServerDashboardStore : IDashboardStore
 
     public async Task<DashboardDefinition> CreateAsync(DashboardDefinition dashboard, EntityStorageLocation storage, CancellationToken cancellationToken)
     {
-        var sql = $"INSERT dbo.DashboardDefinitions ({Columns}) VALUES (@id,@tenantId,@name,@definition,@createdBy,@createdAt,@updatedAt);";
+        const string sql = "INSERT dbo.DashboardDefinitions (TenantId,Name,DefinitionJson,CreatedBy,CreatedAt,UpdatedAt) OUTPUT inserted.Id VALUES (@tenantId,@name,@definition,@createdBy,@createdAt,@updatedAt);";
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         Add(command, dashboard);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        return dashboard;
+        var id = (Guid)(await command.ExecuteScalarAsync(cancellationToken))!;
+        return dashboard with { Id = id };
     }
 
     public Task<IReadOnlyList<DashboardDefinition>> ListAsync(Guid tenantId, EntityStorageLocation storage, CancellationToken cancellationToken) =>

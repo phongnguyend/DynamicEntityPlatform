@@ -19,7 +19,7 @@ public sealed class ViewService(
             ?? throw new NotFoundException($"Entity '{entityId}' was not found for tenant '{tenantId}'.");
         var now = timeProvider.GetUtcNow();
         return await views.CreateAsync(tenantId,
-            new ViewDefinition(Guid.NewGuid(), entityId, name.Trim(), definition.GetRawText(), userId, now, now),
+            new ViewDefinition(Guid.Empty, entityId, name.Trim(), definition.GetRawText(), userId, now, now),
             storage, cancellationToken);
     }
 

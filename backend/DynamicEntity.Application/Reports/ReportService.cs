@@ -68,7 +68,7 @@ public sealed class ReportService(
             ValidateQuery(entityId!.Value, specification.Query, await fields.ListAsync(tenantId, entityId.Value, storage, token));
         }
         var now = timeProvider.GetUtcNow();
-        var report = new ReportDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), JsonSerializer.Serialize(specification, JsonOptions), userId, now, now);
+        var report = new ReportDefinition(Guid.Empty, entityId, name.Trim(), description?.Trim(), JsonSerializer.Serialize(specification, JsonOptions), userId, now, now);
         return await reports.CreateAsync(tenantId, report, storage, token);
     }
     public async Task<IReadOnlyList<ReportDefinition>> ListAsync(Guid tenantId, Guid? entityId, CancellationToken token)

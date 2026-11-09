@@ -80,6 +80,7 @@ public sealed class SqlServerProvisioningAndCrudTests
                 new RecordValidator(new RecordValidationOptions()), constraints, records);
             using var input = JsonDocument.Parse("{\"name\":\"Ada\",\"amount\":12.5,\"occurred\":\"2026-09-05\"}");
             var created = await service.CreateAsync(tenant.Id, entity.Id, input.RootElement, null, CancellationToken.None);
+            Assert.All(new[] { tenant.Id, entity.Id, field.Id, index.Id, created.Id }, id => Assert.NotEqual(Guid.Empty, id));
             var loaded = await service.GetAsync(tenant.Id, entity.Id, created.Id, CancellationToken.None);
             Assert.Contains(field.StorageKey, loaded.Data);
             var analyticsFields = await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None);
@@ -117,7 +118,7 @@ public sealed class SqlServerProvisioningAndCrudTests
             var metricDefinition = new MetricDefinition(Guid.NewGuid(), entity.Id, "SQL metric", null, AggregateFunction.Count,
                 null, null, null, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, sqlDefinition);
             var tenantStorage = await control.GetTenantStorageAsync(tenant.Id, CancellationToken.None);
-            await metricStore.CreateAsync(tenant.Id, metricDefinition, tenantStorage!, CancellationToken.None);
+            metricDefinition = await metricStore.CreateAsync(tenant.Id, metricDefinition, tenantStorage!, CancellationToken.None);
             var storedMetric = await metricStore.GetAsync(tenant.Id, entity.Id, metricDefinition.Id, tenantStorage!, CancellationToken.None);
             Assert.Equal(sqlDefinition.Text, storedMetric!.Sql!.Text);
             var limited = await virtualSql.ExecuteAsync(tenant.Id, entity.Id,
@@ -148,12 +149,86 @@ public sealed class SqlServerProvisioningAndCrudTests
                 created.Id, input.RootElement, new byte[8], null, CancellationToken.None));
             await service.DeleteAsync(tenant.Id, entity.Id, created.Id, created.Version, CancellationToken.None);
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetAsync(tenant.Id, entity.Id, created.Id, CancellationToken.None));
+            await ExerciseGeneratedIdsAsync(tenant.Id, entity, field, tenantStorage!, resolver, metadata, records);
         }
         finally
         {
             await DropDatabaseAsync(serverConnection, tenantDatabaseName);
             await DropDatabaseAsync(serverConnection, controlName);
         }
+    }
+
+    private static async Task ExerciseGeneratedIdsAsync(Guid tenantId, EntityDefinition entity, FieldDefinition field,
+        EntityStorageLocation storage, IEntityStorageResolver resolver, SqlServerEntityMetadataStore metadata,
+        SqlServerRecordStore records)
+    {
+        var token = CancellationToken.None;
+        var entityStorage = await resolver.ResolveAsync(tenantId, entity.Id, token);
+        await using var connection = new SqlConnection(storage.ConnectionString);
+        await connection.OpenAsync(token);
+
+        // Recreate the old schema while retaining metadata and an existing physical table.
+        const string previousSchema = """
+            DECLARE @sql NVARCHAR(MAX) = N'';
+            SELECT @sql += N'ALTER TABLE dbo.' + QUOTENAME(t.name)
+                + N' DROP CONSTRAINT ' + QUOTENAME(d.name) + N';'
+            FROM sys.default_constraints d
+            JOIN sys.tables t ON t.object_id = d.parent_object_id
+            JOIN sys.columns c ON c.object_id = t.object_id AND c.column_id = d.parent_column_id
+            WHERE c.name = N'Id' AND (t.name IN (N'EntityDefinitions', N'FieldDefinitions') OR t.name = @table);
+            EXEC sys.sp_executesql @sql;
+            DELETE FROM dbo.SchemaMigrations WHERE Version = 15;
+            """;
+        await using (var downgrade = new SqlCommand(previousSchema, connection))
+        {
+            downgrade.Parameters.AddWithValue("@table", entityStorage.TableName);
+            await downgrade.ExecuteNonQueryAsync(token);
+        }
+
+        var migrator = new DynamicEntity.SqlServer.Migrations.SqlServerTenantDatabaseMigrator();
+        await migrator.MigrateAsync(storage, token);
+        await migrator.MigrateAsync(storage, token);
+        Assert.Equal(entity.Id, (await metadata.GetAsync(tenantId, entity.Id, storage, token))!.Id);
+        Assert.Equal(entityStorage.TableName, (await metadata.GetStorageAsync(tenantId, entity.Id, storage, token))!.TableName);
+        var savedField = (await new SqlServerFieldMetadataStore().ListAsync(tenantId, entity.Id, storage, token))
+            .Single(item => item.Id == field.Id);
+        Assert.Equal(field.StorageKey, savedField.StorageKey);
+
+        const string missingDefaultsSql = """
+            SELECT COUNT(*) FROM sys.tables t
+            JOIN sys.columns c ON c.object_id = t.object_id
+            LEFT JOIN sys.default_constraints d ON d.object_id = c.default_object_id
+            WHERE c.name = N'Id' AND c.system_type_id = TYPE_ID(N'uniqueidentifier')
+                AND (d.definition IS NULL OR d.definition NOT LIKE N'%newsequentialid%');
+            """;
+        await using (var defaults = new SqlCommand(missingDefaultsSql, connection))
+        {
+            Assert.Equal(0, (int)(await defaults.ExecuteScalarAsync(token))!);
+        }
+
+        var tenant = new DynamicEntity.Domain.Tenants.TenantContext(tenantId);
+        string Data(string name) => JsonSerializer.Serialize(new Dictionary<string, string> { [field.StorageKey] = name });
+        var first = await records.InsertAsync(tenant, entity, Data("Direct"), null, token);
+        var second = await records.InsertAsync(tenant, entity, Data("Second"), null, token);
+        Assert.NotEqual(first.Id, second.Id);
+        var merge = new SqlServerRecordMergeStore(resolver);
+        Assert.Equal((1, 0), await merge.MergeAsync(tenant, entity, field, [Data("Merged")], null, token));
+        Assert.Equal((0, 1), await merge.MergeAsync(tenant, entity, field, [Data("Merged")], null, token));
+
+        var imports = new SqlServerImportStore();
+        var now = DateTimeOffset.UtcNow;
+        var job = await imports.CreateAsync(tenantId, new DynamicEntity.Domain.Imports.ImportJob(
+            Guid.Empty, entity.Id, "generated-ids.csv", DynamicEntity.Domain.Imports.ImportStatus.Uploaded,
+            [], 0, 0, 0, now, now), storage, token);
+        Assert.NotEqual(Guid.Empty, job.Id);
+        DynamicEntity.Domain.Imports.ImportSourceRow[] rows = [new(1, "{}", Data("Imported"), null)];
+        await imports.StageRowsAsync(tenantId, job.Id, rows, storage, token);
+        await imports.SaveValidationAsync(tenantId, job.Id, rows, storage, token);
+        Assert.Equal(1, await imports.CommitAsync(tenantId, job, entityStorage, storage, token));
+        var saved = await records.QueryAsync(tenant, entity, new RecordQuery(10), token);
+        Assert.Equal(4, saved.Items.Count);
+        Assert.All(saved.Items, record => Assert.NotEqual(Guid.Empty, record.Id));
+        Assert.Equal(4, saved.Items.Select(record => record.Id).Distinct().Count());
     }
 
     private static async Task ExerciseAnalyticsAsync(SqlServerOptions options, IControlPlaneStore control,
@@ -223,7 +298,7 @@ public sealed class SqlServerProvisioningAndCrudTests
 
         var evaluationStore = new SqlAlertEvaluationStore(options);
         var evaluation = new AlertEvaluation(Guid.NewGuid(), alert.Id, "1", "0", AlertState.Firing, null, now);
-        await evaluationStore.CreateAsync(tenantId, evaluation, storage, CancellationToken.None);
+        evaluation = await evaluationStore.CreateAsync(tenantId, evaluation, storage, CancellationToken.None);
         var notificationStore = new SqlAlertNotificationStore(options);
         await notificationStore.CreateAsync(tenantId, new AlertNotification(Guid.NewGuid(), alert.Id, evaluation.Id,
             "InApp", NotificationStatus.Delivered, 1, null, now, now), storage, CancellationToken.None);

@@ -119,10 +119,15 @@ public sealed class EntityServiceTests
             Task.FromResult<EntityStorageLocation?>(Storage);
         public Task<EntityDefinition> CreateAsync(EntityDefinition entity, EntityStorageLocation tenantStorage, CancellationToken cancellationToken)
         {
+            Assert.Equal(Guid.Empty, entity.Id);
+            entity = entity with
+            {
+                Id = Guid.NewGuid()
+            };
             stored.Add(entity);
             return Task.FromResult(entity);
         }
-        public Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Tenant> CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SetTenantStatusAsync(Guid tenantId, TenantStatus status, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SaveTenantStorageAsync(Guid tenantId, EntityStorageLocation location, CancellationToken cancellationToken) => throw new NotSupportedException();

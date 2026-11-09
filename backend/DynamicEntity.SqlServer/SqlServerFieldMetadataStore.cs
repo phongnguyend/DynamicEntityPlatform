@@ -18,18 +18,24 @@ public sealed class SqlServerFieldMetadataStore : IFieldMetadataStore
             IF NOT EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id = @entityId AND TenantId = @tenantId AND Status = N'Active')
                 THROW 50001, 'Entity was not found for tenant.', 1;
 
+            DECLARE @created TABLE (Id UNIQUEIDENTIFIER);
             INSERT INTO dbo.FieldDefinitions
-                (Id, EntityId, Name, DisplayName, StorageKey, DataType, IsRequired, IsUnique,
+                (EntityId, Name, DisplayName, StorageKey, DataType, IsRequired, IsUnique,
                  IsFilterable, IsSortable, IsFacetable, IsSearchable, DefaultValueJson,
                  ConfigurationJson, SortOrder, IsActive, CreatedAt, UpdatedAt)
+            OUTPUT inserted.Id INTO @created
             VALUES
-                (@id, @entityId, @name, @displayName, @storageKey, @dataType, @isRequired, @isUnique,
+                (@entityId, @name, @displayName, N'pending', @dataType, @isRequired, @isUnique,
                  @isFilterable, @isSortable, @isFacetable, @isSearchable, @defaultValueJson,
                  @configurationJson, @sortOrder, 1, @createdAt, @updatedAt);
+
+            UPDATE f SET StorageKey = 'f_' + LOWER(REPLACE(CONVERT(VARCHAR(36), f.Id), '-', ''))
+            FROM dbo.FieldDefinitions f INNER JOIN @created c ON c.Id = f.Id;
 
             UPDATE dbo.EntityDefinitions
             SET SchemaVersion = SchemaVersion + 1, UpdatedAt = @updatedAt
             WHERE Id = @entityId AND TenantId = @tenantId;
+            SELECT Id FROM @created;
             """;
 
         await using var connection = await OpenTenantAsync(tenantStorage, cancellationToken);
@@ -38,11 +44,9 @@ public sealed class SqlServerFieldMetadataStore : IFieldMetadataStore
         {
             await using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("@tenantId", tenantId);
-            command.Parameters.AddWithValue("@id", field.Id);
             command.Parameters.AddWithValue("@entityId", field.EntityId);
             command.Parameters.AddWithValue("@name", field.Name);
             command.Parameters.AddWithValue("@displayName", field.DisplayName);
-            command.Parameters.AddWithValue("@storageKey", field.StorageKey);
             command.Parameters.AddWithValue("@dataType", field.DataType.ToString());
             command.Parameters.AddWithValue("@isRequired", field.IsRequired);
             command.Parameters.AddWithValue("@isUnique", field.IsUnique);
@@ -55,7 +59,7 @@ public sealed class SqlServerFieldMetadataStore : IFieldMetadataStore
             command.Parameters.AddWithValue("@sortOrder", field.SortOrder);
             command.Parameters.AddWithValue("@createdAt", field.CreatedAt);
             command.Parameters.AddWithValue("@updatedAt", field.UpdatedAt);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            field = field with { Id = (Guid)(await command.ExecuteScalarAsync(cancellationToken))! };
             await transaction.CommitAsync(cancellationToken);
             return field;
         }

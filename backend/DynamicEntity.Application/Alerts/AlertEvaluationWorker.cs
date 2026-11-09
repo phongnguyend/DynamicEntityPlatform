@@ -39,8 +39,8 @@ public sealed class AlertEvaluationWorker(IControlPlaneStore controlPlane, IAler
                 var threshold = JsonSerializer.Deserialize<decimal>(alert.ThresholdJson);
                 var firing = thresholdEvaluator.IsMatch(result.Value, threshold, alert.ComparisonOperator);
                 var recovered = alert.LastState == AlertState.Firing && !firing;
-                var evaluation = new AlertEvaluation(Guid.NewGuid(), alert.Id, JsonSerializer.Serialize(result.Value), alert.ThresholdJson, recovered ? AlertState.Recovered : firing ? AlertState.Firing : AlertState.Normal, null, now);
-                await evaluations.CreateAsync(tenantId, evaluation, storage, token);
+                var evaluation = new AlertEvaluation(Guid.Empty, alert.Id, JsonSerializer.Serialize(result.Value), alert.ThresholdJson, recovered ? AlertState.Recovered : firing ? AlertState.Firing : AlertState.Normal, null, now);
+                evaluation = await evaluations.CreateAsync(tenantId, evaluation, storage, token);
                 var history = await notifications.ListAsync(tenantId, alert.Id, storage, token);
                 var last = history.FirstOrDefault();
                 var notify = AlertNotificationPolicy.ShouldNotify(alert.LastState, firing, alert.NotifyOnRecovery, alert.Cooldown, last?.CreatedAt, now);
@@ -62,7 +62,7 @@ public sealed class AlertEvaluationWorker(IControlPlaneStore controlPlane, IAler
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, exception.Message);
-                var evaluation = new AlertEvaluation(Guid.NewGuid(), alert.Id, null, alert.ThresholdJson, AlertState.Error, exception.Message, now);
+                var evaluation = new AlertEvaluation(Guid.Empty, alert.Id, null, alert.ThresholdJson, AlertState.Error, exception.Message, now);
                 await evaluations.CreateAsync(tenantId, evaluation, storage, CancellationToken.None);
                 await alerts.CompleteAsync(tenantId, alert with
                 {

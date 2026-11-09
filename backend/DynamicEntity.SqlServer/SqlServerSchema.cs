@@ -15,6 +15,11 @@ internal static class SqlServerSchema
             );
         END;
 
+        IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.Tenants') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'dbo.Tenants'), N'Id', 'ColumnId'))
+        BEGIN
+            ALTER TABLE dbo.Tenants ADD CONSTRAINT DF_Tenants_Id DEFAULT NEWSEQUENTIALID() FOR Id;
+        END;
+
         IF OBJECT_ID(N'dbo.TenantStorage', N'U') IS NULL
         BEGIN
             CREATE TABLE dbo.TenantStorage
@@ -480,5 +485,35 @@ internal static class SqlServerSchema
             ALTER TABLE dbo.AlertDefinitions ALTER COLUMN TenantId UNIQUEIDENTIFIER NOT NULL;
             ALTER TABLE dbo.AlertDefinitions ALTER COLUMN EntityId UNIQUEIDENTIFIER NULL;
             CREATE INDEX IX_AlertDefinitions_TenantScope ON dbo.AlertDefinitions(TenantId,EntityId);';
+        """;
+
+    public const string TenantDatabaseV15 = """
+        DECLARE @tableName SYSNAME;
+        DECLARE @sql NVARCHAR(MAX);
+        DECLARE idTables CURSOR LOCAL FAST_FORWARD FOR
+            SELECT t.name
+            FROM sys.tables t
+            INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+            INNER JOIN sys.columns c ON c.object_id = t.object_id AND c.name = N'Id'
+            WHERE s.name = N'dbo' AND c.system_type_id = TYPE_ID(N'uniqueidentifier')
+                AND c.default_object_id = 0
+                AND (t.name IN (
+                    N'EntityDefinitions', N'FieldDefinitions', N'ViewDefinitions',
+                    N'EntityIndexDefinitions', N'EntityIndexColumns', N'ImportJobs',
+                    N'ReportDefinitions', N'MetricDefinitions', N'AlertDefinitions',
+                    N'AlertEvaluations', N'AlertNotifications', N'WebhookSubscriptions',
+                    N'DashboardDefinitions', N'GlobalViewDefinitions')
+                    OR EXISTS (SELECT 1 FROM dbo.EntityStorageMappings m WHERE m.TableName = t.name));
+        OPEN idTables;
+        FETCH NEXT FROM idTables INTO @tableName;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @sql = N'ALTER TABLE dbo.' + QUOTENAME(@tableName)
+                + N' ADD DEFAULT NEWSEQUENTIALID() FOR Id;';
+            EXEC sys.sp_executesql @sql;
+            FETCH NEXT FROM idTables INTO @tableName;
+        END;
+        CLOSE idTables;
+        DEALLOCATE idTables;
         """;
 }

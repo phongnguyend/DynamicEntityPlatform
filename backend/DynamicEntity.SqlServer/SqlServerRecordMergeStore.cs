@@ -48,8 +48,8 @@ public sealed class SqlServerRecordMergeStore(IEntityStorageResolver resolver) :
             UPDATE target SET Data=source.NewData,UpdatedAt=SYSUTCDATETIME(),UpdatedBy=@userId
             FROM dbo.{table} target INNER JOIN #MergeRows source ON JSON_VALUE(target.Data, '{path}')=source.ExternalKey;
             DECLARE @updated INT=@@ROWCOUNT;
-            INSERT INTO dbo.{table}(Id,Data,CreatedAt,CreatedBy,UpdatedAt,UpdatedBy)
-            SELECT NEWID(),source.NewData,SYSUTCDATETIME(),@userId,SYSUTCDATETIME(),@userId
+            INSERT INTO dbo.{table}(Data,CreatedAt,CreatedBy,UpdatedAt,UpdatedBy)
+            SELECT source.NewData,SYSUTCDATETIME(),@userId,SYSUTCDATETIME(),@userId
             FROM #MergeRows source WHERE NOT EXISTS
                 (SELECT 1 FROM dbo.{table} target WHERE JSON_VALUE(target.Data, '{path}')=source.ExternalKey);
             SELECT @@ROWCOUNT AS Inserted,@updated AS Updated;

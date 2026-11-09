@@ -14,10 +14,10 @@ public sealed class SqlGlobalViewStore : IGlobalViewStore
     public async Task<GlobalViewDefinition> CreateAsync(Guid tenantId, GlobalViewDefinition view, EntityStorageLocation storage, CancellationToken token)
     {
         await using var connection = await OpenAsync(storage, token);
-        await using var command = new SqlCommand("INSERT dbo.GlobalViewDefinitions(TenantId,Id,Name,Description,DefinitionJson,CreatedBy,CreatedAt,UpdatedAt) VALUES(@tenantId,@id,@name,@description,@definition,@createdBy,@createdAt,@updatedAt);", connection);
+        await using var command = new SqlCommand("INSERT dbo.GlobalViewDefinitions(TenantId,Name,Description,DefinitionJson,CreatedBy,CreatedAt,UpdatedAt) OUTPUT inserted.Id VALUES(@tenantId,@name,@description,@definition,@createdBy,@createdAt,@updatedAt);", connection);
         Add(command, tenantId, view);
-        await command.ExecuteNonQueryAsync(token);
-        return view;
+        var id = (Guid)(await command.ExecuteScalarAsync(token))!;
+        return view with { Id = id };
     }
 
     public Task<IReadOnlyList<GlobalViewDefinition>> ListAsync(Guid tenantId, EntityStorageLocation storage, CancellationToken token) =>

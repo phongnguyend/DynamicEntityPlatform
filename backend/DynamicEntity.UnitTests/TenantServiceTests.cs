@@ -91,11 +91,11 @@ public sealed class TenantServiceTests
             return Task.CompletedTask;
         }
 
-        public Task CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken)
+        public Task<Tenant> CreateTenantAsync(Tenant tenant, CancellationToken cancellationToken)
         {
             Events.Add("create");
-            Tenant = tenant;
-            return Task.CompletedTask;
+            Tenant = tenant with { Id = Guid.NewGuid() };
+            return Task.FromResult(Tenant);
         }
 
         public Task UpdateTenantNameAsync(Guid tenantId, string name, CancellationToken cancellationToken)

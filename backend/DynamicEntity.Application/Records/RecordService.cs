@@ -39,7 +39,7 @@ public sealed class RecordService(
         }
 
         return await records.InsertAsync(
-            new TenantContext(tenantId), entity, Guid.NewGuid(), result.NormalizedData!, userId, cancellationToken);
+            new TenantContext(tenantId), entity, result.NormalizedData!, userId, cancellationToken);
     }
 
     public async Task<DynamicRecord> GetAsync(

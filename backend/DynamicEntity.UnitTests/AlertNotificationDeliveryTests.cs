@@ -315,7 +315,7 @@ public sealed class AlertNotificationDeliveryTests
             Task.FromResult<Tenant?>(id == tenant.Id ? tenant : null);
         public Task<IReadOnlyList<Tenant>> ListTenantsAsync(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<Tenant>>([tenant]);
-        public Task CreateTenantAsync(Tenant value, CancellationToken token) => Task.CompletedTask;
+        public Task<Tenant> CreateTenantAsync(Tenant value, CancellationToken token) => Task.FromResult(value);
         public Task UpdateTenantNameAsync(Guid id, string name, CancellationToken token) => Task.CompletedTask;
         public Task SetTenantStatusAsync(Guid id, TenantStatus status, CancellationToken token) => Task.CompletedTask;
         public Task SaveTenantStorageAsync(Guid id, EntityStorageLocation location, CancellationToken token) => Task.CompletedTask;

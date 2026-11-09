@@ -13,19 +13,21 @@ public sealed class SqlAlertStore : IAlertStore
     public async Task<AlertDefinition> CreateAsync(Guid tenantId, AlertDefinition a, EntityStorageLocation s, CancellationToken t)
     {
         const string sql = """
-        INSERT dbo.AlertDefinitions(TenantId,Id,EntityId,MetricId,Name,ComparisonOperator,ThresholdJson,[Interval],Timezone,CooldownSeconds,NotifyOnRecovery,IsEnabled,LastState,LastEvaluatedAt,NextEvaluationAt,LeaseOwner,LeaseExpiresAt,CreatedBy,CreatedAt,UpdatedAt,ParametersJson)
-        SELECT @tenantId,@id,@entityId,@metricId,@name,@operator,@threshold,@interval,@timezone,@cooldown,@recovery,@enabled,@state,@evaluated,@next,@owner,@lease,@createdBy,@createdAt,@updatedAt,@parameters
+        INSERT dbo.AlertDefinitions(TenantId,EntityId,MetricId,Name,ComparisonOperator,ThresholdJson,[Interval],Timezone,CooldownSeconds,NotifyOnRecovery,IsEnabled,LastState,LastEvaluatedAt,NextEvaluationAt,LeaseOwner,LeaseExpiresAt,CreatedBy,CreatedAt,UpdatedAt,ParametersJson)
+        OUTPUT inserted.Id
+        SELECT @tenantId,@entityId,@metricId,@name,@operator,@threshold,@interval,@timezone,@cooldown,@recovery,@enabled,@state,@evaluated,@next,@owner,@lease,@createdBy,@createdAt,@updatedAt,@parameters
         WHERE EXISTS(SELECT 1 FROM dbo.MetricDefinitions m WHERE m.TenantId=@tenantId AND m.Id=@metricId AND (@entityId IS NULL OR m.EntityId=@entityId));
         """;
         await using var c = await OpenAsync(s, t);
         await using var tx = (SqlTransaction)await c.BeginTransactionAsync(t);
         await using var cmd = new SqlCommand(sql, c, tx);
         Add(cmd, tenantId, a);
-        if (await cmd.ExecuteNonQueryAsync(t) != 1)
+        if (await cmd.ExecuteScalarAsync(t) is not Guid id)
         {
             throw new InvalidOperationException("Metric ownership changed while creating alert.");
         }
 
+        a = a with { Id = id };
         await ReplaceActionsAsync(c, tx, a, t);
         await tx.CommitAsync(t);
         return a;
@@ -200,13 +202,18 @@ public sealed class SqlAlertStore : IAlertStore
 
 public sealed class SqlAlertEvaluationStore(SqlServerOptions options) : IAlertEvaluationStore
 {
-    public async Task CreateAsync(Guid tenantId, AlertEvaluation e, EntityStorageLocation s, CancellationToken t)
+    public async Task<AlertEvaluation> CreateAsync(Guid tenantId, AlertEvaluation e, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "INSERT dbo.AlertEvaluations(Id,AlertId,ValueJson,ThresholdJson,State,Error,EvaluatedAt) SELECT @id,@alert,@value,@threshold,@state,@error,@at WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
+        const string sql = "INSERT dbo.AlertEvaluations(AlertId,ValueJson,ThresholdJson,State,Error,EvaluatedAt) OUTPUT inserted.Id SELECT @alert,@value,@threshold,@state,@error,@at WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, e);
-        await cmd.ExecuteNonQueryAsync(t);
+        if (await cmd.ExecuteScalarAsync(t) is not Guid id)
+        {
+            throw new InvalidOperationException("Alert ownership changed while creating evaluation.");
+        }
+
+        return e with { Id = id };
     }
     public async Task<IReadOnlyList<AlertEvaluation>> ListAsync(Guid tenantId, Guid alertId, EntityStorageLocation s, CancellationToken t)
     {
@@ -227,7 +234,6 @@ public sealed class SqlAlertEvaluationStore(SqlServerOptions options) : IAlertEv
     private static void Add(SqlCommand c, Guid tenantId, AlertEvaluation e)
     {
         c.Parameters.AddWithValue("@tenant", tenantId);
-        c.Parameters.AddWithValue("@id", e.Id);
         c.Parameters.AddWithValue("@alert", e.AlertId);
         c.Parameters.AddWithValue("@value", (object?)e.ValueJson ?? DBNull.Value);
         c.Parameters.AddWithValue("@threshold", e.ThresholdJson);
@@ -242,7 +248,7 @@ public sealed class SqlAlertNotificationStore(SqlServerOptions options) : IAlert
     private const string Columns = "n.Id,n.AlertId,n.EvaluationId,n.Channel,n.Status,n.Attempts,n.LastError,n.CreatedAt,n.DeliveredAt,n.PayloadJson,n.NextAttemptAt,n.LeaseOwner,n.LeaseExpiresAt";
     public async Task CreateAsync(Guid tenantId, AlertNotification n, EntityStorageLocation s, CancellationToken t)
     {
-        const string sql = "INSERT dbo.AlertNotifications(Id,AlertId,EvaluationId,Channel,Status,Attempts,LastError,CreatedAt,DeliveredAt,PayloadJson,NextAttemptAt) SELECT @id,@alert,@evaluation,@channel,@status,@attempts,@error,@created,@delivered,@payload,@next WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
+        const string sql = "INSERT dbo.AlertNotifications(AlertId,EvaluationId,Channel,Status,Attempts,LastError,CreatedAt,DeliveredAt,PayloadJson,NextAttemptAt) SELECT @alert,@evaluation,@channel,@status,@attempts,@error,@created,@delivered,@payload,@next WHERE EXISTS(SELECT 1 FROM dbo.AlertDefinitions a WHERE a.Id=@alert AND a.TenantId=@tenant);";
         await using var c = await SqlAlertStoreHelpers.OpenAsync(options, s, t);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, n);

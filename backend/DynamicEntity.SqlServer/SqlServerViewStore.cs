@@ -10,19 +10,20 @@ public sealed class SqlServerViewStore : IViewStore
     public async Task<ViewDefinition> CreateAsync(Guid tenantId, ViewDefinition view, EntityStorageLocation storage, CancellationToken cancellationToken)
     {
         const string sql = """
-            INSERT INTO dbo.ViewDefinitions (Id, EntityId, Name, DefinitionJson, CreatedBy, CreatedAt, UpdatedAt)
-            SELECT @id, @entityId, @name, @definition, @createdBy, @createdAt, @updatedAt
+            INSERT INTO dbo.ViewDefinitions (EntityId, Name, DefinitionJson, CreatedBy, CreatedAt, UpdatedAt)
+            OUTPUT inserted.Id
+            SELECT @entityId, @name, @definition, @createdBy, @createdAt, @updatedAt
             WHERE EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id = @entityId AND TenantId = @tenantId);
             """;
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         Add(command, tenantId, view);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        if (await command.ExecuteScalarAsync(cancellationToken) is not Guid id)
         {
             throw new InvalidOperationException("Entity ownership changed while creating view.");
         }
 
-        return view;
+        return view with { Id = id };
     }
 
     public async Task<IReadOnlyList<ViewDefinition>> ListAsync(Guid tenantId, Guid entityId, EntityStorageLocation storage, CancellationToken cancellationToken)

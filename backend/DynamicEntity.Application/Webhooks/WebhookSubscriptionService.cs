@@ -17,7 +17,7 @@ public sealed class WebhookSubscriptionService(
         Validate(name, endpoint, events);
         var storage = await RequireEntityAsync(tenantId, entityId, token);
         var now = timeProvider.GetUtcNow();
-        var subscription = new WebhookSubscription(Guid.NewGuid(), entityId, name!.Trim(), endpoint!,
+        var subscription = new WebhookSubscription(Guid.Empty, entityId, name!.Trim(), endpoint!,
             NormalizeEvents(events!), isEnabled, userId, now, now);
         return await subscriptions.CreateAsync(tenantId, subscription, storage, token);
     }

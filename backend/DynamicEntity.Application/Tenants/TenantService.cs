@@ -26,8 +26,8 @@ public sealed class TenantService(
 
         await initializer.InitializeAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
-        var tenant = new Tenant(Guid.NewGuid(), name, TenantStatus.Provisioning, now, now);
-        await controlPlane.CreateTenantAsync(tenant, cancellationToken);
+        var tenant = new Tenant(Guid.Empty, name, TenantStatus.Provisioning, now, now);
+        tenant = await controlPlane.CreateTenantAsync(tenant, cancellationToken);
 
         try
         {

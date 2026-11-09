@@ -10,16 +10,16 @@ public sealed class SqlMetricStore : IMetricStore
 {
     public async Task<MetricDefinition> CreateAsync(Guid tenantId, MetricDefinition metric, EntityStorageLocation storage, CancellationToken token)
     {
-        const string sql = "INSERT INTO dbo.MetricDefinitions (TenantId,Id,EntityId,Name,Description,Aggregate,FieldId,FilterJson,FormatJson,CreatedBy,CreatedAt,UpdatedAt,SqlJson) SELECT @tenantId,@id,@entityId,@name,@description,@aggregate,@fieldId,@filter,@format,@createdBy,@createdAt,@updatedAt,@sql WHERE @entityId IS NULL OR EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
+        const string sql = "INSERT INTO dbo.MetricDefinitions (TenantId,EntityId,Name,Description,Aggregate,FieldId,FilterJson,FormatJson,CreatedBy,CreatedAt,UpdatedAt,SqlJson) OUTPUT inserted.Id SELECT @tenantId,@entityId,@name,@description,@aggregate,@fieldId,@filter,@format,@createdBy,@createdAt,@updatedAt,@sql WHERE @entityId IS NULL OR EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id=@entityId AND TenantId=@tenantId);";
         await using var c = await OpenAsync(storage, token);
         await using var cmd = new SqlCommand(sql, c);
         Add(cmd, tenantId, metric);
-        if (await cmd.ExecuteNonQueryAsync(token) != 1)
+        if (await cmd.ExecuteScalarAsync(token) is not Guid id)
         {
             throw new InvalidOperationException("Entity ownership changed while creating metric.");
         }
 
-        return metric;
+        return metric with { Id = id };
     }
     public Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid? entityId, EntityStorageLocation storage, CancellationToken token) => ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt,m.SqlJson FROM dbo.MetricDefinitions m LEFT JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE m.TenantId=@tenantId AND (m.EntityId=@entityId OR (m.EntityId IS NULL AND @entityId IS NULL)) ORDER BY m.Name,m.Id;", tenantId, entityId, null, storage, token);
     public async Task<MetricDefinition?> GetAsync(Guid tenantId, Guid? entityId, Guid metricId, EntityStorageLocation storage, CancellationToken token) => (await ReadManyAsync("SELECT m.Id,m.EntityId,m.Name,m.Description,m.Aggregate,m.FieldId,m.FilterJson,m.FormatJson,m.CreatedBy,m.CreatedAt,m.UpdatedAt,m.SqlJson FROM dbo.MetricDefinitions m LEFT JOIN dbo.EntityDefinitions e ON e.Id=m.EntityId WHERE m.TenantId=@tenantId AND (m.EntityId=@entityId OR (m.EntityId IS NULL AND @entityId IS NULL)) AND m.Id=@id;", tenantId, entityId, metricId, storage, token)).SingleOrDefault();

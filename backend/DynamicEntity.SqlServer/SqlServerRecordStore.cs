@@ -65,22 +65,20 @@ public sealed class SqlServerRecordStore(
     public async Task<DynamicRecord> InsertAsync(
         TenantContext tenant,
         EntityDefinition entity,
-        Guid recordId,
         string data,
         Guid? userId,
         CancellationToken cancellationToken)
     {
         var (connection, table) = await OpenAsync(tenant, entity, cancellationToken);
         var sql = $"""
-            INSERT INTO dbo.{table} (Id, Data, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
+            INSERT INTO dbo.{table} (Data, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
             OUTPUT inserted.Id, inserted.Data, inserted.CreatedAt, inserted.CreatedBy,
                    inserted.UpdatedAt, inserted.UpdatedBy, inserted.Version
-            VALUES (@id, @data, SYSUTCDATETIME(), @userId, SYSUTCDATETIME(), @userId);
+            VALUES (@data, SYSUTCDATETIME(), @userId, SYSUTCDATETIME(), @userId);
             """;
         await using (connection)
         await using (var command = new SqlCommand(sql, connection))
         {
-            command.Parameters.AddWithValue("@id", recordId);
             command.Parameters.AddWithValue("@data", data);
             command.Parameters.AddWithValue("@userId", (object?)userId ?? DBNull.Value);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

@@ -10,26 +10,28 @@ namespace DynamicEntity.SqlServer;
 
 public sealed class SqlServerImportStore : IImportStore
 {
-    public async Task CreateAsync(Guid tenantId, ImportJob job, EntityStorageLocation storage, CancellationToken cancellationToken)
+    public async Task<ImportJob> CreateAsync(Guid tenantId, ImportJob job, EntityStorageLocation storage, CancellationToken cancellationToken)
     {
         const string sql = """
-            INSERT INTO dbo.ImportJobs (Id, EntityId, FileName, Status, ColumnsJson, TotalRows, ValidRows, InvalidRows, CreatedAt, UpdatedAt)
-            SELECT @id, @entityId, @fileName, @status, N'[]', 0, 0, 0, @createdAt, @updatedAt
+            INSERT INTO dbo.ImportJobs (EntityId, FileName, Status, ColumnsJson, TotalRows, ValidRows, InvalidRows, CreatedAt, UpdatedAt)
+            OUTPUT inserted.Id
+            SELECT @entityId, @fileName, @status, N'[]', 0, 0, 0, @createdAt, @updatedAt
             WHERE EXISTS (SELECT 1 FROM dbo.EntityDefinitions WHERE Id = @entityId AND TenantId = @tenantId);
             """;
         await using var connection = await OpenAsync(storage, cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@tenantId", tenantId);
-        command.Parameters.AddWithValue("@id", job.Id);
         command.Parameters.AddWithValue("@entityId", job.EntityId);
         command.Parameters.AddWithValue("@fileName", job.FileName);
         command.Parameters.AddWithValue("@status", job.Status.ToString());
         command.Parameters.AddWithValue("@createdAt", job.CreatedAt);
         command.Parameters.AddWithValue("@updatedAt", job.UpdatedAt);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        if (await command.ExecuteScalarAsync(cancellationToken) is not Guid id)
         {
             throw new InvalidOperationException("Entity ownership changed while creating import.");
         }
+
+        return job with { Id = id };
     }
 
     public async Task SetColumnsAsync(Guid tenantId, Guid importId, IReadOnlyList<string> columns, EntityStorageLocation storage, CancellationToken cancellationToken)
@@ -166,8 +168,8 @@ public sealed class SqlServerImportStore : IImportStore
         var predicate = entityStorage.RequiresEntityPredicate ? "EntityId, " : string.Empty;
         var values = entityStorage.RequiresEntityPredicate ? "@entityId, " : string.Empty;
         var sql = $"""
-            INSERT INTO dbo.{table} ({predicate}Id,Data,CreatedAt,CreatedBy,UpdatedAt,UpdatedBy)
-            SELECT {values}NEWID(),ConvertedData,SYSUTCDATETIME(),NULL,SYSUTCDATETIME(),NULL
+            INSERT INTO dbo.{table} ({predicate}Data,CreatedAt,CreatedBy,UpdatedAt,UpdatedBy)
+            SELECT {values}ConvertedData,SYSUTCDATETIME(),NULL,SYSUTCDATETIME(),NULL
             FROM dbo.ImportRows WHERE ImportId=@id AND ConvertedData IS NOT NULL AND ValidationError IS NULL;
             DECLARE @count INT=@@ROWCOUNT;
             UPDATE dbo.ImportJobs SET Status=N'Committed',UpdatedAt=SYSUTCDATETIME() WHERE Id=@id;

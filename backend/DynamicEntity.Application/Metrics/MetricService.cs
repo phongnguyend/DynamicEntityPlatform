@@ -26,7 +26,7 @@ public sealed class MetricService(IControlPlaneStore controlPlane, IEntityMetada
             ValidateQuery(entityId!.Value, q, await fields.ListAsync(tenantId, entityId.Value, s, token));
         }
         var now = timeProvider.GetUtcNow();
-        var m = new MetricDefinition(Guid.NewGuid(), entityId, name.Trim(), description?.Trim(), aggregate, fieldId, filter is null ? null : JsonSerializer.Serialize(filter, JsonOptions), formatJson, userId, now, now, sql);
+        var m = new MetricDefinition(Guid.Empty, entityId, name.Trim(), description?.Trim(), aggregate, fieldId, filter is null ? null : JsonSerializer.Serialize(filter, JsonOptions), formatJson, userId, now, now, sql);
         return await metrics.CreateAsync(tenantId, m, s, token);
     }
     public async Task<IReadOnlyList<MetricDefinition>> ListAsync(Guid tenantId, Guid? entityId, CancellationToken token)

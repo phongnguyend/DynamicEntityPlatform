@@ -32,8 +32,8 @@ public sealed class ImportService(
         _ = await entities.GetAsync(tenantId, entityId, storage, cancellationToken)
             ?? throw new NotFoundException($"Entity '{entityId}' was not found for tenant '{tenantId}'.");
         var now = timeProvider.GetUtcNow();
-        var job = new ImportJob(Guid.NewGuid(), entityId, Path.GetFileName(fileName), ImportStatus.Uploaded, [], 0, 0, 0, now, now);
-        await imports.CreateAsync(tenantId, job, storage, cancellationToken);
+        var job = new ImportJob(Guid.Empty, entityId, Path.GetFileName(fileName), ImportStatus.Uploaded, [], 0, 0, 0, now, now);
+        job = await imports.CreateAsync(tenantId, job, storage, cancellationToken);
         var batch = new List<ImportSourceRow>(500);
         IReadOnlyList<string> columns = [];
         await parser.ParseAsync(stream, fileName,

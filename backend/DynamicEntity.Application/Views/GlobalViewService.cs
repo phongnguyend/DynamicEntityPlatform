@@ -17,7 +17,7 @@ public sealed class GlobalViewService(IControlPlaneStore controlPlane, IGlobalVi
         var storage = await new TenantStorageGuard(controlPlane).RequireActiveAsync(tenantId, token);
         await sql.PreviewAsync(tenantId, null, definition.Sql, null, token);
         var now = timeProvider.GetUtcNow();
-        return await views.CreateAsync(tenantId, new(Guid.NewGuid(), name.Trim(), description?.Trim(), definition, null, now, now), storage, token);
+        return await views.CreateAsync(tenantId, new(Guid.Empty, name.Trim(), description?.Trim(), definition, null, now, now), storage, token);
     }
 
     public async Task<IReadOnlyList<GlobalViewDefinition>> ListAsync(Guid tenantId, CancellationToken token)
