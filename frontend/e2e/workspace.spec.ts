@@ -63,6 +63,8 @@ test('records: create, edit, and delete a record', async ({ page, api }) => {
 
 test('records: CSV export and import dialog', async ({ page }) => {
   await page.goto(`${entityPath}/records`)
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toBeVisible()
+  await expect(page.locator('.page > header')).not.toContainText('Schema v')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export CSV' }).click()
   expect((await download).suggestedFilename()).toBe('Customer.csv')

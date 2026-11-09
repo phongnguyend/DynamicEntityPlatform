@@ -68,7 +68,22 @@ public sealed class SqlServerProvisioningAndCrudTests
                 [new EntityIndexColumnInput(field.Id, false)], CancellationToken.None);
             Assert.NotNull((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
                 .Single(item => item.Id == field.Id).IndexColumnName);
+            var schemaReader = new SqlServerEntitySqlSchemaReader(control, resolver);
+            var schema = await schemaReader.GetAsync(tenant.Id, entity.Id, CancellationToken.None);
+            Assert.Equal($"[dbo].[E_{entity.Id:N}]", schema.TableName);
+            Assert.Contains($"CREATE TABLE {schema.TableName}", schema.Sql);
+            Assert.Contains("[Data] NVARCHAR(MAX)", schema.Sql);
+            Assert.Contains("newsequentialid()", schema.Sql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("PRIMARY KEY CLUSTERED ([Id] ASC)", schema.Sql);
+            Assert.Contains("CHECK (isjson([Data])=(1))", schema.Sql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"[F_{field.Id:N}] AS", schema.Sql);
+            Assert.Contains("PERSISTED", schema.Sql);
+            Assert.Contains($"INDEX [{index.IndexName}]", schema.Sql);
+            await Assert.ThrowsAsync<NotFoundException>(() => schemaReader.GetAsync(tenant.Id, Guid.Empty, CancellationToken.None));
             await indexService.DeleteAsync(tenant.Id, entity.Id, index.Id, CancellationToken.None);
+            var schemaAfterDelete = await schemaReader.GetAsync(tenant.Id, entity.Id, CancellationToken.None);
+            Assert.DoesNotContain(index.IndexName, schemaAfterDelete.Sql);
+            Assert.DoesNotContain($"F_{field.Id:N}", schemaAfterDelete.Sql);
             Assert.Null((await fieldService.ListAsync(tenant.Id, entity.Id, CancellationToken.None))
                 .Single(item => item.Id == field.Id).IndexColumnName);
             await indexService.CreateAsync(tenant.Id, entity.Id,

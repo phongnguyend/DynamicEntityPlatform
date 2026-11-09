@@ -1,0 +1,27 @@
+@reference "../styles.css";
+
+@layer components {
+  .fields-page > header {
+    @apply flex-wrap items-center;
+  }
+
+  .entity-schema-actions {
+    @apply flex shrink-0 items-center gap-3;
+  }
+
+  .entity-schema-version {
+    @apply inline-flex h-6 items-center whitespace-nowrap rounded-md border border-border bg-white/60 px-2 text-xs font-medium text-muted;
+  }
+
+  .entity-schema-action {
+    @apply h-9 whitespace-nowrap rounded-lg border border-input-border bg-white px-3 py-0 text-sm font-medium text-primary transition-colors;
+  }
+
+  .entity-schema-action:hover {
+    @apply border-primary bg-primary-soft;
+  }
+
+  .entity-schema-action:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+}

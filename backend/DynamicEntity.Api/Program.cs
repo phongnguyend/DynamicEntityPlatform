@@ -58,6 +58,7 @@ var sqlServerOptions = builder.Configuration
     ?? throw new InvalidOperationException("SqlServer configuration is required.");
 
 builder.Services.AddSingleton(sqlServerOptions);
+builder.Services.AddSingleton<IEntitySqlSchemaReader, SqlServerEntitySqlSchemaReader>();
 builder.Services.AddSingleton<SqlServerControlPlaneStore>();
 builder.Services.AddSingleton<IControlPlaneStore>(services => services.GetRequiredService<SqlServerControlPlaneStore>());
 builder.Services.AddSingleton<IControlPlaneInitializer>(services => services.GetRequiredService<SqlServerControlPlaneStore>());
@@ -295,6 +296,13 @@ entities.MapGet("/{entityId:guid}", async (Guid entityId, ITenantContextAccessor
 {
     var tenant = tenantAccessor.GetRequiredTenant();
     return Results.Ok(ToEntityResponse(await service.GetAsync(tenant.TenantId, entityId, cancellationToken)));
+});
+
+entities.MapGet("/{entityId:guid}/sql-schema", async (Guid entityId, ITenantContextAccessor tenantAccessor,
+    IEntitySqlSchemaReader reader, CancellationToken cancellationToken) =>
+{
+    var tenant = tenantAccessor.GetRequiredTenant();
+    return Results.Ok(await reader.GetAsync(tenant.TenantId, entityId, cancellationToken));
 });
 
 entities.MapPatch("/{entityId:guid}", async (Guid entityId, UpdateEntityRequest request,

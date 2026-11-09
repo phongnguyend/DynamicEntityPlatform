@@ -9,6 +9,12 @@ const sqlKeywords = new Set(
   ),
 )
 
+for (const keyword of 'CREATE ALTER TABLE CONSTRAINT PRIMARY KEY FOREIGN REFERENCES CHECK DEFAULT INDEX UNIQUE CLUSTERED NONCLUSTERED INCLUDE PERSISTED COLLATE IDENTITY NVARCHAR VARCHAR MAX DATETIMEOFFSET ROWVERSION TIMESTAMP WITH NOCHECK DISABLE'.split(
+  ' ',
+)) {
+  sqlKeywords.add(keyword)
+}
+
 export function HighlightedCode({
   label,
   value,

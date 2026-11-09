@@ -7,6 +7,7 @@ A metadata-driven, multi-tenant data platform.
 - .NET 10 layered backend and React 19 + TypeScript frontend
 - control database and database-per-tenant provisioning
 - table-per-entity storage with immutable GUID-derived physical names
+- entity SQL schema preview from the Entities list or Fields page, with syntax highlighting and copy
 - database-generated GUID primary keys using SQL Server `NEWSEQUENTIALID()` defaults
 - entity and field lifecycle management without JSON rewrites on rename
 - generated forms and grids for all initial field types

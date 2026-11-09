@@ -35,6 +35,7 @@ for (const [path, trigger] of [
   [`${entityPath}/metrics`, 'Edit JSON'],
   [`${entityPath}/records`, 'Import'],
   [`${entityPath}/fields`, 'Create index'],
+  [`${entityPath}/fields`, 'View SQL schema'],
 ]) {
   test(`dialog button icons: ${trigger}`, async ({ page }) => {
     await page.goto(path)

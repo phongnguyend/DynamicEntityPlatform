@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { EntityIcon, EntityIconPicker } from '../components/EntityIcon'
 import { Modal } from '../components/Modal'
+import { EntitySqlSchemaButton } from '../components/EntitySqlSchemaButton'
 import { pinnedEntities } from '../pinnedEntities'
 import type { Entity } from '../types'
 
@@ -133,6 +134,12 @@ export function EntitiesListPage({
                   }
                 >
                   <EntityLinks entity={entity} onEditIcon={setEditingIcon} />
+                  <EntitySqlSchemaButton
+                    tenantId={tenantId}
+                    entityId={entity.id}
+                    name={entity.displayName}
+                    className="link"
+                  />
                   <button
                     type="button"
                     className="link"
@@ -170,6 +177,12 @@ export function EntitiesListPage({
               {entities.map((entity) => (
                 <EntityRow key={entity.id} entity={entity}>
                   <EntityLinks entity={entity} onEditIcon={setEditingIcon} />
+                  <EntitySqlSchemaButton
+                    tenantId={tenantId}
+                    entityId={entity.id}
+                    name={entity.displayName}
+                    className="link"
+                  />
                   {pinnedIds.includes(entity.id) ? (
                     <button
                       type="button"

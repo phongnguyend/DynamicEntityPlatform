@@ -50,7 +50,6 @@ export function RecordsListPage({ tenantId }: { tenantId: string }) {
           <h2>{entity.displayName}</h2>
           <p>{entity.description}</p>
         </div>
-        <span className="pill">Schema v{entity.schemaVersion}</span>
       </header>
       <EntityTabs entityId={entityId} />
       <div className="panel">

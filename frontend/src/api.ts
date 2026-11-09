@@ -60,8 +60,7 @@ export const api = {
       { method: id ? 'PATCH' : 'POST', body: JSON.stringify(input) },
       tenantId,
     ),
-  deleteGlobalView: (tenantId: string, id: string) =>
-    request<void>(`/api/views/${id}`, { method: 'DELETE' }, tenantId),
+  deleteGlobalView: (tenantId: string, id: string) => request<void>(`/api/views/${id}`, { method: 'DELETE' }, tenantId),
   globalViewSql: (tenantId: string, definition: GlobalViewSpecification, parameters?: Record<string, unknown>) =>
     request<SqlPreview>(
       '/api/views/sql',
@@ -92,6 +91,8 @@ export const api = {
     }),
   disableTenant: (tenantId: string) => request<void>(`/api/tenants/${tenantId}/disable`, { method: 'POST' }),
   entities: (tenantId: string) => request<Entity[]>('/api/entities', {}, tenantId),
+  entitySqlSchema: (tenantId: string, entityId: string) =>
+    request<{ tableName: string; sql: string }>(`/api/entities/${entityId}/sql-schema`, {}, tenantId),
   createEntity: (tenantId: string, input: { name: string; displayName: string; description?: string }) =>
     request<Entity>('/api/entities', { method: 'POST', body: JSON.stringify(input) }, tenantId),
   // An omitted member leaves the stored value alone; an empty icon clears it.

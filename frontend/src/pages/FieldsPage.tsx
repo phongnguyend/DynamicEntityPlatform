@@ -3,7 +3,9 @@ import { EntityDesigner } from '../components/EntityDesigner'
 import { FieldManager } from '../components/FieldManager'
 import { IndexManager } from '../components/IndexManager'
 import { EntityTabs } from '../components/EntityTabs'
+import { EntitySqlSchemaButton } from '../components/EntitySqlSchemaButton'
 import { useEntityContext } from './useEntityContext'
+import './FieldsPage.css'
 
 export function FieldsPage({ tenantId }: { tenantId: string }) {
   const { entityId = '' } = useParams()
@@ -20,14 +22,22 @@ export function FieldsPage({ tenantId }: { tenantId: string }) {
   }
 
   return (
-    <section className="page">
+    <section className="page fields-page">
       <header>
         <div>
           <p className="eyebrow">Entity</p>
           <h2>{entity.displayName}</h2>
           <p>{entity.description}</p>
         </div>
-        <span className="pill">Schema v{entity.schemaVersion}</span>
+        <div className="entity-schema-actions">
+          <span className="entity-schema-version">Schema v{entity.schemaVersion}</span>
+          <EntitySqlSchemaButton
+            tenantId={tenantId}
+            entityId={entityId}
+            name={entity.displayName}
+            className="entity-schema-action"
+          />
+        </div>
       </header>
       <EntityTabs entityId={entityId} />
       <div className="workspace-grid">

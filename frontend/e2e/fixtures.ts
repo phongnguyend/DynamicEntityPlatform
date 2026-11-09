@@ -106,6 +106,12 @@ export const test = base.extend<{
           : undefined
         requests.push({ method, path, body })
         const respond = (json: unknown) => route.fulfill({ json })
+        if (method === 'GET' && /^\/api\/entities\/[^/]+\/sql-schema$/.test(path)) {
+          return respond({
+            tableName: '[dbo].[E_customer]',
+            sql: 'CREATE TABLE [dbo].[E_customer] (\n    [Id] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),\n    [Data] NVARCHAR(MAX) NOT NULL,\n    CONSTRAINT [PK_E_customer] PRIMARY KEY ([Id])\n);',
+          })
+        }
         if (path === '/api/entities/customer/imports' && method === 'POST') {
           return respond({ id: 'import', fileName: 'customers.csv', columns: ['FirstName'], status: 'Uploaded' })
         }
