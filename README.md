@@ -4,7 +4,7 @@ A metadata-driven, multi-tenant data platform.
 
 ## Capabilities
 
-- .NET 10 layered backend and React 19 + TypeScript frontend
+- .NET 11 layered backend and React 19 + TypeScript frontend
 - control database and database-per-tenant provisioning
 - table-per-entity storage with immutable GUID-derived physical names
 - entity SQL schema preview from the Entities list or Fields page, with syntax highlighting and copy
@@ -60,7 +60,7 @@ on an alert with no SMTP host configured is marked failed with that reason in th
 
 ## Prerequisites
 
-- .NET SDK 10
+- .NET SDK 11
 - Node.js 24+
 - SQL Server reachable by the API identity
 - A pre-created control database and one pre-created database per tenant
